@@ -1,4 +1,4 @@
-# Grimpe 8.2 — l'app d'escalade, version complète
+# Grimpe 8.3 — l'app d'escalade, version complète
 
 Même usage que l'app 6.5 : le programme s'écrit dans **Programme.xlsx**, l'app sur l'iPhone sert à faire les séances, un outil Python sur le PC fait le rapport. Même stack : HTML/CSS/JS sans dépendance, PWA sur GitHub Pages, données sur le téléphone, Python + openpyxl.
 
@@ -6,6 +6,24 @@ Deux couches ont été refaites, dans cet ordre :
 
 1. **La structure** (v7) — un seul document versionné, un seul format d'export, les règles de calcul écrites une seule fois, une grammaire explicite, un identifiant stable par séance, des dates en jours entiers, des modules et des tests.
 2. **Le point de vue du grimpeur** (v8) — pendant la séance l'app ne demande rien, une voie se note en la touchant, l'app se souvient des voies et des projets, la sauvegarde se fait toute seule, le programme est dans le calendrier, les progrès tiennent en trois phrases.
+
+## Version 8.3 — modifier et supprimer salles, secteurs et voies
+
+**Une règle pour supprimer** : l'action est faite tout de suite et un message « Annuler » reste 8 secondes (puis Plus › Annuler). Plus de boîte de confirmation. Quand il y a un vrai choix à faire, une fenêtre le pose :
+- **une voie avec des passages** : supprimer la voie en gardant ses passages (détachés de la voie, avec leur couleur et leur cotation) ou avec ses passages ;
+- **un secteur avec des voies** : garder les voies (sans secteur), ou les supprimer aussi, en gardant ou non leurs passages ;
+- **une salle avec des passages** : ses voies partent avec elle ; ses passages sont gardés ou supprimés ;
+- plusieurs voies sélectionnées : même choix que pour une voie.
+
+**Fiche de voie** : un résumé en haut, puis une ligne par réglage (discipline, couleur, cotation, profil, secteur, nom, salle, historique) qu'on touche pour la modifier. En bas : ★ À essayer, ⧉ Dupliquer, Démontée (Remonter en tête pour une voie démontée), et Supprimer à part. « Salle » permet de déplacer une voie notée dans la mauvaise salle : ses passages suivent. Depuis la séance : « Modifier la voie ».
+
+**Secteurs** : toucher l'en-tête d'un secteur l'ouvre ; ↑ Monter / ↓ Descendre ; Renouveler et Supprimer dans une zone séparée.
+
+**Salles** : ✎ à côté de chaque salle dans la liste ; nom et type en haut, « Façon de coter » et « Couleurs propres » repliées ; une couleur propre se renomme ou change de teinte (voies, passages et équivalences suivent) et se supprime si plus aucune voie ne l'utilise.
+
+**Sélectionner** (ex-Classer) : plusieurs voies → Secteur, Profil, Cotation, Démonter, Supprimer ; « Tout » par secteur.
+
+Fonctions dans `js/salles.js` (`supprimerVoies`, `supprimerSecteur`, `supprimerSalle`, `dupliquerVoie`, `deplacerVoieSalle`, `deplacerSecteur`, `renommerCouleur`, `supprimerCouleur`), testées dans `tests/salles.test.js`.
 
 ## Version 8.2 — ce qui revient de la 6.4, sans rien retirer de la 8
 
@@ -60,7 +78,7 @@ js/
   html.js       gabarit HTML qui échappe tout
   ecrans/       seance.js  programme.js  progres.js  plus.js  mur.js  editeur.js  fenetres.js
 outil/grimpe.py Programme.xlsx → data.js + programme.ics ; export (fichier ou --github) → Suivi.xlsx, report des modifs, ics aux dates réelles
-tests/          *.test.js (node --test, 41 tests) ; navigateur/smoke.py (parcours complet dans Chrome) ; navigateur/mise_a_jour.py
+tests/          *.test.js (node --test, 47 tests) ; navigateur/smoke.py (parcours complet dans Chrome) ; navigateur/mise_a_jour.py
 Programme.xlsx  ton programme (identifiants et syntaxe convertis au premier passage de l'outil)
 ```
 
@@ -135,7 +153,7 @@ Changer le schéma = ajouter une entrée dans `MIGRATIONS` de `store.js` et incr
 ## Tests
 
 ```
-npm test                                 # 41 tests : parseur (aller-retour), dates, programme effectif, états, clôture, analyse, projection, phrases, store, migrations, sync
+npm test                                 # 47 tests : parseur (aller-retour), dates, programme effectif, états, clôture, analyse, projection, phrases, store, migrations, sync
 python tests/navigateur/smoke.py         # Chrome : salle avec cotation par couleurs, secteurs, voies, glisser-déposer ; séance sans questionnaire, forme en un appui,
                                          # voies en un appui, nouvelle voie, curseur, repos, douleur, bilan ; carte « hier » ; éditeur structuré et {mesure} ;
                                          # progrès (phrases, projets) ; passages hors app ; grand affichage ; calendrier ; export, rechargement, effacement, restauration
