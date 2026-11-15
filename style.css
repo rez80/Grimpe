@@ -213,3 +213,6 @@ a.bouton { display: inline-block; background: var(--carte); border: 1px solid va
 
 /* Grand affichage */
 html.grand { font-size: 19px; } html.grand button { min-height: 48px; } html.grand .tuile-voie b { font-size: 24px; } html.grand .mn-temps { font-size: 80px; } html.grand .etape-txt .titre { font-size: 19px; }
+
+/* Champ secret (jeton) : masqué sauf pendant la saisie ; type texte pour que le collage marche sur iPhone (pas de trousseau iCloud) */
+input.secret:not(:focus) { -webkit-text-security: disc; }
