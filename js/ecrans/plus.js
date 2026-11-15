@@ -39,13 +39,13 @@ function menu(ctx) {
 function sauvegarde(ctx) {
   const { doc } = ctx, n = Object.values(doc.seances).filter(s => s.fin).length, cfg = doc.reglages.sync || {}, jeton = lireJeton(), sync = doc.derniereSync;
   return { titre: h`<b>Sauvegarde</b>`, html: h`
-    <div class="carte"><h2>Automatique · GitHub</h2><p class="petit">Après chaque séance, l'app pousse son document dans un dépôt <b>privé</b> à toi : rien à installer, l'historique git garde chaque version, et l'outil PC le lit directement (<code>grimpe.py rapport --github</code>). Le jeton reste sur ce téléphone, jamais dans le document ni dans les exports.</p>
-      <label class="champ">Dépôt (propriétaire / nom)</label><div class="ed-rangee"><input type="text" value="${cfg.owner || ""}" placeholder="red" data-act="syncChamp" data-cle="owner" autocapitalize="off"><input type="text" value="${cfg.repo || ""}" placeholder="grimpe-donnees" data-act="syncChamp" data-cle="repo" autocapitalize="off"></div>
-      <label class="champ">Chemin du fichier</label><input type="text" value="${cfg.chemin || "grimpe/grimpe.json"}" data-act="syncChamp" data-cle="chemin" autocapitalize="off">
-      <label class="champ">Jeton (fine-grained, « Contents : Read and write » sur ce seul dépôt)</label><input type="password" value="${jeton}" placeholder="github_pat_…" data-act="syncJeton" autocapitalize="off">
+    <div class="carte"><h2>Automatique · GitHub</h2><p class="petit">Remplis les quatre champs puis « Enregistrer et tester ». Après chaque séance, l'app pousse son document dans un dépôt <b>privé</b> à toi : rien à installer, l'historique git garde chaque version, et l'outil PC le lit directement (<code>grimpe.py rapport --github</code>). Le jeton reste sur ce téléphone, jamais dans le document ni dans les exports.</p>
+      <label class="champ">Dépôt (propriétaire / nom)</label><div class="ed-rangee"><input type="text" value="${cfg.owner || ""}" placeholder="ton-pseudo" data-frappe="syncChamp" data-cle="owner" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"><input type="text" value="${cfg.repo || ""}" placeholder="grimpe-donnees" data-frappe="syncChamp" data-cle="repo" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"></div>
+      <label class="champ">Chemin du fichier</label><input type="text" value="${cfg.chemin || "grimpe/grimpe.json"}" data-frappe="syncChamp" data-cle="chemin" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
+      <label class="champ">Jeton (fine-grained, « Contents : Read and write » sur ce seul dépôt)</label><input type="text" class="secret" value="${jeton}" placeholder="github_pat_…" data-frappe="syncJeton" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
       <div class="ligne-reg"><span>Pousser après chaque séance</span><button class="bascule ${cfg.auto !== false ? "on" : ""}" data-act="syncAuto" aria-label="Automatique"></button></div>
       <p class="petit">${sync ? (sync.ok ? `Dernier envoi : ${new Date(sync.quand).toLocaleString("fr-BE")} ✓` : `Échec le ${new Date(sync.quand).toLocaleString("fr-BE")} : ${sync.erreur}`) : "Jamais envoyé."}</p>
-      <div class="actions"><button data-act="syncRecuperer" ${configValide(cfg) && jeton ? "" : "disabled"}>⬇ Récupérer</button><button class="principal" data-act="syncPousser" ${configValide(cfg) && jeton ? "" : "disabled"}>⬆ Pousser maintenant</button></div></div>
+      <div class="actions"><button data-act="syncRecuperer">⬇ Récupérer</button><button class="principal" data-act="syncPousser">⬆ Enregistrer et tester</button></div></div>
     <div class="carte"><h2>Fichier</h2><p class="petit">Le même document en JSON : ${n} séance${n > 1 ? "s" : ""}, réglages, salles, bilan calculé. Sauvegarde et entrée de l'outil PC (<code>grimpe.py rapport fichier.json</code>).</p>
       <button class="gros principal" data-act="exporter">⬆ Exporter (partager)</button>
       <p class="petit">${doc.dernierExport ? `Dernier export : ${new Date(doc.dernierExport).toLocaleString("fr-BE")}` : "Jamais exporté."}</p>
@@ -124,6 +124,13 @@ Planche (s) {mesure planche}</pre>
   return { titre: h`<b>Aide</b>`, html: h`<div class="choix compact filtre"><button data-act="ouvrirAide" data-k="principe" class="${k === "principe" ? "choisi" : ""}">Principe</button><button data-act="ouvrirAide" data-k="syntaxe" class="${k === "syntaxe" ? "choisi" : ""}">Syntaxe</button><button data-act="ouvrirAide" data-k="donnees" class="${k === "donnees" ? "choisi" : ""}">Données</button></div><div class="carte aide">${S[k]}</div>` };
 }
 
+// Relit les champs tels qu'affichés (au cas où une frappe n'aurait pas encore été enregistrée) et les enregistre
+function relireChamps(ctx) {
+  const champs = [...document.querySelectorAll("[data-frappe=syncChamp]")].reduce((o, el) => ({ ...o, [el.dataset.cle]: el.value.trim() }), {});
+  if (Object.keys(champs).length) ctx.modifier("réglage sync", x => { x.reglages.sync = { ...(x.reglages.sync || {}), ...champs }; }, { annulable: false });
+  const j = document.querySelector("[data-frappe=syncJeton]"); if (j) ecrireJeton(j.value.replace(/\s+/g, ""));
+}
+const manqueSync = ctx => { const c = ctx.doc.reglages.sync || {}; return !c.owner ? "Indique ton pseudo GitHub (propriétaire)." : !c.repo ? "Indique le nom du dépôt." : !c.chemin ? "Indique le chemin du fichier." : !lireJeton() ? "Colle le jeton (github_pat_…)." : ""; };
 const cotationVide = () => ({ Voie: { mode: "standard", liste: [] }, Bloc: { mode: "standard", liste: [] } });
 export const actions = {
   ouvrirVue: (ctx, d) => ctx.ouvrir(d.vue),
@@ -133,11 +140,12 @@ export const actions = {
   importFichier: async (ctx, d, el) => { const f = el.files && el.files[0]; if (!f) return;
     try { const obj = await lireFichier(f), v = verifierImport(obj, ctx.data); ctx.ouvrirModal({ type: "import", ...v, source: "fichier" }); } catch (e) { alert(e.message); } el.value = ""; },
   reinitTout: ctx => { if (!confirm("Effacer TOUTES les données de l'app sur ce téléphone ?") || !confirm("Vraiment ? As-tu une sauvegarde ?")) return; ctx.store.reinitialiser(); ctx.state.seanceId = null; ctx.ouvrir("seance"); },
-  syncChamp: (ctx, d, el) => { ctx.modifier("réglage sync", x => { x.reglages.sync = { ...(x.reglages.sync || {}), [d.cle]: el.value.trim() }; }, { annulable: false }); ctx.rendre(); },
-  syncJeton: (ctx, d, el) => { ecrireJeton(el.value.trim()); ctx.rendre(); },
+  // Ces champs s'enregistrent à chaque frappe et ne redessinent jamais l'écran (sinon le champ suivant disparaît sous le doigt)
+  syncChamp: (ctx, d, el) => { ctx.modifier("réglage sync", x => { x.reglages.sync = { ...(x.reglages.sync || {}), [d.cle]: el.value.trim() }; }, { annulable: false }); },
+  syncJeton: (ctx, d, el) => { ecrireJeton(el.value.replace(/\s+/g, "")); },
   syncAuto: ctx => { ctx.modifier("réglage sync", x => { x.reglages.sync = { ...(x.reglages.sync || {}), auto: x.reglages.sync.auto === false }; }, { annulable: false }); ctx.rendre(); },
-  syncPousser: async ctx => { await ctx.synchroniser("manuel", true); ctx.rendre(); },
-  syncRecuperer: async ctx => { try { const s = creerSync({ config: ctx.doc.reglages.sync, jeton: lireJeton() }), lu = await s.lire(); if (!lu) return ctx.toast("Rien sur GitHub pour l'instant.");
+  syncPousser: async ctx => { relireChamps(ctx); const manque = manqueSync(ctx); if (manque) { ctx.toast(manque); return; } ctx.toast("Envoi vers GitHub…"); await ctx.synchroniser("manuel", true); ctx.rendre(); },
+  syncRecuperer: async ctx => { relireChamps(ctx); const manque = manqueSync(ctx); if (manque) { ctx.toast(manque); return; } try { const s = creerSync({ config: ctx.doc.reglages.sync, jeton: lireJeton() }), lu = await s.lire(); if (!lu) return ctx.toast("Rien sur GitHub pour l'instant.");
       const v = verifierImport(lu.contenu, ctx.data); ctx.ouvrirModal({ type: "import", ...v, source: "GitHub" }); } catch (e) { alert(e.message); } },
   filtreCat: (ctx, d) => { ctx.state.filtre.cat = d.valeur; ctx.rendre(); },
   filtreDemontees: ctx => { ctx.state.filtre.demontees = !ctx.state.filtre.demontees; ctx.rendre(); },
