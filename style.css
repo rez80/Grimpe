@@ -260,3 +260,15 @@ input.secret:not(:focus) { -webkit-text-security: disc; }
 .pastille-seance.etat-avenir { opacity: .5; }
 /* Le message du bas ne recouvre pas le minuteur plein écran */
 #minuteur.plein ~ #toast { top: calc(12px + var(--haut)); bottom: auto; }
+
+/* ===== v8.3 : modifier et supprimer ===== */
+.fiche-tete { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; } .fiche-tete h2 { margin: 0; } .fiche-tete p { margin: 2px 0; }
+.tuile-voie.apercu { width: 84px; min-height: 64px; flex-shrink: 0; cursor: default; }
+.fiche-ligne { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; background: none; border: none; border-bottom: 1px solid var(--trait); border-radius: 0; padding: 12px 2px; min-height: 48px; text-align: left; }
+.fiche-ligne .val { color: var(--texte-2); font-size: 15px; text-align: right; } .fiche-contenu { padding: 6px 0 10px; border-bottom: 1px solid var(--trait); }
+.fiche-actions { display: flex; gap: 8px; margin-top: 10px; } .fiche-actions button { flex: 1; font-size: 14px; }
+.zone-danger { margin-top: 18px; padding-top: 12px; border-top: 1px dashed var(--trait); display: flex; flex-direction: column; gap: 8px; } .zone-danger button { width: 100%; }
+.secteur-nom { display: flex; align-items: baseline; gap: 6px; background: none; border: none; padding: 6px 2px; min-height: 40px; text-align: left; flex: 1; } .secteur-nom .crayon { color: var(--texte-2); font-size: 14px; }
+.item-double { display: flex; border-bottom: 1px solid var(--trait); } .item-double:last-child { border-bottom: none; } .item-double .item { flex: 1; border-bottom: none; } .item-edit { width: 52px; border: none; border-left: 1px solid var(--trait); border-radius: 0; background: none; font-size: 18px; color: var(--texte-2); }
+.equiv-ligne input[type=color] { width: 44px; height: 40px; padding: 2px; border: 1px solid var(--trait); border-radius: 8px; background: var(--carte); flex-shrink: 0; } .equiv-ligne input[type=text] { flex: 1; width: auto; }
+.barre-classer { flex-direction: column; align-items: stretch; } .barre-haut { display: flex; align-items: center; justify-content: space-between; padding-left: 6px; } .barre-actions { display: flex; gap: 6px; flex-wrap: wrap; } .barre-actions button { flex: 1 1 auto; }

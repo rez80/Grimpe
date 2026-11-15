@@ -3,7 +3,7 @@ import { h, si, choix, echelle, brut, pictoProfil as dessinProfil } from "../htm
 import { discipline, etapesSeance, nouvelId, idsAPauser, opsCopieSeance, opsCopieSemaine } from "../programme.js";
 import { RES_LABEL, ajouterTentative, cleRattachement, actions as ACTIONS_SEANCE } from "./seance.js";
 import { court, semaineDe, nomJour, ajouterJours } from "../dates.js";
-import { salleDe, couleursDe, hexDe, texteSur, cotationDe, cotApp, nouvelleVoie, voieExistante, tentativeDe, libelleVoie, secteurDe, renouveler, profilHabituel, ranger } from "../salles.js";
+import { salleDe, couleursDe, hexDe, texteSur, cotationDe, cotApp, nouvelleVoie, voieExistante, tentativeDe, libelleVoie, secteurDe, renouveler, profilHabituel, ranger, passagesDe, supprimerVoies, dupliquerVoie, deplacerVoieSalle, deplacerSecteur, supprimerSecteur, supprimerSalle, renommerCouleur, supprimerCouleur, voiesDeCouleur } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, causePrincipale } from "../analyse.js";
 import * as editeur from "./editeur.js";
 
@@ -45,7 +45,7 @@ export function rendre(ctx) {
       ${!M.res ? h`<div class="rapide-btns"><button class="ok" data-act="voieRapideRes" data-res="ok">✓ ${M.disc === "Bloc" ? "Réussi" : "Enchaînée"}</button>${si(M.disc === "Voie", h`<button class="sec" data-act="voieRapideRes" data-res="sec">Avec sec</button>`)}<button class="ko" data-act="voieRapideRes" data-res="ko">✗ Pas ${M.disc === "Bloc" ? "réussi" : "réussie"}</button></div>`
         : M.res === "sec" ? h`<label class="champ">Combien de « sec » ?</label><div class="choix echelle">${[1, 2, 3, 4, 5, 6].map(n => h`<button data-act="voieRapideOk" data-sec="${n}">${n}</button>`)}</div>`
         : h`<label class="champ">Pourquoi ? <span class="petit">(un appui enregistre)</span></label><div class="choix">${CAUSES.map(c => h`<button data-act="voieRapideOk" data-cause="${c}">${c}</button>`)}<button data-act="voieRapideOk" data-cause="">Sans dire</button></div>`}
-      <div class="actions"><button data-act="mFermer">Annuler</button><button data-act="etoileFenetre" data-id="${v.id}" data-salle="${salle.id}">${v.etoile ? "★ À essayer" : "☆ À essayer"}</button><button data-act="voieEditerDepuis" data-id="${v.id}">Fiche</button></div>`; }
+      <div class="actions"><button data-act="mFermer">Annuler</button><button data-act="etoileFenetre" data-id="${v.id}" data-salle="${salle.id}">${v.etoile ? "★ À essayer" : "☆ À essayer"}</button><button data-act="voieEditerDepuis" data-id="${v.id}">Modifier la voie</button></div>`; }
 
     case "nouvelleVoie": { const salle = salleDe(doc, M.salleId), c = cotationDe(salle, M.disc);
       const apercu = { disc: M.disc, couleur: M.couleur, cotSalle: M.cotSalle, cot: cotApp(salle, M.disc, M.cotSalle, M.couleur), nom: M.nom }, existe = voieExistante(salle, apercu), pret = M.couleur || M.cotSalle || M.nom;
@@ -122,31 +122,56 @@ export function rendre(ctx) {
     case "pause": return h`<h2>Mettre le programme en pause</h2><p class="petit">Toutes les séances à partir de la semaine ${M.depuis} sont décalées.</p>
       <label class="champ">Nombre de semaines</label>${echelle("mChamp", 4, M.n, { data: { champ: "n" } })}<p class="petit">Les séances déjà commencées, faites ou sautées restent à leur date.</p>${actionsBas("Décaler", "pauseOk")}`;
 
-    case "salle": { const sl = M.id ? salleDe(doc, M.id) : null;
-      const modeDisc = disc => h`<label class="champ">Façon de coter · ${disc}</label>${choix("mMode", [["standard", "Comme l'app"], ["liste", "Ses niveaux"], ["couleurs", "Par couleurs"], ["aucune", "Aucune"]], M.cotation[disc].mode, { data: { disc }, classe: "compact" })}
-        ${si(M.cotation[disc].mode === "liste" || M.cotation[disc].mode === "couleurs", h`<div class="equiv">${M.cotation[disc].liste.map((x, i) => h`<div class="equiv-ligne"><span>${M.cotation[disc].mode === "couleurs" ? h`<span class="pastille" style="background:${hexDe(doc, x.salle, sl)}"></span> ` : ""}${x.salle}</span><input type="text" list="echelle-${disc}" placeholder="≈ app" value="${x.app || ""}" data-act="mEquiv" data-disc="${disc}" data-i="${i}"><button data-act="mEquivSuppr" data-disc="${disc}" data-i="${i}">✕</button></div>`)}
+    case "salle": { const sl = M.id ? salleDe(doc, M.id) : null, nb = sl ? sl.voies.length : 0;
+      const modeDisc = disc => h`<label class="champ">${disc === "Voie" ? "Voies" : "Blocs"}</label>${choix("mMode", [["standard", "Comme l'app"], ["liste", "Ses niveaux"], ["couleurs", "Par couleurs"], ["aucune", "Aucune"]], M.cotation[disc].mode, { data: { disc }, classe: "compact" })}
+        ${si(M.cotation[disc].mode === "liste" || M.cotation[disc].mode === "couleurs", () => h`<div class="equiv">${M.cotation[disc].liste.map((x, i) => h`<div class="equiv-ligne"><span>${M.cotation[disc].mode === "couleurs" ? h`<span class="pastille" style="background:${hexDe(doc, x.salle, sl)}"></span> ` : ""}${x.salle}</span><input type="text" list="echelle-${disc}" placeholder="≈ app" value="${x.app || ""}" data-act="mEquiv" data-disc="${disc}" data-i="${i}"><button data-act="mEquivSuppr" data-disc="${disc}" data-i="${i}" aria-label="Retirer">✕</button></div>`)}
           ${M.cotation[disc].mode === "couleurs" ? h`<div class="pastilles">${couleursDe(sl).filter(c => !M.cotation[disc].liste.some(x => x.salle === c.nom)).map(c => h`<button data-act="mEquivAjout" data-disc="${disc}" data-valeur="${c.nom}" class="pastille" style="background:${c.hex}" title="${c.nom}"></button>`)}</div>`
             : h`<div class="ajout"><input type="text" placeholder="Niveau affiché par la salle (ex. 5+, bleu, N3)" data-champ="nouveau-${disc}" value="${M["nouveau-" + disc] || ""}"><button data-act="mEquivAjout" data-disc="${disc}">+</button></div>`}
           <datalist id="echelle-${disc}">${data.echelles[disc].map(c => h`<option value="${c}">`)}</datalist></div>`)}`;
-      return h`<h2>${M.id ? "Salle" : "Nouvelle salle"}</h2><label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom}"><label class="champ">Type</label>${choix("mChamp", ["Bloc", "Voie", "Bloc et voie"], M.typeSalle, { data: { champ: "typeSalle" } })}
-      ${si(M.typeSalle !== "Bloc", modeDisc("Voie"))}${si(M.typeSalle !== "Voie", modeDisc("Bloc"))}
-      ${si(M.id, () => h`<label class="champ">Couleurs propres à la salle</label><div class="pastilles">${(sl.couleurs || []).map(c => h`<span class="pastille" style="background:${c.hex}" title="${c.nom}"></span>`)}</div><div class="ajout"><input type="text" data-champ="coulNom" placeholder="Nom" value="${M.coulNom || ""}"><input type="color" data-champ="coulHex" value="${M.coulHex || "#888888"}"><button data-act="salleCouleur">+</button></div>`)}
-      <div class="actions">${si(M.id, h`<button class="danger" data-act="salleSupprimer">Supprimer</button>`)}<button data-act="mFermer">Annuler</button><button class="principal" data-act="salleOk" ${M.nom ? "" : "disabled"}>Enregistrer</button></div>`; }
+      const resumeCot = ["Voie", "Bloc"].filter(d => M.typeSalle === "Bloc et voie" || M.typeSalle === d).map(d => `${d === "Voie" ? "voies" : "blocs"} : ${{ standard: "comme l'app", liste: "ses niveaux", couleurs: "par couleurs", aucune: "aucune" }[M.cotation[d].mode]}`).join(" · ");
+      return h`<h2>${M.id ? "Modifier la salle" : "Nouvelle salle"}</h2><label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom}" placeholder="Nom de la salle">
+      <label class="champ">Type</label>${choix("mChamp", ["Bloc", "Voie", "Bloc et voie"], M.typeSalle, { data: { champ: "typeSalle" } })}
+      <button class="fiche-ligne" data-act="mSection" data-k="cot"><span>Façon de coter</span><span class="val">${resumeCot} ${M.section === "cot" ? "▾" : "›"}</span></button>
+      ${si(M.section === "cot", () => h`<div class="fiche-contenu">${si(M.typeSalle !== "Bloc", () => modeDisc("Voie"))}${si(M.typeSalle !== "Voie", () => modeDisc("Bloc"))}</div>`)}
+      ${si(M.id, () => h`<button class="fiche-ligne" data-act="mSection" data-k="coul"><span>Couleurs propres à la salle</span><span class="val">${(sl.couleurs || []).length || "aucune"} ${M.section === "coul" ? "▾" : "›"}</span></button>
+        ${si(M.section === "coul", () => h`<div class="fiche-contenu">${(sl.couleurs || []).map(c => h`<div class="equiv-ligne"><input type="color" value="${c.hex}" data-act="couleurTeinte" data-nom="${c.nom}"><input type="text" value="${c.nom}" data-act="couleurNom" data-nom="${c.nom}"><button data-act="couleurSuppr" data-nom="${c.nom}" aria-label="Supprimer">✕</button></div>`)}
+          <div class="ajout"><input type="text" data-champ="coulNom" placeholder="Nouvelle couleur (ex. Lilas)" value="${M.coulNom || ""}"><input type="color" data-champ="coulHex" value="${M.coulHex || "#888888"}"><button data-act="salleCouleur">+</button></div></div>`)}`)}
+      <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="salleOk" ${M.nom ? "" : "disabled"}>Enregistrer</button></div>
+      ${si(M.id, () => h`<div class="zone-danger"><button class="danger" data-act="salleSupprimer">Supprimer la salle${nb ? ` et ses ${nb} voie${nb > 1 ? "s" : ""}` : ""}</button></div>`)}`; }
 
-    case "secteur": { const sl = salleDe(doc, M.salleId), n = M.id ? sl.voies.filter(v => v.secteurId === M.id && v.statut !== "demontee").length : 0;
-      return h`<h2>${M.id ? "Secteur" : "Nouveau secteur"}</h2><label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom}" placeholder="Dalle, Toit, Mur du fond…"><label class="champ">Profil habituel</label>${choixProfil("mProfil", M.profil)}
-      ${si(M.id, h`<p class="petit">${n} voie${n > 1 ? "s" : ""} en place. « Renouveler » les passe toutes en démontées (l'historique reste) : à faire quand la salle rouvre le secteur.</p>`)}
-      <div class="actions">${si(M.id, h`<button class="danger" data-act="secteurRenouveler">⟳ Renouveler (${n})</button><button class="danger" data-act="secteurSupprimer">Supprimer</button>`)}<button class="principal" data-act="secteurOk" ${M.nom ? "" : "disabled"}>Enregistrer</button></div>`; }
+    case "secteur": { const sl = salleDe(doc, M.salleId), n = M.id ? sl.voies.filter(v => v.secteurId === M.id && v.statut !== "demontee").length : 0, i = M.id ? sl.secteurs.findIndex(x => x.id === M.id) : -1;
+      return h`<h2>${M.id ? "Modifier le secteur" : "Nouveau secteur"}</h2><label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom}" placeholder="Dalle, Toit, Mur du fond…"><label class="champ">Profil habituel</label>${choixProfil("mProfil", M.profil)}
+      ${si(M.id && sl.secteurs.length > 1, () => h`<label class="champ">Place sur le mur</label><div class="ed-rangee"><button data-act="secteurBouger" data-pas="-1" ${i === 0 ? "disabled" : ""}>↑ Monter</button><button data-act="secteurBouger" data-pas="1" ${i === sl.secteurs.length - 1 ? "disabled" : ""}>↓ Descendre</button><span class="petit">${i + 1} sur ${sl.secteurs.length}</span></div>`)}
+      <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="secteurOk" ${M.nom ? "" : "disabled"}>Enregistrer</button></div>
+      ${si(M.id, () => h`<div class="zone-danger"><button data-act="secteurRenouveler" ${n ? "" : "disabled"}>⟳ Renouveler : ${n} voie${n > 1 ? "s" : ""} démontée${n > 1 ? "s" : ""}</button><button class="danger" data-act="secteurSupprimer">Supprimer le secteur</button></div>`)}`; }
 
     case "voie": { const sl = salleDe(doc, M.salleId), hv = M.id ? parVoie(toutesTentatives(ctx.programme, doc)).find(x => x.voieId === M.id) : null, ts = M.id ? toutesTentatives(ctx.programme, doc).filter(t => t.voieId === M.id).slice(-8).reverse() : [];
-      return h`<h2>${M.id ? "Voie de la salle" : "Nouvelle " + (M.disc === "Bloc" ? "bloc" : "voie")}</h2>
-      ${si(sl.type === "Bloc et voie" && !M.id, h`${choix("mChamp", ["Bloc", "Voie"], M.disc, { data: { champ: "disc" } })}`)}
-      <label class="champ">Couleur</label>${pastilles(ctx, "mCouleur", M.couleur, sl)}${cotationSalle(ctx, sl, M.disc, M)}
-      <label class="champ">Profil</label>${choixProfil("mProfil", M.profil)}<label class="champ">Nom ou repère</label><input type="text" data-champ="nom" value="${M.nom || ""}">
-      ${si(sl.secteurs.length, h`<label class="champ">Secteur</label>${choix("mSecteur", [["", "—"], ...sl.secteurs.map(x => [x.id, x.nom])], M.secteurId || "", { classe: "compact" })}`)}
-      ${si(hv, () => h`<p class="petit"><b>Historique :</b> ${hv.essais} essai${hv.essais > 1 ? "s" : ""}, ${hv.reussies} réussi${hv.reussies > 1 ? "s" : ""}.</p><div class="petit">${ts.map(t => h`<div>${court(t.date)} · ${RES_LABEL[t.res]}${t.cause ? " · " + t.cause : ""}</div>`)}</div>`)}
-      ${si(M.id, () => h`<button class="gros contour" data-act="mBasculeEtoile">${M.etoile ? "★ À essayer (retirer)" : "☆ À essayer à la prochaine séance"}</button>`)}
-      <div class="actions">${M.id ? h`<button class="danger" data-act="voieDemonter">${M.statut === "demontee" ? "Remonter" : "Démontée"}</button>` : h`<button data-act="mFermer">Annuler</button>`}<button class="principal" data-act="voieOk">Enregistrer</button></div>`; }
+      const sec = sl.secteurs.find(x => x.id === M.secteurId), cot = cotationDe(sl, M.disc), autresSalles = doc.salles.filter(x => x.id !== sl.id && (x.type === "Bloc et voie" || x.type === M.disc));
+      const libCot = cot.mode === "couleurs" ? (cotApp(sl, M.disc, "", M.couleur) || "selon la couleur") : M.cotSalle || "—";
+      // En création : tout est ouvert. En modification : une ligne par réglage, on n'ouvre que ce qu'on change.
+      const ligne = (k, label, valeur, contenu) => M.id ? h`<button class="fiche-ligne" data-act="mSection" data-k="${k}"><span>${label}</span><span class="val">${valeur} ${M.section === k ? "▾" : "›"}</span></button>${si(M.section === k, () => h`<div class="fiche-contenu">${contenu()}</div>`)}` : h`<label class="champ">${label}</label>${contenu()}`;
+      return h`${M.id ? h`<div class="fiche-tete"><span class="tuile-voie apercu" style="background:${hexDe(doc, M.couleur, sl)};color:${texteSur(hexDe(doc, M.couleur, sl))}"><b>${M.etoile ? "★ " : ""}${libelleVoie({ cotSalle: M.cotSalle, cot: cotApp(sl, M.disc, M.cotSalle, M.couleur) })}</b>${dessinProfil(M.profil, "picto-tuile")}</span>
+          <div><h2>${M.disc === "Bloc" ? "Bloc" : "Voie"}${M.nom ? " · " + M.nom : ""}</h2><p class="petit">${sl.nom}${sec ? " · " + sec.nom : ""}${M.statut === "demontee" ? " · démontée" : ""}</p>
+          <p class="petit">${hv ? `${hv.essais} essai${hv.essais > 1 ? "s" : ""}, ${hv.reussies} réussi${hv.reussies > 1 ? "s" : ""}` : "jamais tentée"}</p></div></div>
+          ${si(M.statut === "demontee", h`<button class="gros principal" data-act="voieDemonter">Remonter cette voie</button>`)}`
+        : h`<h2>Nouvelle ${M.disc === "Bloc" ? "bloc" : "voie"} · ${sl.nom}</h2>`}
+      ${si(sl.type === "Bloc et voie", () => ligne("disc", "Discipline", M.disc, () => choix("mChamp", ["Voie", "Bloc"], M.disc, { data: { champ: "disc" } })))}
+      ${ligne("couleur", "Couleur", M.couleur || "—", () => pastilles(ctx, "mCouleur", M.couleur, sl))}
+      ${ligne("cot", "Cotation", libCot, () => cotationSalle(ctx, sl, M.disc, M))}
+      ${ligne("profil", "Profil", M.profil || "—", () => choixProfil("mProfil", M.profil))}
+      ${si(sl.secteurs.length, () => ligne("secteur", "Secteur", sec ? sec.nom : "sans secteur", () => choix("mSecteur", [["", "Sans secteur"], ...sl.secteurs.map(x => [x.id, x.nom])], M.secteurId || "", { classe: "compact" })))}
+      ${ligne("nom", "Nom ou repère", M.nom || "—", () => h`<input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`)}
+      ${si(M.id && autresSalles.length, () => ligne("salle", "Salle", sl.nom, () => h`<p class="petit">Voie notée dans la mauvaise salle ? Déplace-la : ses passages la suivent.</p>${choix("mChamp", [[sl.id, sl.nom + " (actuelle)"], ...autresSalles.map(x => [x.id, x.nom])], M.salleCible || sl.id, { data: { champ: "salleCible" }, classe: "compact" })}`))}
+      ${si(hv, () => ligne("histo", "Historique", `${ts.length} dernier${ts.length > 1 ? "s" : ""}`, () => h`<div class="petit">${ts.map(t => h`<div>${court(t.date)} · ${RES_LABEL[t.res]}${t.cause ? " · " + t.cause : ""}</div>`)}</div>`))}
+      <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="voieOk">Enregistrer</button></div>
+      ${si(M.id, () => h`<div class="fiche-actions"><button data-act="mBasculeEtoile">${M.etoile ? "★ À essayer" : "☆ À essayer"}</button><button data-act="voieDupliquer">⧉ Dupliquer</button>${si(M.statut !== "demontee", h`<button data-act="voieDemonter">Démontée</button>`)}</div>
+        <div class="zone-danger"><button class="danger" data-act="voieSupprimer">Supprimer la voie</button></div>`)}`; }
+
+    case "supprimer": return h`<h2>${M.titre}</h2><p class="petit">${M.texte}</p><div class="menu">${M.choix.map((c, i) => h`<button class="${c.danger ? "danger" : ""}" data-act="supprimerChoix" data-i="${i}">${c.label}</button>`)}</div>
+      <p class="petit">Tu pourras annuler juste après.</p><div class="actions"><button data-act="mFermer">Annuler</button></div>`;
+
+    case "selection": return h`<h2>${M.titre}</h2>${M.quoi === "profil" ? choixProfil("selectionAppliquer", "") : cotationSalle(ctx, salleDe(doc, ctx.state.salleId), M.disc, M)}
+      ${si(M.quoi === "cot", () => h`<div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="selectionAppliquer" ${M.cotSalle || M.couleur ? "" : "disabled"}>Appliquer</button></div>`)}${si(M.quoi === "profil", h`<div class="actions"><button data-act="mFermer">Annuler</button></div>`)}`;
 
     case "ajoutRapide": { const sl = salleDe(doc, M.salleId), pret = M.couleur || M.cotSalle;
       return h`<h2>Ajouter plusieurs voies · ${sl.nom}</h2><p class="petit">Par exemple : 4 jaunes en 5b dans le même secteur. Elles s'ajoutent d'un coup ; la fenêtre reste ouverte pour la série suivante.</p>
@@ -261,17 +286,6 @@ export const actions = {
     ctx.toast(`${ids.length} séance${ids.length > 1 ? "s" : ""} décalée${ids.length > 1 ? "s" : ""}${gardees ? ` ; ${gardees} déjà commencée${gardees > 1 ? "s" : ""} ou faite${gardees > 1 ? "s" : ""} reste${gardees > 1 ? "nt" : ""} en place` : ""}`, () => ctx.store.annuler()); },
   mesuresOk: ctx => { const m = M(ctx); ctx.modifier("mesures", d => { d.mesures[m.semaine] = Object.fromEntries(MESURES.map(([k]) => [k, m[k]]).filter(([, v]) => v !== "" && v != null)); }); ctx.fermerModal(); },
   favori: (ctx, d) => { ctx.modifier("favori", x => { const i = x.favoris.indexOf(d.nom); i >= 0 ? x.favoris.splice(i, 1) : x.favoris.push(d.nom); }); ctx.rendre(); },
-  salleOk: ctx => { const m = M(ctx); if (!m.nom) return; ctx.modifier("salle", d => { if (m.id) { const sl = salleDe(d, m.id); Object.assign(sl, { nom: m.nom, type: m.typeSalle, cotation: m.cotation });
-      sl.voies.forEach(v => { v.cot = cotApp(sl, v.disc, v.cotSalle, v.couleur); }); propagerVoies(d, sl); } else d.salles.push({ id: nouvelId("s"), nom: m.nom, type: m.typeSalle, couleurs: [], cotation: m.cotation, secteurs: [], voies: [] }); }); ctx.fermerModal(); },
-  salleCouleur: ctx => { const m = M(ctx); if (!m.coulNom) return; ctx.modifier("couleur de salle", d => { salleDe(d, m.id).couleurs.push({ nom: m.coulNom, hex: m.coulHex || "#888888" }); }); m.coulNom = ""; ctx.rendre(); },
-  salleSupprimer: ctx => { const m = M(ctx); if (!confirm("Supprimer cette salle et ses voies ?")) return; ctx.modifier("salle supprimée", d => { d.salles = d.salles.filter(x => x.id !== m.id); }); ctx.fermerModal(); ctx.ouvrir("salles"); },
-  secteurOk: ctx => { const m = M(ctx); if (!m.nom) return; ctx.modifier("secteur", d => { const sl = salleDe(d, m.salleId); if (m.id) Object.assign(sl.secteurs.find(x => x.id === m.id), { nom: m.nom, profil: m.profil }); else sl.secteurs.push({ id: nouvelId("sec"), nom: m.nom, profil: m.profil || "" }); }); ctx.fermerModal(); },
-  secteurRenouveler: ctx => { const m = M(ctx); if (!confirm("Passer toutes les voies de ce secteur en démontées ?")) return; let n = 0; ctx.modifier("secteur renouvelé", d => { n = renouveler(salleDe(d, m.salleId), m.id, ctx.aujourdhui()); }); ctx.fermerModal(); ctx.toast(`${n} voie${n > 1 ? "s" : ""} démontée${n > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
-  secteurSupprimer: ctx => { const m = M(ctx); ctx.modifier("secteur supprimé", d => { const sl = salleDe(d, m.salleId); sl.secteurs = sl.secteurs.filter(x => x.id !== m.id); sl.voies.forEach(v => { if (v.secteurId === m.id) v.secteurId = null; }); }); ctx.fermerModal(); },
-  voieOk: ctx => { const m = M(ctx); ctx.modifier("voie", d => { const sl = salleDe(d, m.salleId), champs = { couleur: m.couleur || "", cotSalle: m.cotSalle || "", cot: cotApp(sl, m.disc, m.cotSalle, m.couleur), nom: m.nom || "", profil: m.profil || "Vertical", secteurId: m.secteurId || null };
-      if (m.id) { const v = sl.voies.find(x => x.id === m.id); Object.assign(v, champs); if (m.etoile) v.etoile = m.etoile; else delete v.etoile; propagerVoies(d, sl); } else sl.voies.push(nouvelleVoie(sl, { disc: m.disc, ...champs }, ctx.aujourdhui())); });
-    const p = m.precedent; ctx.fermerModal(); if (p && p.type !== "voieRapide") ctx.ouvrirModal(p); },
-  voieDemonter: ctx => { const m = M(ctx); ctx.modifier("voie démontée", d => { const v = salleDe(d, m.salleId).voies.find(x => x.id === m.id); if (v.statut === "demontee") { v.statut = "enPlace"; v.demontee = null; } else { v.statut = "demontee"; v.demontee = ctx.aujourdhui(); } }); ctx.fermerModal(); },
   ajoutRapideOk: ctx => { const m = M(ctx), n = +m.nb || 1;
     ctx.modifier(`${n} voie${n > 1 ? "s" : ""} ajoutée${n > 1 ? "s" : ""}`, d => { const sl = salleDe(d, m.salleId);
       for (let i = 0; i < n; i++) sl.voies.push(nouvelleVoie(sl, { disc: m.disc, couleur: m.couleur, cotSalle: m.cotSalle, profil: m.profil, secteurId: m.secteurId || null }, ctx.aujourdhui())); });
@@ -279,6 +293,57 @@ export const actions = {
   classerSecteurOk: (ctx, d) => { const ids = [...ctx.state.classer], sid = ctx.state.salleId;
     ctx.modifier("voies classées", doc => { const sl = salleDe(doc, sid); ids.forEach(id => ranger(sl, id, d.id || null, null)); });
     ctx.state.classer = null; ctx.fermerModal(); ctx.toast(`${ids.length} voie${ids.length > 1 ? "s" : ""} classée${ids.length > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
+
+  // ---------- Salles, secteurs, voies : modifier, supprimer (toujours avec « Annuler ») ----------
+  mSection: (ctx, d) => { const m = M(ctx); m.section = m.section === d.k ? "" : d.k; ctx.rendre(); },
+  salleOk: ctx => { const m = M(ctx); if (!m.nom) return; ctx.modifier("salle", d => { if (m.id) { const sl = salleDe(d, m.id); Object.assign(sl, { nom: m.nom, type: m.typeSalle, cotation: m.cotation });
+      sl.voies.forEach(v => { v.cot = cotApp(sl, v.disc, v.cotSalle, v.couleur); }); propagerVoies(d, sl); } else d.salles.push({ id: nouvelId("s"), nom: m.nom, type: m.typeSalle, couleurs: [], cotation: m.cotation, secteurs: [], voies: [] }); }); ctx.fermerModal(); },
+  salleCouleur: ctx => { const m = M(ctx); if (!m.coulNom) return; ctx.modifier("couleur de salle", d => { salleDe(d, m.id).couleurs.push({ nom: m.coulNom.trim(), hex: m.coulHex || "#888888" }); }); m.coulNom = ""; ctx.rendre(); },
+  couleurTeinte: (ctx, d, el) => { const m = M(ctx); ctx.modifier("couleur modifiée", doc => renommerCouleur(doc, salleDe(doc, m.id), d.nom, d.nom, el.value)); ctx.rendre(); },
+  couleurNom: (ctx, d, el) => { const m = M(ctx), nom = el.value.trim(); if (!nom || nom === d.nom) return;
+    if (couleursDe(salleDe(ctx.doc, m.id)).some(c => c.nom === nom)) { ctx.toast(`« ${nom} » existe déjà.`); ctx.rendre(); return; }
+    ctx.modifier("couleur renommée", doc => renommerCouleur(doc, salleDe(doc, m.id), d.nom, nom)); ctx.rendre(); },
+  couleurSuppr: (ctx, d) => { const m = M(ctx), n = voiesDeCouleur(salleDe(ctx.doc, m.id), d.nom);
+    if (n) { ctx.toast(`${n} voie${n > 1 ? "s utilisent" : " utilise"} « ${d.nom} » : change d'abord leur couleur.`); return; }
+    ctx.modifier("couleur supprimée", doc => supprimerCouleur(salleDe(doc, m.id), d.nom)); ctx.toast(`Couleur « ${d.nom} » supprimée`, () => ctx.store.annuler()); ctx.rendre(); },
+  salleSupprimer: ctx => { const m = M(ctx), sl = salleDe(ctx.doc, m.id), p = Object.values(ctx.doc.seances).flatMap(sa => sa.tentatives || []).filter(t => t.salle === m.id).length;
+    const faire = passages => { let r; ctx.modifier("salle supprimée", d => { r = supprimerSalle(d, m.id, passages); }); ctx.state.modal = null;
+      if (ctx.state.vue === "salle") ctx.ouvrir("salles"); else ctx.rendre();
+      ctx.toast(`Salle « ${sl.nom} » supprimée${r.voies ? ` avec ${r.voies} voie${r.voies > 1 ? "s" : ""}` : ""}${passages === "supprimer" && r.passages ? ` et ${r.passages} passage${r.passages > 1 ? "s" : ""}` : ""}`, () => ctx.store.annuler()); };
+    if (!p) return faire("garder");
+    ctx.ouvrirModal({ type: "supprimer", titre: `Supprimer « ${sl.nom} »`, texte: `${sl.voies.length} voie${sl.voies.length > 1 ? "s partent" : " part"} avec la salle. ${p} passage${p > 1 ? "s ont été notés" : " a été noté"} dans cette salle.`,
+      choix: [{ label: `Supprimer la salle, garder les ${p} passage${p > 1 ? "s" : ""}`, faire: () => faire("garder") }, { label: `Supprimer la salle et les ${p} passage${p > 1 ? "s" : ""}`, danger: true, faire: () => faire("supprimer") }] }); },
+  secteurOk: ctx => { const m = M(ctx); if (!m.nom) return; ctx.modifier("secteur", d => { const sl = salleDe(d, m.salleId); if (m.id) Object.assign(sl.secteurs.find(x => x.id === m.id), { nom: m.nom, profil: m.profil }); else sl.secteurs.push({ id: nouvelId("sec"), nom: m.nom, profil: m.profil || "" }); }); ctx.fermerModal(); },
+  secteurBouger: (ctx, d) => { const m = M(ctx); ctx.modifier("ordre des secteurs", doc => deplacerSecteur(salleDe(doc, m.salleId), m.id, +d.pas)); ctx.rendre(); },
+  secteurRenouveler: ctx => { const m = M(ctx); let n = 0; ctx.modifier("secteur renouvelé", d => { n = renouveler(salleDe(d, m.salleId), m.id, ctx.aujourdhui()); }); ctx.fermerModal(); ctx.toast(`${n} voie${n > 1 ? "s" : ""} démontée${n > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
+  secteurSupprimer: ctx => { const m = M(ctx), sl = salleDe(ctx.doc, m.salleId), sec = sl.secteurs.find(x => x.id === m.id), ids = sl.voies.filter(v => v.secteurId === m.id).map(v => v.id), n = ids.length, p = passagesDe(ctx.doc, ids);
+    const faire = (voies, passages) => { ctx.modifier("secteur supprimé", d => supprimerSecteur(d, salleDe(d, m.salleId), m.id, voies, passages)); ctx.fermerModal();
+      ctx.toast(`Secteur « ${sec.nom} » supprimé${n ? (voies === "garder" ? ` ; ${n} voie${n > 1 ? "s" : ""} sans secteur` : ` avec ${n} voie${n > 1 ? "s" : ""}${passages === "supprimer" && p ? ` et ${p} passage${p > 1 ? "s" : ""}` : ""}`) : ""}`, () => ctx.store.annuler()); };
+    if (!n) return faire("garder");
+    const s = x => x > 1 ? "s" : "";
+    ctx.ouvrirModal({ type: "supprimer", titre: `Supprimer le secteur « ${sec.nom} »`, texte: `Il contient ${n} voie${s(n)}${p ? `, avec ${p} passage${s(p)} noté${s(p)}` : ""}.`,
+      choix: [{ label: `Garder les ${n} voie${s(n)} (sans secteur)`, faire: () => faire("garder") },
+        ...(p ? [{ label: `Supprimer aussi les voies, garder leurs ${p} passage${s(p)}`, danger: true, faire: () => faire("supprimer", "garder") }, { label: `Supprimer les voies et leurs ${p} passage${s(p)}`, danger: true, faire: () => faire("supprimer", "supprimer") }]
+            : [{ label: `Supprimer aussi les ${n} voie${s(n)}`, danger: true, faire: () => faire("supprimer", "garder") }])] }); },
+  supprimerChoix: (ctx, d) => { const c = M(ctx).choix[+d.i]; c.faire(); },
+  voieOk: ctx => { const m = M(ctx); ctx.modifier("voie", d => { const sl = salleDe(d, m.salleId), champs = { disc: m.disc, couleur: m.couleur || "", cotSalle: m.cotSalle || "", cot: cotApp(sl, m.disc, m.cotSalle, m.couleur), nom: m.nom || "", profil: m.profil || "Vertical", secteurId: m.secteurId || null };
+      if (m.id) { const v = sl.voies.find(x => x.id === m.id); Object.assign(v, champs); if (m.etoile) v.etoile = m.etoile; else delete v.etoile; propagerVoies(d, sl);
+        if (m.salleCible && m.salleCible !== m.salleId) deplacerVoieSalle(d, m.salleId, m.salleCible, m.id); }
+      else sl.voies.push(nouvelleVoie(sl, champs, ctx.aujourdhui())); });
+    const p = m.precedent, partie = m.salleCible && m.salleCible !== m.salleId; ctx.fermerModal(); if (partie) ctx.toast(`Voie déplacée vers « ${salleDe(ctx.doc, m.salleCible).nom} »`, () => ctx.store.annuler()); else if (p && p.type !== "voieRapide") ctx.ouvrirModal(p); },
+  voieDemonter: ctx => { const m = M(ctx), remonter = m.statut === "demontee"; ctx.modifier(remonter ? "voie remontée" : "voie démontée", d => { const v = salleDe(d, m.salleId).voies.find(x => x.id === m.id); if (remonter) { v.statut = "enPlace"; v.demontee = null; } else { v.statut = "demontee"; v.demontee = ctx.aujourdhui(); } });
+    ctx.fermerModal(); ctx.toast(remonter ? "Voie remontée" : "Voie démontée", () => ctx.store.annuler()); },
+  voieDupliquer: ctx => { const m = M(ctx); ctx.modifier("voie dupliquée", d => dupliquerVoie(salleDe(d, m.salleId), m.id, ctx.aujourdhui())); ctx.fermerModal(); ctx.toast("Voie dupliquée", () => ctx.store.annuler()); },
+  voieSupprimer: ctx => { const m = M(ctx), p = passagesDe(ctx.doc, [m.id]);
+    const faire = passages => { ctx.modifier("voie supprimée", d => supprimerVoies(d, salleDe(d, m.salleId), [m.id], passages)); ctx.state.modal = null; ctx.rendre();
+      ctx.toast(`Voie supprimée${p ? (passages === "garder" ? ` ; ${p} passage${p > 1 ? "s" : ""} gardé${p > 1 ? "s" : ""}` : ` avec ${p} passage${p > 1 ? "s" : ""}`) : ""}`, () => ctx.store.annuler()); };
+    if (!p) return faire("garder");
+    ctx.ouvrirModal({ type: "supprimer", titre: "Supprimer la voie", texte: `${p} passage${p > 1 ? "s ont été notés" : " a été noté"} sur cette voie.`,
+      choix: [{ label: `Supprimer la voie, garder ${p > 1 ? `ses ${p} passages` : "son passage"}`, faire: () => faire("garder") }, { label: `Supprimer la voie et ${p > 1 ? `ses ${p} passages` : "son passage"}`, danger: true, faire: () => faire("supprimer") }] }); },
+  selectionAppliquer: (ctx, d) => { const m = M(ctx), ids = [...ctx.state.classer], sid = ctx.state.salleId;
+    ctx.modifier(m.quoi === "profil" ? "profil modifié" : "cotation modifiée", doc => { const sl = salleDe(doc, sid);
+      sl.voies.filter(v => ids.includes(v.id) && (m.quoi === "profil" || v.disc === m.disc)).forEach(v => { if (m.quoi === "profil") v.profil = d.valeur; else { v.cotSalle = m.cotSalle || ""; v.cot = cotApp(sl, v.disc, v.cotSalle, v.couleur); } }); propagerVoies(doc, sl); });
+    ctx.state.classer = null; ctx.fermerModal(); ctx.toast(`${ids.length} voie${ids.length > 1 ? "s" : ""} modifiée${ids.length > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
   passageAncienOk: ctx => { const m = M(ctx); ctx.modifier("passages hors app", d => { for (let i = 0; i < (m.n || 1); i++) d.passagesAnciens.push(nettoyer({ id: nouvelId("pa"), date: m.date, disc: m.disc, cot: m.cot, profil: m.profil, res: m.res, couleur: m.couleur, nom: m.nom, salle: m.salle })); }); ctx.fermerModal(); ctx.toast(`${m.n || 1} passage${m.n > 1 ? "s" : ""} ajouté${m.n > 1 ? "s" : ""}`); },
   nouveauProgrammeOk: ctx => { ctx.modifier("nouveau programme", d => { d.seances = {}; d.ops = []; d.mesures = {}; d.competences = {}; d.feuxVus = {}; d.programmeId = ctx.data.programmeId; }); ctx.state.seanceId = null; ctx.fermerModal(); },
   importOk: ctx => { const m = M(ctx); ctx.store.remplacer(m.doc); ctx.state.seanceId = null; ctx.state.modal = null; ctx.ouvrir("seance"); ctx.toast("Sauvegarde restaurée"); },

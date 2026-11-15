@@ -15,7 +15,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.2";
+export const APP_VERSION = "8.3";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "plus", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
@@ -85,7 +85,7 @@ function rendre(enHaut = false) {
   $("btn-menu").style.visibility = r.menu ? "visible" : "hidden";
   document.body.dataset.activite = r.activite || "";
   $("fond-modal").style.display = state.modal ? "flex" : "none";
-  if (state.modal) $("modal").innerHTML = String(fenetres.rendre(ctx));
+  $("modal").innerHTML = state.modal ? String(fenetres.rendre(ctx)) : "";
   const pastille = $("pastille-plus"), joursExport = store.doc.dernierExport ? (Date.now() - new Date(store.doc.dernierExport)) / 864e5 : 99;
   pastille.style.display = joursExport > 7 ? "" : "none";
   if (enHaut) window.scrollTo(0, state.scroll[state.vue] || 0); else window.scrollTo(0, y);
@@ -94,7 +94,7 @@ function rendre(enHaut = false) {
 function rendreToast() {
   const t = $("toast"); if (!state.toast) { t.style.display = "none"; return; }
   t.innerHTML = String(h`<span>${state.toast.texte}</span>${state.toast.annuler ? h`<button data-act="toastAnnuler">Annuler</button>` : ""}`); t.style.display = "flex";
-  clearTimeout(rendreToast.timer); rendreToast.timer = setTimeout(() => { state.toast = null; rendreToast(); }, 6000);
+  clearTimeout(rendreToast.timer); rendreToast.timer = setTimeout(() => { state.toast = null; rendreToast(); }, 8000);
 }
 
 // --- Actions : chaque écran exporte { rendre, actions } ; un seul écouteur pour tout ---

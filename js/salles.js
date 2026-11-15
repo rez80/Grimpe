@@ -59,3 +59,64 @@ export function profilHabituel(salle, secteurId) {
   const n = {}; (salle ? salle.voies : []).filter(v => (v.secteurId || null) === (secteurId || null) && v.profil).forEach(v => n[v.profil] = (n[v.profil] || 0) + 1);
   return Object.entries(n).sort((a, b) => b[1] - a[1]).map(x => x[0])[0] || "Vertical";
 }
+
+// =====================================================================
+// Modifier et supprimer (fonctions pures sur le document ; l'annulation est assurée par le store)
+// =====================================================================
+const tousLesPassages = doc => Object.values(doc.seances).flatMap(sa => sa.tentatives || []);
+// Nombre de passages notés sur ces voies
+export const passagesDe = (doc, ids) => { const s = new Set(ids); return tousLesPassages(doc).filter(t => t.voieId && s.has(t.voieId)).length; };
+
+// Supprime des voies. passages : "garder" (détachés de la voie, avec leur couleur et leur cotation) ou "supprimer"
+export function supprimerVoies(doc, salle, ids, passages = "garder") {
+  const s = new Set(ids); let n = 0;
+  for (const sa of Object.values(doc.seances)) {
+    if (!sa.tentatives) continue;
+    if (passages === "supprimer") { const avant = sa.tentatives.length; sa.tentatives = sa.tentatives.filter(t => !(t.voieId && s.has(t.voieId))); n += avant - sa.tentatives.length; }
+    else sa.tentatives.forEach(t => { if (t.voieId && s.has(t.voieId)) { delete t.voieId; n++; } });
+  }
+  const avant = salle.voies.length; salle.voies = salle.voies.filter(v => !s.has(v.id));
+  return { voies: avant - salle.voies.length, passages: n };
+}
+// Une voie identique, juste après l'originale
+export function dupliquerVoie(salle, id, aujourdhui) {
+  const v = salle.voies.find(x => x.id === id); if (!v) return null;
+  const copie = { ...v, id: nouvelId("v"), ouverte: aujourdhui, statut: "enPlace", demontee: null }; delete copie.etoile;
+  salle.voies.filter(x => (x.secteurId || null) === (v.secteurId || null) && (x.ordre ?? 0) > (v.ordre ?? 0)).forEach(x => x.ordre = (x.ordre ?? 0) + 1);
+  copie.ordre = (v.ordre ?? 0) + 1; salle.voies.push(copie); return copie;
+}
+// Déplace une voie dans une autre salle (erreur de salle) : ses passages la suivent ; sa cotation app est recalculée avec la façon de coter de la nouvelle salle
+export function deplacerVoieSalle(doc, deId, versId, voieId) {
+  const de = doc.salles.find(x => x.id === deId), vers = doc.salles.find(x => x.id === versId); if (!de || !vers || de === vers) return false;
+  const i = de.voies.findIndex(x => x.id === voieId); if (i < 0) return false;
+  const [v] = de.voies.splice(i, 1); v.secteurId = null; v.cot = cotApp(vers, v.disc, v.cotSalle, v.couleur);
+  v.ordre = Math.max(-1, ...vers.voies.filter(x => !x.secteurId).map(x => x.ordre ?? 0)) + 1; vers.voies.push(v);
+  tousLesPassages(doc).forEach(t => { if (t.voieId === voieId) { t.salle = versId; t.cot = v.cot; } });
+  return true;
+}
+// Secteurs : déplacer dans la liste, supprimer (voies : "garder" → sans secteur, "supprimer" → avec leurs passages gardés ou non)
+export function deplacerSecteur(salle, id, pas) { const i = salle.secteurs.findIndex(x => x.id === id), j = i + pas; if (i < 0 || j < 0 || j >= salle.secteurs.length) return; [salle.secteurs[i], salle.secteurs[j]] = [salle.secteurs[j], salle.secteurs[i]]; }
+export function supprimerSecteur(doc, salle, id, voies = "garder", passages = "garder") {
+  const ids = salle.voies.filter(v => v.secteurId === id).map(v => v.id); let res = { voies: 0, passages: 0 };
+  if (voies === "supprimer") res = supprimerVoies(doc, salle, ids, passages);
+  else { let o = Math.max(-1, ...salle.voies.filter(v => !v.secteurId).map(v => v.ordre ?? 0)); salle.voies.forEach(v => { if (v.secteurId === id) { v.secteurId = null; v.ordre = ++o; } }); }
+  salle.secteurs = salle.secteurs.filter(x => x.id !== id); return res;
+}
+// Supprimer une salle : ses voies partent avec elle ; ses passages sont gardés (détachés) ou supprimés
+export function supprimerSalle(doc, id, passages = "garder") {
+  const salle = doc.salles.find(x => x.id === id); if (!salle) return { voies: 0, passages: 0 };
+  const res = supprimerVoies(doc, salle, salle.voies.map(v => v.id), passages);
+  if (passages === "supprimer") for (const sa of Object.values(doc.seances)) { if (sa.tentatives) { const a = sa.tentatives.length; sa.tentatives = sa.tentatives.filter(t => t.salle !== id); res.passages += a - sa.tentatives.length; } if (sa.salle === id) delete sa.salle; }
+  else for (const sa of Object.values(doc.seances)) if (sa.salle === id) delete sa.salle;
+  for (const k of Object.keys(doc.reglages.salleParDefaut || {})) if (doc.reglages.salleParDefaut[k] === id) doc.reglages.salleParDefaut[k] = "";
+  doc.salles = doc.salles.filter(x => x.id !== id); return { ...res, voies: res.voies };
+}
+// Couleurs propres à une salle : renommer (les voies et passages suivent), supprimer si aucune voie ne l'utilise
+export const voiesDeCouleur = (salle, nom) => salle.voies.filter(v => v.couleur === nom).length;
+export function renommerCouleur(doc, salle, ancien, nom, hex) {
+  const c = (salle.couleurs || []).find(x => x.nom === ancien); if (!c) return;
+  c.nom = nom || ancien; if (hex) c.hex = hex;
+  if (nom && nom !== ancien) { salle.voies.forEach(v => { if (v.couleur === ancien) v.couleur = nom; }); tousLesPassages(doc).forEach(t => { if (t.salle === salle.id && t.couleur === ancien) t.couleur = nom; });
+    Object.values(salle.cotation || {}).forEach(cot => (cot.liste || []).forEach(x => { if (x.salle === ancien) x.salle = nom; })); }
+}
+export function supprimerCouleur(salle, nom) { if (voiesDeCouleur(salle, nom)) return false; salle.couleurs = (salle.couleurs || []).filter(x => x.nom !== nom); return true; }

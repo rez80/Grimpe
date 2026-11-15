@@ -1,6 +1,6 @@
 // ecrans/mur.js — le mur d'une salle : les voies par secteur, en tuiles, rangées au doigt (glisser-déposer).
 import { h, si, pictoProfil } from "../html.js";
-import { salleDe, hexDe, texteSur, ranger, cotationDe, profilHabituel } from "../salles.js";
+import { salleDe, hexDe, texteSur, ranger, cotationDe, profilHabituel, passagesDe, supprimerVoies } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, reussi } from "../analyse.js";
 import { court } from "../dates.js";
 
@@ -13,16 +13,18 @@ export function rendre(ctx) {
   const tuile = v => { const hv = voies.find(x => x.voieId === v.id), hex = hexDe(doc, v.couleur, s);
     return h`<div class="tuile-voie glissable ${classer && classer.has(v.id) ? "selectionnee" : ""}" draggable="false" data-id="${v.id}" data-act="${classer ? "classerBascule" : "voieEditer"}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (v.profil || "").toLowerCase()}</span><span class="tuile-histo">${hv ? `${hv.reussies ? "✓" + (hv.reussies > 1 ? hv.reussies : "") : ""}${hv.essais - hv.reussies ? " ✗" + (hv.essais - hv.reussies) : ""}` : ""}${v.statut === "demontee" ? ` démontée ${v.demontee ? court(v.demontee) : ""}` : ""}</span>${si(!demontees && !classer, h`<span class="poignee" aria-label="Déplacer">⋮⋮</span>`)}</div>`; };
   if (classer) { const n = classer.size;
-    return { titre: h`<b>${s.nom}</b>`, infos: "Classer", html: h`<p class="petit">Touche les voies à classer, puis choisis quoi en faire.</p>
-      ${groupes.filter(g => g.voies.length).map(g => h`<div class="secteur"><div class="secteur-tete"><b>${g.nom}</b></div><div class="tuiles">${g.voies.map(tuile)}</div></div>`)}
-      <div class="barre-classer"><span><b>${n}</b> sélectionnée${n > 1 ? "s" : ""}</span><button data-act="classerSecteur" ${n ? "" : "disabled"}>→ Secteur</button><button data-act="classerDemonter" ${n ? "" : "disabled"}>${demontees ? "Remonter" : "Démontées"}</button><button class="principal" data-act="classerFin">Terminé</button></div>` }; }
+    const dis = n ? "" : "disabled", cotable = ["standard", "liste"].includes(cotationDe(s, filtre || (s.type === "Bloc" ? "Bloc" : "Voie")).mode);
+    return { titre: h`<b>${s.nom}</b>`, infos: "Sélection", html: h`<p class="petit">Touche les voies à modifier ou supprimer ensemble.</p>
+      ${groupes.filter(g => g.voies.length).map(g => h`<div class="secteur"><div class="secteur-tete"><b>${g.nom}</b><span class="ed-outils"><button data-act="selectionSecteurTout" data-secteur="${g.id}">Tout</button></span></div><div class="tuiles">${g.voies.map(tuile)}</div></div>`)}
+      <div class="barre-classer"><div class="barre-haut"><span><b>${n}</b> sélectionnée${n > 1 ? "s" : ""}</span><button class="principal" data-act="classerFin">Terminé</button></div>
+        <div class="barre-actions"><button data-act="classerSecteur" ${dis}>Secteur</button><button data-act="selectionProfil" ${dis}>Profil</button>${si(cotable, h`<button data-act="selectionCot" ${dis}>Cotation</button>`)}<button data-act="classerDemonter" ${dis}>${demontees ? "Remonter" : "Démonter"}</button><button class="danger" data-act="selectionSupprimer" ${dis}>Supprimer</button></div></div>` }; }
   const html = h`<div class="barre-prog"><button class="petit-btn" data-act="salleEditer">✎ Salle</button><button class="petit-btn" data-act="secteurNouveau">+ Secteur</button>
-      ${si(!demontees, h`<button class="petit-btn" data-act="ajoutRapideOuvrir">+ Plusieurs voies</button>`)}<button class="petit-btn" data-act="classerDebut">Classer</button>${si(!demontees, h`<button class="petit-btn ${ranger ? "choisi" : ""}" data-act="rangerBascule">${ranger ? "Ranger : fini" : "Ranger"}</button>`)}
+      ${si(!demontees, h`<button class="petit-btn" data-act="ajoutRapideOuvrir">+ Plusieurs voies</button>`)}<button class="petit-btn" data-act="classerDebut">Sélectionner</button>${si(!demontees, h`<button class="petit-btn ${ranger ? "choisi" : ""}" data-act="rangerBascule">${ranger ? "Ranger : fini" : "Ranger"}</button>`)}
       ${si(s.type === "Bloc et voie", h`<div class="choix compact" style="margin:0">${[["", "Tout"], ["Voie", "Voies"], ["Bloc", "Blocs"]].map(([v, l]) => h`<button data-act="filtreMur" data-valeur="${v}" class="${filtre === v ? "choisi" : ""}">${l}</button>`)}</div>`)}
       <button class="petit-btn ${demontees ? "choisi" : ""}" data-act="filtreDemontees">${demontees ? "En place" : "Démontées"}</button></div>
     <p class="petit">${ranger ? "Mode Ranger : fais glisser les voies où tu veux, puis « Ranger : fini »." : "Touche une voie pour sa fiche. Prends-la par ⋮⋮ (ou passe en mode Ranger) pour la déplacer."}</p>
-    ${groupes.filter(g => g.voies.length || g.id || s.secteurs.length).map(g => h`<div class="secteur" data-secteur="${g.id}"><div class="secteur-tete"><b>${g.nom}</b> <span class="petit">${g.profil ? g.profil.toLowerCase() + " · " : ""}${g.voies.length} voie${g.voies.length > 1 ? "s" : ""}</span>
-        <span class="ed-outils">${si(!demontees, h`<button data-act="voieNouvelle" data-secteur="${g.id}" data-disc="${filtre || (s.type === "Bloc" ? "Bloc" : "Voie")}">+ voie</button>`)}${si(g.id, h`<button data-act="secteurEditer" data-id="${g.id}">✎</button>`)}</span></div>
+    ${groupes.filter(g => g.voies.length || g.id || s.secteurs.length).map(g => h`<div class="secteur" data-secteur="${g.id}"><div class="secteur-tete">${g.id ? h`<button class="secteur-nom" data-act="secteurEditer" data-id="${g.id}"><b>${g.nom}</b> <span class="petit">${g.profil ? g.profil.toLowerCase() + " · " : ""}${g.voies.length} voie${g.voies.length > 1 ? "s" : ""}</span> <span class="crayon">✎</span></button>` : h`<span class="secteur-nom"><b>${g.nom}</b> <span class="petit">${g.voies.length} voie${g.voies.length > 1 ? "s" : ""}</span></span>`}
+        <span class="ed-outils">${si(!demontees, h`<button data-act="voieNouvelle" data-secteur="${g.id}" data-disc="${filtre || (s.type === "Bloc" ? "Bloc" : "Voie")}">+ voie</button>`)}</span></div>
         <div class="tuiles zone-depot" data-secteur="${g.id}">${g.voies.map(tuile)}${si(!g.voies.length, h`<span class="petit depot-vide">déposer ici</span>`)}</div></div>`)}
     ${si(!s.voies.length, h`<p class="petit">Aucune voie. Ajoute-les ici, ou directement pendant une séance avec « + Nouvelle voie ».</p>`)}`;
   document.body.classList.toggle("mode-ranger", !!ranger);
@@ -56,6 +58,18 @@ export const actions = {
   rangerBascule: ctx => { ctx.state.ranger = !ctx.state.ranger; ctx.rendre(); },
   classerDebut: ctx => { ctx.state.ranger = false; ctx.state.classer = new Set(); ctx.rendre(); },
   classerFin: ctx => { ctx.state.classer = null; ctx.rendre(); },
+  selectionSecteurTout: (ctx, d) => { const s = salleDe(ctx.doc, ctx.state.salleId), dem = !!ctx.state.filtre.demontees, f = ctx.state.filtre.mur || "";
+    const ids = s.voies.filter(v => (v.secteurId || "") === d.secteur && (dem ? v.statut === "demontee" : v.statut !== "demontee") && (!f || v.disc === f)).map(v => v.id), c = ctx.state.classer;
+    if (ids.every(id => c.has(id))) ids.forEach(id => c.delete(id)); else ids.forEach(id => c.add(id)); ctx.rendre(); },
+  selectionProfil: ctx => ctx.ouvrirModal({ type: "selection", quoi: "profil", titre: `Profil de ${ctx.state.classer.size} voie${ctx.state.classer.size > 1 ? "s" : ""}` }),
+  selectionCot: ctx => { const s = salleDe(ctx.doc, ctx.state.salleId), disc = ctx.state.filtre.mur || (s.type === "Bloc" ? "Bloc" : "Voie");
+    ctx.ouvrirModal({ type: "selection", quoi: "cot", disc, cotSalle: "", chiffre: "", titre: `Cotation de ${ctx.state.classer.size} ${disc === "Bloc" ? "bloc" : "voie"}${ctx.state.classer.size > 1 ? "s" : ""}` }); },
+  selectionSupprimer: ctx => { const ids = [...ctx.state.classer], sid = ctx.state.salleId, p = passagesDe(ctx.doc, ids), n = ids.length, s = x => x > 1 ? "s" : "";
+    const faire = passages => { ctx.modifier(`${n} voie${s(n)} supprimée${s(n)}`, d => supprimerVoies(d, salleDe(d, sid), ids, passages)); ctx.state.classer = null; ctx.state.modal = null; ctx.rendre();
+      ctx.toast(`${n} voie${s(n)} supprimée${s(n)}${p ? (passages === "garder" ? ` ; ${p} passage${s(p)} gardé${s(p)}` : ` avec ${p} passage${s(p)}`) : ""}`, () => ctx.store.annuler()); };
+    if (!p) return faire("garder");
+    ctx.ouvrirModal({ type: "supprimer", titre: `Supprimer ${n} voie${s(n)}`, texte: `${p} passage${s(p)} noté${s(p)} sur ces voies.`,
+      choix: [{ label: `Supprimer les voies, garder les ${p} passage${s(p)}`, faire: () => faire("garder") }, { label: `Supprimer les voies et les ${p} passage${s(p)}`, danger: true, faire: () => faire("supprimer") }] }); },
   classerBascule: (ctx, d) => { const c = ctx.state.classer; c.has(d.id) ? c.delete(d.id) : c.add(d.id); ctx.rendre(); },
   classerSecteur: ctx => ctx.ouvrirModal({ type: "classerSecteur", salleId: ctx.state.salleId }),
   classerDemonter: ctx => { const ids = [...ctx.state.classer], demontees = !!ctx.state.filtre.demontees;

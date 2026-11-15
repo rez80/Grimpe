@@ -66,7 +66,7 @@ function biblio(ctx) {
 function salles(ctx) {
   const { doc } = ctx;
   return { titre: h`<b>Salles</b>`, html: h`<div class="liste">${doc.salles.map(s => { const v = s.voies.filter(x => x.statut !== "demontee");
-      return h`<button class="item" data-act="salleOuvrir" data-id="${s.id}"><span><b>${s.nom}</b> <span class="petit">${s.type} · ${s.secteurs.length} secteur${s.secteurs.length > 1 ? "s" : ""}</span></span><span class="petit">${v.filter(x => x.disc === "Voie").length} voies · ${v.filter(x => x.disc === "Bloc").length} blocs</span></button>`; })}</div>
+      return h`<div class="item-double"><button class="item" data-act="salleOuvrir" data-id="${s.id}"><span><b>${s.nom}</b> <span class="petit">${s.type} · ${s.secteurs.length} secteur${s.secteurs.length > 1 ? "s" : ""}</span></span><span class="petit">${v.filter(x => x.disc === "Voie").length} voies · ${v.filter(x => x.disc === "Bloc").length} blocs ›</span></button><button class="item-edit" data-act="salleEditer" data-id="${s.id}" aria-label="Modifier la salle">✎</button></div>`; })}</div>
     ${si(!doc.salles.length, h`<p class="petit">Une salle, c'est ta mémoire des voies : couleur, niveau, secteur, et ton historique sur chacune. Pendant une séance, tu touches la voie au lieu de remplir une fiche.</p>`)}
     <button class="gros contour" data-act="salleNouvelle">+ Nouvelle salle</button>` };
 }
@@ -165,7 +165,7 @@ export const actions = {
   filtreDemontees: ctx => { ctx.state.filtre.demontees = !ctx.state.filtre.demontees; ctx.rendre(); },
   salleOuvrir: (ctx, d) => ctx.ouvrir("salle", { salleId: d.id }),
   salleNouvelle: ctx => ctx.ouvrirModal({ type: "salle", nom: "", typeSalle: "Bloc et voie", cotation: cotationVide() }),
-  salleEditer: ctx => { const s = ctx.doc.salles.find(x => x.id === ctx.state.salleId); ctx.ouvrirModal({ type: "salle", id: s.id, nom: s.nom, typeSalle: s.type, cotation: JSON.parse(JSON.stringify(s.cotation || cotationVide())) }); },
+  salleEditer: (ctx, d) => { const s = ctx.doc.salles.find(x => x.id === ((d && d.id) || ctx.state.salleId)); ctx.ouvrirModal({ type: "salle", id: s.id, nom: s.nom, typeSalle: s.type, cotation: JSON.parse(JSON.stringify(s.cotation || cotationVide())) }); },
   passageAncienOuvrir: ctx => ctx.ouvrirModal({ type: "passageAncien", date: ctx.aujourdhui(), disc: "Voie", cot: "", chiffre: "", profil: "Vertical", res: "", n: 1, couleur: "", nom: "", salle: "" }),
   passageAncienSuppr: (ctx, d) => { ctx.modifier("passage hors app supprimé", x => { x.passagesAnciens = x.passagesAnciens.filter(p => p.id !== d.id); }); ctx.rendre(); },
   reglageBool: (ctx, d) => { ctx.modifier("réglage", x => { x.reglages[d.cle] = !x.reglages[d.cle]; }, { annulable: false }); if (d.cle === "son") ctx.minuteur.configurer({ son: ctx.doc.reglages.son }); if (d.cle === "grand") document.documentElement.classList.toggle("grand", ctx.doc.reglages.grand); ctx.rendre(); },
