@@ -1,4 +1,4 @@
-# Grimpe 8 — l'app d'escalade, version complète
+# Grimpe 8.2 — l'app d'escalade, version complète
 
 Même usage que l'app 6.5 : le programme s'écrit dans **Programme.xlsx**, l'app sur l'iPhone sert à faire les séances, un outil Python sur le PC fait le rapport. Même stack : HTML/CSS/JS sans dépendance, PWA sur GitHub Pages, données sur le téléphone, Python + openpyxl.
 
@@ -6,6 +6,22 @@ Deux couches ont été refaites, dans cet ordre :
 
 1. **La structure** (v7) — un seul document versionné, un seul format d'export, les règles de calcul écrites une seule fois, une grammaire explicite, un identifiant stable par séance, des dates en jours entiers, des modules et des tests.
 2. **Le point de vue du grimpeur** (v8) — pendant la séance l'app ne demande rien, une voie se note en la touchant, l'app se souvient des voies et des projets, la sauvegarde se fait toute seule, le programme est dans le calendrier, les progrès tiennent en trois phrases.
+
+## Version 8.2 — ce qui revient de la 6.4, sans rien retirer de la 8
+
+**Protections.** La pause ne décale que les séances pas encore commencées (l'opération garde la liste `ids`, l'outil PC fait de même dans Programme.xlsx). Modifier le plan d'une séance commencée fait suivre chaque saisie à sa ligne (même texte, sinon même titre : `correspondanceCles`, `remapperSaisie`).
+
+**Séance.** Une case ✓ par étape, des ronds pour une étape répétée hors grimpe (3× gainage = 3 ronds) ; une étape de voie est faite quand on la coche ou quand tous ses passages sont notés, et peut être décochée. « ✓ Fait · suivant » coche l'étape en cours et passe à la prochaine pas encore faite. Rien n'est obligatoire et aucune analyse n'en dépend (champ `faites` de la saisie, -1 = décochée à la main). Frise du déroulé sous le bandeau. Pendant une séance de grimpe, le plan est replié sous la carte Maintenant. Le bilan donne les heures de début et de fin, et ne montre que les cotations de la séance (« Une autre cotation » pour le reste). Après « Plus tard », la carte « hier » reste repliée en une ligne jusqu'au lendemain. ★ « À essayer » sur une voie (fiche ou fenêtre rapide) : en tête de la carte des voies, retirée d'office quand la voie est réussie.
+
+**Navigation.** Glisser vers la gauche ou la droite pour changer de séance (pas pendant une séance en cours). Une séance ouverte depuis le programme a « ‹ Programme » pour y revenir. « ? » dans l'en-tête ouvre l'aide à la section de l'écran affiché, et le retour rend l'écran tel quel.
+
+**Programme.** ⋯ › Copier vers une autre date ; outils de semaine › Copier · répéter (une semaine qui contient une séance commencée n'est jamais écrasée). Encadré « À faire » dans la semaine en cours (séances à régler, mesures du week-end) et bilan de la semaine dès qu'une séance est faite.
+
+**Salles.** + Plusieurs voies (une série d'un coup), Classer (sélection multiple → secteur ou démontées), Ranger (toute la tuile se déplace ; la poignée ⋮⋮, agrandie, reste). Le profil proposé est celui du secteur, sinon le plus fréquent parmi ses voies.
+
+**Apparence.** Couleurs au contraste ≥ 4,5:1 (vert #2E7D32, gris #6B7780, texte foncé sur l'orange). Échelles 0–10 sur une ligne. Icônes dessinées à la place de ▶ ⏱ ⚠ (que l'iPhone affiche en émojis). En-tête et onglets à la couleur de l'app. Étapes sur fond pastel de leur type. Pictogramme d'inclinaison sur les tuiles. Grand affichage limité à la carte Maintenant, aux tuiles de la séance et au minuteur. Le message du bas passe en haut quand le minuteur est plein écran. « À ce rythme… » seulement après 4 semaines de programme.
+
+**Corrigé au passage.** Les tuiles de voies étaient très hautes (classe `histo` partagée avec l'histogramme de charge) ; une étape de voie terminée par ses passages ne pouvait pas être décochée.
 
 ## Ce que l'app fait, vu du mur
 
@@ -44,7 +60,7 @@ js/
   html.js       gabarit HTML qui échappe tout
   ecrans/       seance.js  programme.js  progres.js  plus.js  mur.js  editeur.js  fenetres.js
 outil/grimpe.py Programme.xlsx → data.js + programme.ics ; export (fichier ou --github) → Suivi.xlsx, report des modifs, ics aux dates réelles
-tests/          *.test.js (node --test, 37 tests) ; navigateur/smoke.py (parcours complet dans Chrome)
+tests/          *.test.js (node --test, 41 tests) ; navigateur/smoke.py (parcours complet dans Chrome) ; navigateur/mise_a_jour.py
 Programme.xlsx  ton programme (identifiants et syntaxe convertis au premier passage de l'outil)
 ```
 
@@ -119,7 +135,7 @@ Changer le schéma = ajouter une entrée dans `MIGRATIONS` de `store.js` et incr
 ## Tests
 
 ```
-npm test                                 # 37 tests : parseur (aller-retour), dates, programme effectif, états, clôture, analyse, projection, phrases, store, migrations, sync
+npm test                                 # 41 tests : parseur (aller-retour), dates, programme effectif, états, clôture, analyse, projection, phrases, store, migrations, sync
 python tests/navigateur/smoke.py         # Chrome : salle avec cotation par couleurs, secteurs, voies, glisser-déposer ; séance sans questionnaire, forme en un appui,
                                          # voies en un appui, nouvelle voie, curseur, repos, douleur, bilan ; carte « hier » ; éditeur structuré et {mesure} ;
                                          # progrès (phrases, projets) ; passages hors app ; grand affichage ; calendrier ; export, rechargement, effacement, restauration
@@ -140,4 +156,3 @@ Pour tester un jour donné : console → `(await import('./js/app.js')).ctx.stat
 ## Ce qui n'y est pas
 
 Le rapport Suivi.xlsx n'a pas de courbes au-delà de la charge (les chiffres y sont, le tableur fait le reste). Les rappels ne passent que par le calendrier. Le glisser-déposer du mur demande la poignée ⋮⋮ (c'est voulu : le reste de la tuile défile la page). Rien n'est testé sur un vrai iPhone : le parcours tourne dans Chrome ; Safari peut réserver une surprise sur la feuille de partage ou le webcal, à vérifier à la première semaine.
-# Grimpe
