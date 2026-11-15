@@ -102,8 +102,21 @@ function reglages(ctx) {
 function aide(ctx) {
   const k = ctx.state.filtre.aide || "principe";
   const S = {
+    seance: h`<p><b>Commencer.</b> ▸ Commencer lance la séance : pas de questionnaire. Choisis d'abord la variante si la séance en a (Voie / Remplacement bloc…).</p>
+      <p><b>Pendant.</b> La carte « Maintenant » montre l'étape en cours, ses minuteurs, et <b>✓ Fait · suivant</b>, qui coche l'étape et passe à la suivante. Dans le plan, chaque étape a sa case ✓ ; une étape répétée (3× gainage) a des ronds : un rond = un passage. Rien n'est obligatoire : l'app avance d'elle-même vers la prochaine étape pas encore faite. « J'en suis là » (dans une étape dépliée) déplace le repère.</p>
+      <p><b>Voies.</b> Touche la tuile d'une voie : ✓, sec ou ✗ (puis la cause). ★ = à essayer, mise en tête de liste à la prochaine séance. Sans salle, une rangée par cotation : un appui = un passage.</p>
+      <p><b>Fin.</b> ■ Fin de séance : effort, douleur après, et, si tu n'as rien noté, « en gros » ce que tu as grimpé. Les heures se corrigent sous « Heures, notes ».</p>
+      <p><b>Naviguer.</b> Glisse vers la gauche ou la droite pour passer à la séance suivante ou précédente (pas pendant une séance en cours). Ouverte depuis le programme, la flèche « ‹ Programme » t'y ramène.</p>`,
+    programme: h`<p>Les semaines par bloc ; touche une semaine pour ses jours et ses séances. La semaine en cours montre un encadré <b>À faire</b> (séances à régler, mesures du week-end) et, dès qu'une séance est faite, son bilan.</p>
+      <p><b>Outils d'une semaine.</b> 📏 Mesures · ⏸ Pause avant (les séances déjà commencées ou faites ne bougent pas) · Copier · répéter (une semaine commencée n'est jamais écrasée).</p>
+      <p><b>Une séance.</b> ⋯ dans l'en-tête : bilan, modifier le plan (les saisies suivent leur ligne), déplacer, copier vers une autre date, sautée, annuler.</p>`,
+    progres: h`<p>En haut, quelques phrases : la semaine, le niveau acquis, le point faible, le prochain cap. « À ce rythme… » n'apparaît qu'après 4 semaines de programme, quand il y a de quoi estimer.</p>
+      <p>Dessous : les projets (voies tentées, pas encore réussies), les feux verts, le niveau consolidé, la charge, les douleurs et les mesures.</p>`,
+    salles: h`<p><b>Une salle</b> garde ses voies par secteur, leur couleur, leur niveau et ton historique sur chacune. Façon de coter : comme l'app, ses propres niveaux, par couleurs, ou aucune.</p>
+      <p><b>Le mur.</b> Touche une voie pour sa fiche. + Plusieurs voies : une série d'un coup (4 jaunes en 5b). Classer : sélectionne plusieurs voies puis envoie-les dans un secteur ou démonte-les. Ranger : fais glisser les voies (ou prends une voie par ⋮⋮ à tout moment). Un secteur rééquipé : ✎ › Renouveler.</p>
+      <p><b>Hors app</b> (Plus) : ce que tu as grimpé sans l'app compte aussi.</p>`,
     principe: h`<p>Le programme est écrit dans <b>Programme.xlsx</b> et transformé en <code>data.js</code> par <code>outil/grimpe.py app</code>. L'app sert à faire les séances : elle ne demande rien pendant, et calcule tout après (feux verts, forme, niveaux, projets). Sur PC, <code>grimpe.py rapport</code> met ce bilan en page dans <b>Suivi.xlsx</b> et reporte dans Programme.xlsx les séances modifiées ici.</p>
-      <p><b>Une séance.</b> ▶ Commencer. La carte « Maintenant » montre l'étape où tu en es (« Suivant » avance, ⤵ sur une étape dit « j'en suis là ») et ses minuteurs. Une voie se note en la touchant dans la carte des voies : ✓ ou ✗, c'est tout. ⚠ Douleur si quelque chose tire. ■ Fin : effort, douleur après, et en gros ce que tu as grimpé si tu n'as rien noté.</p>
+      <p><b>Une séance.</b> Voir l'onglet « Séance » de cette aide.</p>
       <p><b>Couleurs.</b> <span class="genre-txt echauffement">échauffement</span> · <span class="genre-txt securite">sécurité</span> · <span class="genre-txt facile">facile</span> · <span class="genre-txt effort">effort</span> · <span class="genre-txt recup">récupération</span>.</p>
       <p><b>Le lendemain.</b> Une séance oubliée ou laissée ouverte revient en une carte : faite, sautée, plus tard. Jamais de point d'exclamation.</p>`,
     syntaxe: h`<p>Une ligne par étape. Tout ce qui n'est pas entre accolades est de la prose : rien n'est deviné. Dans l'app, l'éditeur de plan écrit ces lignes pour toi.</p>
@@ -121,7 +134,8 @@ Planche (s) {mesure planche}</pre>
       <p><b>Modifier le programme.</b> ⋯ › Modifier le plan, Déplacer, ou + Séance dans Programme. Chaque modification est une opération datée ; l'outil PC la reporte dans Programme.xlsx au prochain rapport.</p>
       <p><b>Annuler.</b> Chaque geste (Plus › Annuler, ou ⋯ de la séance) : les 30 derniers.</p>`,
   };
-  return { titre: h`<b>Aide</b>`, html: h`<div class="choix compact filtre"><button data-act="ouvrirAide" data-k="principe" class="${k === "principe" ? "choisi" : ""}">Principe</button><button data-act="ouvrirAide" data-k="syntaxe" class="${k === "syntaxe" ? "choisi" : ""}">Syntaxe</button><button data-act="ouvrirAide" data-k="donnees" class="${k === "donnees" ? "choisi" : ""}">Données</button></div><div class="carte aide">${S[k]}</div>` };
+  const onglets = [["seance", "Séance"], ["programme", "Programme"], ["progres", "Progrès"], ["salles", "Salles"], ["principe", "Principe"], ["syntaxe", "Syntaxe"], ["donnees", "Données"]];
+  return { titre: h`<b>Aide</b>`, html: h`<div class="choix compact filtre">${onglets.map(([c, l]) => h`<button data-act="ouvrirAide" data-k="${c}" class="${k === c ? "choisi" : ""}">${l}</button>`)}</div><div class="carte aide">${S[k] || S.principe}</div>` };
 }
 
 // Relit les champs tels qu'affichés (au cas où une frappe n'aurait pas encore été enregistrée) et les enregistre

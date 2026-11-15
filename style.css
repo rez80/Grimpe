@@ -4,12 +4,13 @@
   --accent: #1F4E5A; --accent-txt: #ffffff;
   --voie: #1F4E5A; --bloc: #7B4A12; --maison: #3E6B3A; --course: #5B3F8C; --exterieur: #0E6E6E;
   --echauffement: #E8A33C; --securite: #2E6FB7; --facile: #3FA066; --effort: #D93636; --recup: #7B5EA7;
-  --vert: #3FA066; --orange: #E8A33C; --rouge: #D93636; --gris: #9AA5AD;
+  --vert: #2E7D32; --orange: #E8A33C; --rouge: #D93636; --gris: #6B7780;     /* texte blanc lisible (≥ 4,5:1) sur vert, rouge, gris ; texte foncé sur orange */
+  --entete: #1F4E5A;
   --rayon: 14px; --ombre: 0 1px 3px rgba(0,0,0,.08);
   --haut: env(safe-area-inset-top, 0px); --bas: env(safe-area-inset-bottom, 0px);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --fond: #121a1d; --carte: #1b262b; --texte: #e8edef; --texte-2: #9fb0b7; --trait: #2c3a40; --accent: #58a6b9; --accent-txt: #0d1517;
+  :root { --entete: #16343c; --fond: #121a1d; --carte: #1b262b; --texte: #e8edef; --texte-2: #9fb0b7; --trait: #2c3a40; --accent: #58a6b9; --accent-txt: #0d1517;
     --voie: #2d7d91; --bloc: #a86a2a; --maison: #4f8a4a; --course: #8565b8; --exterieur: #1f9a9a; --echauffement: #f0b65a; --ombre: none; }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -193,7 +194,7 @@ a.bouton { display: inline-block; background: var(--carte); border: 1px solid va
 .voies h3 { font-size: 14px; color: var(--texte-2); margin: 12px 0 6px; font-weight: 600; } .voies .ligne-haut { margin-bottom: 0; align-items: flex-start; } .voies .ligne-haut h2 { margin: 0; } .salle-choix { margin: 0; justify-content: flex-end; }
 .tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .tuile-voie { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 8px 6px; border-radius: 12px; border: 1px solid rgba(0,0,0,.12); min-height: 64px; text-align: left; position: relative; font-size: 13px; line-height: 1.2; cursor: pointer; }
-.tuile-voie b { font-size: 20px; } .tuile-voie > span { opacity: .9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; } .tuile-voie .histo { font-size: 11px; opacity: .85; }
+.tuile-voie b { font-size: 20px; } .tuile-voie > span { opacity: .9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; } .tuile-voie .tuile-histo { font-size: 11px; opacity: .85; }
 .tuile-voie.ok-auj::after, .tuile-voie.ko-auj::after { content: "✓"; position: absolute; top: 4px; right: 6px; width: 20px; height: 20px; border-radius: 50%; background: var(--vert); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; } .tuile-voie.ko-auj::after { content: "✗"; background: var(--rouge); }
 .rapide-btns { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; } .rapide-btns button { padding: 16px; font-size: 18px; font-weight: 600; color: #fff; border: none; } .rapide-btns .ok { background: var(--vert); } .rapide-btns .sec { background: var(--orange); color: #222; } .rapide-btns .ko { background: var(--rouge); }
 .cot-rapide { display: flex; flex-direction: column; gap: 6px; } .cot-ligne { display: flex; align-items: center; gap: 8px; } .cot-ligne b { width: 44px; font-size: 18px; } .cot-ligne button { flex: 1; min-height: 44px; font-weight: 600; color: #fff; border: none; } .cot-ligne .ok { background: var(--vert); } .cot-ligne .sec { background: var(--orange); color: #222; } .cot-ligne .ko { background: var(--rouge); }
@@ -212,8 +213,50 @@ a.bouton { display: inline-block; background: var(--carte); border: 1px solid va
 .ed-ajout { margin-top: 10px; }
 
 /* Grand affichage */
-html.grand { font-size: 19px; } html.grand button { min-height: 48px; } html.grand .tuile-voie b { font-size: 24px; } html.grand .mn-temps { font-size: 80px; } html.grand .etape-txt .titre { font-size: 19px; }
+/* Grand affichage : seulement ce qu'on lit de loin, au mur (comme en 6.x) */
+html.grand .maintenant { font-size: 19px; } html.grand .maintenant button { min-height: 52px; font-size: 18px; } html.grand .maintenant-etape { font-size: 24px; }
+html.grand .voies .tuile-voie { min-height: 80px; } html.grand .voies .tuile-voie b { font-size: 26px; } html.grand .mn-temps { font-size: 110px; } html.grand .mn-fin { font-size: 30px; }
 
 /* Champ secret (jeton) : masqué sauf pendant la saisie ; type texte pour que le collage marche sur iPhone (pas de trousseau iCloud) */
 input.secret:not(:focus) { -webkit-text-security: disc; }
 .mn-fin { font-size: 24px; font-weight: 600; margin-top: 10px; font-variant-numeric: tabular-nums; } #minuteur.pastille .mn-fin { display: none; }
+
+/* ===== v8.2 ===== */
+.ico-svg { width: 1.15em; height: 1.15em; vertical-align: -0.2em; flex-shrink: 0; }
+/* En-tête et onglets à la couleur de l'app */
+#entete { background: var(--entete); color: #fff; border-bottom: none; grid-template-columns: auto 1fr 40px 40px 40px; gap: 2px; }
+#entete button { color: #fff; min-width: 40px; } #infos { color: rgba(255,255,255,.8); }
+#prec.large { font-size: 15px; font-weight: 600; padding: 0 6px; white-space: nowrap; } .retour-txt { display: inline-block; }
+#btn-aide .ico-svg { width: 22px; height: 22px; }
+#onglets { background: var(--entete); border-top: none; } #onglets button { color: rgba(255,255,255,.7); } #onglets button.actif { color: #fff; }
+#onglets button.actif::before { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 0 0 3px 3px; background: #fff; }
+#onglets .ico .ico-svg { width: 22px; height: 22px; }
+/* Contraste : texte foncé sur l'orange */
+.res-sec, .genre-txt.echauffement, .rapide-btns .sec, .cot-ligne .sec { color: #1d2a2f; }
+/* Échelle 0–10 sur une seule ligne, même à 320 px */
+.choix.echelle { flex-wrap: nowrap; gap: 3px; } .choix.echelle button { flex: 1 1 0; min-width: 0; padding: 8px 0; font-size: 15px; }
+/* Étapes : fond pastel du type, case et ronds */
+.etape { background: color-mix(in srgb, var(--g, var(--gris)) 8%, var(--carte)); }
+.etape .ronds { max-width: none; } .etape .case { width: 44px; height: 44px; font-size: 20px; color: var(--trait); } .etape .case.ok { color: #fff; }
+.etape-txt .num .ico-svg { width: 14px; height: 14px; color: var(--accent); }
+.tout-fait { font-weight: 600; color: var(--vert); margin: 4px 0 6px; }
+.titre-plan { font-size: 17px; font-weight: 700; color: var(--texte); margin-top: 14px; }
+/* Frise du déroulé */
+.frise { display: flex; gap: 2px; height: 10px; margin-top: 12px; border-radius: 5px; overflow: hidden; }
+.frise-seg { background: var(--g); min-width: 4px; } .frise-seg.fait { opacity: .35; } .frise-seg.ici { box-shadow: inset 0 0 0 2px #fff; }
+.frise-seg.genre-echauffement { --g: var(--echauffement); } .frise-seg.genre-securite { --g: var(--securite); } .frise-seg.genre-facile { --g: var(--facile); } .frise-seg.genre-effort { --g: var(--effort); } .frise-seg.genre-recup { --g: var(--recup); }
+/* Carte « hier » repliée */
+.hier-mini { width: 100%; display: flex; justify-content: space-between; align-items: center; background: var(--carte); border: 1px dashed var(--trait); border-radius: 12px; padding: 10px 14px; margin: 4px 0 8px; font-size: 15px; color: var(--texte-2); }
+/* Tuiles : pictogramme d'inclinaison, texte lisible */
+.tuile-voie .picto-tuile { position: absolute; top: 7px; right: 8px; width: 15px; height: 17px; stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; opacity: .85; } .tuile-voie .picto-tuile .sol { opacity: .45; }
+.tuile-voie > span { font-size: 13px; } .tuile-voie .tuile-histo { font-size: 12px; } .tuile-voie.ok-auj::after, .tuile-voie.ko-auj::after { top: auto; bottom: 5px; }
+.tuile-voie.selectionnee { outline: 4px solid var(--accent); outline-offset: 2px; } .tuile-voie.selectionnee::before { content: "✓"; position: absolute; bottom: 4px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.poignee { font-size: 18px; padding: 8px 8px 4px 12px; right: 0; bottom: 0; }      /* zone de prise plus grande */
+.mode-ranger .zone-depot .tuile-voie { touch-action: none; cursor: grab; outline: 2px dashed rgba(0,0,0,.35); outline-offset: -4px; }
+.barre-classer { position: sticky; bottom: calc(72px + var(--bas)); display: flex; align-items: center; gap: 6px; background: var(--carte); border-radius: 14px; padding: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.2); margin-top: 12px; } .barre-classer > span { flex: 1; padding-left: 6px; } .barre-classer button { padding: 8px 10px; font-size: 14px; }
+/* Programme : bilan de semaine, À faire */
+.bilan-sem { margin: 10px 14px 0; font-size: 14px; color: var(--texte-2); }
+.a-faire { margin: 10px 12px 0; padding: 10px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 8%, var(--carte)); } .a-faire > b { display: block; margin: 0 0 6px 4px; font-size: 14px; } .a-faire .liste { box-shadow: none; }
+.pastille-seance.etat-avenir { opacity: .5; }
+/* Le message du bas ne recouvre pas le minuteur plein écran */
+#minuteur.plein ~ #toast { top: calc(12px + var(--haut)); bottom: auto; }

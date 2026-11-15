@@ -1,9 +1,9 @@
 // ecrans/fenetres.js — les fenêtres du bas. L'état de la fenêtre est ctx.state.modal (M) ; les champs « data-champ » l'écrivent à la frappe.
-import { h, si, choix, echelle, brut } from "../html.js";
-import { discipline, etapesSeance, nouvelId } from "../programme.js";
+import { h, si, choix, echelle, brut, pictoProfil as dessinProfil } from "../html.js";
+import { discipline, etapesSeance, nouvelId, idsAPauser, opsCopieSeance, opsCopieSemaine } from "../programme.js";
 import { RES_LABEL, ajouterTentative, cleRattachement, actions as ACTIONS_SEANCE } from "./seance.js";
-import { court, semaineDe, nomJour } from "../dates.js";
-import { salleDe, couleursDe, hexDe, texteSur, cotationDe, cotApp, nouvelleVoie, voieExistante, tentativeDe, libelleVoie, secteurDe, renouveler } from "../salles.js";
+import { court, semaineDe, nomJour, ajouterJours } from "../dates.js";
+import { salleDe, couleursDe, hexDe, texteSur, cotationDe, cotApp, nouvelleVoie, voieExistante, tentativeDe, libelleVoie, secteurDe, renouveler, profilHabituel, ranger } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, causePrincipale } from "../analyse.js";
 import * as editeur from "./editeur.js";
 
@@ -11,8 +11,7 @@ export const PROFILS = ["Dalle", "Vertical", "Léger dévers", "Dévers", "Fort 
 const STYLES = ["À vue", "Flash", "Après travail"];
 const CAUSES = ["Lecture", "Pieds", "Placement ou gainage", "Force", "Endurance", "Peur"];
 const MESURES = [["planche", "Planche (s)"], ["course", "Course continue (min)"], ["tractions", "Tractions"], ["genou", "Genou contre le mur (cm)"], ["squat", "Squat profond (s)"], ["notes", "Notes"]];
-const pictoProfil = p => ({ "Dalle": "M8 18 L13 2", "Vertical": "M11 18 L11 2", "Léger dévers": "M13 18 L9 2", "Dévers": "M15 18 L6 2", "Fort dévers": "M16 18 L3 5", "Toit": "M16 18 L16 8 L2 8" })[p];
-export const choixProfil = (act, actuel) => h`<div class="choix profils">${PROFILS.map(p => h`<button data-act="${act}" data-valeur="${p}" class="${actuel === p ? "choisi" : ""}"><svg viewBox="0 0 18 20" class="picto"><path d="M1 19 H17" class="sol"/><path d="${pictoProfil(p)}"/></svg>${p}</button>`)}</div>`;
+export const choixProfil = (act, actuel) => h`<div class="choix profils">${PROFILS.map(p => h`<button data-act="${act}" data-valeur="${p}" class="${actuel === p ? "choisi" : ""}">${dessinProfil(p)}${p}</button>`)}</div>`;
 export const pastilles = (ctx, act, actuel, salle) => h`<div class="pastilles">${couleursDe(salle).map(c => h`<button data-act="${act}" data-valeur="${c.nom}" class="pastille ${actuel === c.nom ? "choisi" : ""}" style="background:${c.hex}" aria-label="${c.nom}" title="${c.nom}"></button>`)}</div>`;
 const actionsBas = (ok = "Enregistrer", actOk = "mOk", desactive = false) => h`<div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="${actOk}" ${desactive ? "disabled" : ""}>${ok}</button></div>`;
 // Sélecteur de cotation : chiffre puis lettre ; un deuxième appui efface
@@ -46,7 +45,7 @@ export function rendre(ctx) {
       ${!M.res ? h`<div class="rapide-btns"><button class="ok" data-act="voieRapideRes" data-res="ok">✓ ${M.disc === "Bloc" ? "Réussi" : "Enchaînée"}</button>${si(M.disc === "Voie", h`<button class="sec" data-act="voieRapideRes" data-res="sec">Avec sec</button>`)}<button class="ko" data-act="voieRapideRes" data-res="ko">✗ Pas ${M.disc === "Bloc" ? "réussi" : "réussie"}</button></div>`
         : M.res === "sec" ? h`<label class="champ">Combien de « sec » ?</label><div class="choix echelle">${[1, 2, 3, 4, 5, 6].map(n => h`<button data-act="voieRapideOk" data-sec="${n}">${n}</button>`)}</div>`
         : h`<label class="champ">Pourquoi ? <span class="petit">(un appui enregistre)</span></label><div class="choix">${CAUSES.map(c => h`<button data-act="voieRapideOk" data-cause="${c}">${c}</button>`)}<button data-act="voieRapideOk" data-cause="">Sans dire</button></div>`}
-      <div class="actions"><button data-act="mFermer">Annuler</button><button data-act="voieEditerDepuis" data-id="${v.id}">Fiche de la voie</button></div>`; }
+      <div class="actions"><button data-act="mFermer">Annuler</button><button data-act="etoileFenetre" data-id="${v.id}" data-salle="${salle.id}">${v.etoile ? "★ À essayer" : "☆ À essayer"}</button><button data-act="voieEditerDepuis" data-id="${v.id}">Fiche</button></div>`; }
 
     case "nouvelleVoie": { const salle = salleDe(doc, M.salleId), c = cotationDe(salle, M.disc);
       const apercu = { disc: M.disc, couleur: M.couleur, cotSalle: M.cotSalle, cot: cotApp(salle, M.disc, M.cotSalle, M.couleur), nom: M.nom }, existe = voieExistante(salle, apercu), pret = M.couleur || M.cotSalle || M.nom;
@@ -55,7 +54,7 @@ export function rendre(ctx) {
       ${cotationSalle(ctx, salle, M.disc, M)}
       ${si(salle.secteurs.length, h`<label class="champ">Secteur</label>${choix("mSecteur", [["", "—"], ...salle.secteurs.map(x => [x.id, x.nom])], M.secteurId, { classe: "compact" })}`)}
       <button class="pli" data-act="mPlier" data-k="plus">${M.plus ? "▾" : "▸"} Profil, nom</button>
-      ${si(M.plus, h`<label class="champ">Profil</label>${choixProfil("mProfil", M.profil || ((salle.secteurs.find(x => x.id === M.secteurId) || {}).profil) || "Vertical")}<label class="champ">Nom ou repère</label><input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`)}
+      ${si(M.plus, h`<label class="champ">Profil</label>${choixProfil("mProfil", M.profil || profilHabituel(salle, M.secteurId))}<label class="champ">Nom ou repère</label><input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`)}
       ${si(existe, () => h`<p class="avert">Une voie identique existe déjà (${libelleVoie(existe)}) : elle sera utilisée.</p>`)}
       <div class="actions"><button data-act="mFermer">Annuler</button><button data-act="nouvelleVoieOk" data-res="" ${pret ? "" : "disabled"}>Créer</button><button class="principal" data-act="nouvelleVoieOk" data-res="ok" ${pret ? "" : "disabled"}>Créer et ✓</button><button class="principal" data-act="nouvelleVoieOk" data-res="ko" ${pret ? "" : "disabled"}>Créer et ✗</button></div>`; }
 
@@ -87,15 +86,26 @@ export function rendre(ctx) {
       ${si(M.apres > 0, h`<label class="champ">Zone</label>${choix("mChamp", data.zones.filter(z => z !== "Aucune"), M.zone, { data: { champ: "zone" }, classe: "compact" })}`)}
       ${si(estGrimpe, h`<label class="champ">En gros, ce que tu as grimpé <span class="petit">${precises ? `en plus des ${precises} passages déjà notés` : "(approximatif)"}</span></label>
         <div class="grille">${presentes.map(c => h`<div class="grille-ligne"><b>${c}</b>${["ok", "ko"].map(r => h`<span class="compteur"><button data-act="mGrille" data-k="${c}|${r}" data-pas="-1">−</button><span>${M.grille[c + "|" + r] || 0} ${r === "ok" ? "✓" : "✗"}</span><button data-act="mGrille" data-k="${c}|${r}" data-pas="1">+</button></span>`)}</div>`)}
-        <div class="choix compact">${cots.filter(c => !presentes.includes(c)).slice(0, 40).map(c => h`<button data-act="mGrille" data-k="${c}|ok" data-pas="1">${c}</button>`)}</div></div>`)}
-      <button class="pli" data-act="mPlier" data-k="details">${M.details ? "▾" : "▸"} Durée, notes</button>
-      ${si(M.details, h`<label class="champ">Durée (min)</label><input type="number" inputmode="numeric" data-champ="duree" value="${M.duree}"><label class="champ">Notes</label><textarea data-champ="notes" rows="3">${M.notes}</textarea>`)}
+        <button class="pli" data-act="mPlier" data-k="autresCots">${M.autresCots ? "▾" : "▸"} Une autre cotation</button>
+        ${si(M.autresCots, () => h`<div class="choix compact">${cots.filter(c => !presentes.includes(c)).map(c => h`<button data-act="mGrille" data-k="${c}|ok" data-pas="1">${c}</button>`)}</div>`)}</div>`)}
+      <button class="pli" data-act="mPlier" data-k="details">${M.details ? "▾" : "▸"} Heures, notes <span class="petit">${M.hDebut} → ${M.hFin}${dureeHeures(M) != null ? ` · ${dureeHeures(M)} min` : ""}</span></button>
+      ${si(M.details, () => h`<div class="ed-rangee"><label class="champ">Début</label><input type="time" data-champ="hDebut" value="${M.hDebut}"><label class="champ">Fin</label><input type="time" data-champ="hFin" value="${M.hFin}"></div><label class="champ">Notes</label><textarea data-champ="notes" rows="3">${M.notes}</textarea>`)}
       ${actionsBas(sa.fin ? "Enregistrer" : "Terminer la séance", "bilanOk", M.effort === "")}`; }
 
     case "menu": return h`<h2>${court(s.date)} · ${s.activite}</h2><div class="menu">
-      <button data-act="menuBilan">Bilan / terminer</button><button data-act="menuEditer">✎ Modifier le plan</button><button data-act="menuDeplacer">📅 Déplacer</button>
+      <button data-act="menuBilan">Bilan / terminer</button><button data-act="menuEditer">✎ Modifier le plan</button><button data-act="menuDeplacer">📅 Déplacer</button><button data-act="menuCopier">⧉ Copier vers une autre date</button>
       <button data-act="menuSauter">Séance sautée</button>${si(ctx.store.annulable, h`<button data-act="annuler">↶ Annuler : ${ctx.store.annulable}</button>`)}
       <button class="danger" data-act="menuReinit">Effacer les saisies de cette séance</button></div><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
+
+    case "copierSeance": return h`<h2>Copier la séance</h2><p class="petit">${s.activite} du ${court(s.date)} : une nouvelle séance identique, à la date choisie. L'originale ne bouge pas.</p>
+      <input type="date" data-champ="date" value="${M.date}">${actionsBas("Copier", "copierSeanceOk")}`;
+
+    case "copieSemaine": { const derniere = Math.max(...ctx.programme.map(x => x.semaine));
+      return h`<h2>Semaine ${M.w} : copier ou répéter</h2>
+      ${choix("mChamp", [["repeter", "Répéter juste après"], ["copier", "Copier vers une semaine"]], M.mode, { data: { champ: "mode" } })}
+      ${M.mode === "repeter" ? h`<label class="champ">Combien de fois ?</label>${echelle("mChamp", 4, M.n, { data: { champ: "n" } })}<p class="petit">Semaines ${M.w + 1} à ${M.w + M.n} remplacées par une copie de la semaine ${M.w}.</p>`
+        : h`<label class="champ">Vers la semaine</label><div class="choix compact">${Array.from({ length: derniere + 4 }, (_, i) => i + 1).filter(x => x !== M.w).map(x => h`<button data-act="mChamp" data-champ="dest" data-valeur="${x}" class="${M.dest === x ? "choisi" : ""}">${x}</button>`)}</div><p class="petit">Les séances prévues de la semaine ${M.dest} sont remplacées.</p>`}
+      <p class="petit">Une semaine qui contient une séance commencée ou faite n'est jamais écrasée.</p>${actionsBas(M.mode === "repeter" ? "Répéter" : "Copier", "copieSemaineOk")}`; }
 
     case "deplacer": return h`<h2>Déplacer la séance</h2><p class="petit">Prévue le ${court(s.datePrevue)}. La séance garde sa place dans le programme ; seule sa date change.</p>
       <input type="date" data-champ="date" value="${M.date}">${actionsBas("Déplacer", "deplacerOk")}`;
@@ -110,7 +120,7 @@ export function rendre(ctx) {
     case "editeur": return editeur.rendre(ctx);
 
     case "pause": return h`<h2>Mettre le programme en pause</h2><p class="petit">Toutes les séances à partir de la semaine ${M.depuis} sont décalées.</p>
-      <label class="champ">Nombre de semaines</label>${echelle("mChamp", 4, M.n, { data: { champ: "n" } })}${actionsBas("Décaler", "pauseOk")}`;
+      <label class="champ">Nombre de semaines</label>${echelle("mChamp", 4, M.n, { data: { champ: "n" } })}<p class="petit">Les séances déjà commencées, faites ou sautées restent à leur date.</p>${actionsBas("Décaler", "pauseOk")}`;
 
     case "salle": { const sl = M.id ? salleDe(doc, M.id) : null;
       const modeDisc = disc => h`<label class="champ">Façon de coter · ${disc}</label>${choix("mMode", [["standard", "Comme l'app"], ["liste", "Ses niveaux"], ["couleurs", "Par couleurs"], ["aucune", "Aucune"]], M.cotation[disc].mode, { data: { disc }, classe: "compact" })}
@@ -135,7 +145,22 @@ export function rendre(ctx) {
       <label class="champ">Profil</label>${choixProfil("mProfil", M.profil)}<label class="champ">Nom ou repère</label><input type="text" data-champ="nom" value="${M.nom || ""}">
       ${si(sl.secteurs.length, h`<label class="champ">Secteur</label>${choix("mSecteur", [["", "—"], ...sl.secteurs.map(x => [x.id, x.nom])], M.secteurId || "", { classe: "compact" })}`)}
       ${si(hv, () => h`<p class="petit"><b>Historique :</b> ${hv.essais} essai${hv.essais > 1 ? "s" : ""}, ${hv.reussies} réussi${hv.reussies > 1 ? "s" : ""}.</p><div class="petit">${ts.map(t => h`<div>${court(t.date)} · ${RES_LABEL[t.res]}${t.cause ? " · " + t.cause : ""}</div>`)}</div>`)}
+      ${si(M.id, () => h`<button class="gros contour" data-act="mBasculeEtoile">${M.etoile ? "★ À essayer (retirer)" : "☆ À essayer à la prochaine séance"}</button>`)}
       <div class="actions">${M.id ? h`<button class="danger" data-act="voieDemonter">${M.statut === "demontee" ? "Remonter" : "Démontée"}</button>` : h`<button data-act="mFermer">Annuler</button>`}<button class="principal" data-act="voieOk">Enregistrer</button></div>`; }
+
+    case "ajoutRapide": { const sl = salleDe(doc, M.salleId), pret = M.couleur || M.cotSalle;
+      return h`<h2>Ajouter plusieurs voies · ${sl.nom}</h2><p class="petit">Par exemple : 4 jaunes en 5b dans le même secteur. Elles s'ajoutent d'un coup ; la fenêtre reste ouverte pour la série suivante.</p>
+      ${si(sl.type === "Bloc et voie", h`${choix("mChamp", ["Voie", "Bloc"], M.disc, { data: { champ: "disc" } })}`)}
+      <label class="champ">Couleur</label>${pastilles(ctx, "mCouleur", M.couleur, sl)}${cotationSalle(ctx, sl, M.disc, M)}
+      <label class="champ">Combien ?</label>${echelle("mChamp", 8, M.nb, { data: { champ: "nb" } })}
+      ${si(sl.secteurs.length, h`<label class="champ">Secteur</label>${choix("mSecteur", [["", "—"], ...sl.secteurs.map(x => [x.id, x.nom])], M.secteurId, { classe: "compact" })}`)}
+      <button class="pli" data-act="mPlier" data-k="plus">${M.plus ? "▾" : "▸"} Profil</button>${si(M.plus, () => choixProfil("mProfil", M.profil || profilHabituel(sl, M.secteurId)))}
+      ${si(M.total, h`<p class="petit">✓ ${M.total} voie${M.total > 1 ? "s" : ""} ajoutée${M.total > 1 ? "s" : ""} depuis l'ouverture.</p>`)}
+      <div class="actions"><button data-act="mFermer">Terminé</button><button class="principal" data-act="ajoutRapideOk" ${pret ? "" : "disabled"}>Ajouter ${M.nb || 1}</button></div>`; }
+
+    case "classerSecteur": { const sl = salleDe(doc, M.salleId);
+      return h`<h2>Déplacer ${ctx.state.classer.size} voie${ctx.state.classer.size > 1 ? "s" : ""} vers…</h2><div class="menu">${sl.secteurs.map(x => h`<button data-act="classerSecteurOk" data-id="${x.id}">${x.nom}</button>`)}<button data-act="classerSecteurOk" data-id="">Sans secteur</button></div>
+      ${si(!sl.secteurs.length, h`<p class="petit">Aucun secteur : crée-en un avec « + Secteur ».</p>`)}<div class="actions"><button data-act="mFermer">Annuler</button></div>`; }
 
     case "passageAncien": return h`<h2>Passage fait sans l'app</h2><label class="champ">Date</label><input type="date" data-champ="date" value="${M.date}">
       ${choix("mChamp", ["Voie", "Bloc"], M.disc, { data: { champ: "disc" } })}<label class="champ">Cotation</label>${selecteurCot(ctx, M.disc, M.cot)}
@@ -156,6 +181,9 @@ export function rendre(ctx) {
 }
 
 const M = ctx => ctx.state.modal;
+// Durée en minutes d'après les heures du bilan (une fin avant le début = après minuit)
+const enMinutes = hm => { const m = /^(\d{1,2}):(\d{2})$/.exec(hm || ""); return m ? +m[1] * 60 + +m[2] : null; };
+export function dureeHeures(m) { const a = enMinutes(m.hDebut), b = enMinutes(m.hFin); if (a == null || b == null) return null; return Math.max(1, (b - a + 1440) % 1440); }
 // La fiche d'une voie fait foi : ses passages déjà notés reprennent sa cotation, sa couleur, son nom et son profil
 function propagerVoies(doc, salle) {
   const parId = new Map(salle.voies.map(v => [v.id, v]));
@@ -170,6 +198,8 @@ export const actions = {
   mChamp: (ctx, d) => { const m = M(ctx); m[d.champ] = isNaN(d.valeur) || d.valeur === "" ? d.valeur : +d.valeur;
     if (d.champ === "disc") { m.cot = ""; m.cotSalle = ""; m.chiffre = ""; if (m.res === "sec" && d.valeur === "Bloc") m.res = ""; }   // autre échelle : on repart de zéro
     ctx.rendre(); },
+  mBasculeEtoile: ctx => { const m = M(ctx); m.etoile = m.etoile ? "" : ctx.aujourdhui(); ctx.rendre(); },
+  etoileFenetre: (ctx, d) => { ctx.modifier("voie à essayer", doc => { const v = salleDe(doc, d.salle).voies.find(x => x.id === d.id); if (v.etoile) delete v.etoile; else v.etoile = ctx.aujourdhui(); }); ctx.rendre(); },
   mBascule: (ctx, d) => { const l = M(ctx).quoi, i = l.indexOf(d.k); i >= 0 ? l.splice(i, 1) : l.push(d.k); ctx.rendre(); },
   mPlier: (ctx, d) => { M(ctx)[d.k] = !M(ctx)[d.k]; ctx.rendre(); },
   mChiffre: (ctx, d) => { M(ctx).chiffre = d.valeur; M(ctx)[d.champ || "cot"] = ""; ctx.rendre(); },
@@ -202,19 +232,33 @@ export const actions = {
   resultatSupprimer: ctx => { const m = M(ctx); ctx.modifierSeance(m.seanceId, "passage supprimé", sa => { sa.tentatives.splice(m.edit, 1); }); ctx.fermerModal(); },
   douleurOk: ctx => { const m = M(ctx); if (!m.zone) return; ctx.modifierSeance(m.seanceId, "douleur notée", sa => { sa.douleur = sa.douleur || {}; sa.douleur.pendant = sa.douleur.pendant || []; sa.douleur.pendant.push({ t: Date.now(), zone: m.zone, niveau: m.niveau }); }); ctx.fermerModal(); ctx.toast("Douleur notée"); },
   sauterOk: ctx => { const m = M(ctx); ctx.modifierSeance(m.seanceId, "séance sautée", sa => { sa.statut = "sautee"; sa.raison = m.raison; delete sa.debut; delete sa.fin; }); ctx.fermerModal(); },
-  bilanOk: ctx => { const m = M(ctx); if (m.effort === "") return; ctx.modifierSeance(m.seanceId, "bilan", sa => { const now = Date.now();
-      if (!sa.debut) { sa.debut = now - (+m.duree || 60) * 60000; sa.approx = true; } sa.fin = sa.fin || now; delete sa.statut; delete sa.pause;
-      sa.effort = +m.effort; sa.douleur = { ...(sa.douleur || {}), apres: +m.apres || 0, zone: +m.apres ? m.zone : "" }; sa.notes = m.notes; if (m.duree !== "" && m.duree != null) sa.duree = +m.duree;
+  bilanOk: ctx => { const m = M(ctx); if (m.effort === "") return; const minutes = dureeHeures(m);
+    if (!minutes) { ctx.toast("Vérifie les heures de début et de fin."); m.details = true; ctx.rendre(); return; }
+    ctx.modifierSeance(m.seanceId, "bilan", sa => { const now = Date.now(), debut = new Date(`${m.jour}T${m.hDebut.padStart(5, "0")}:00`).getTime();
+      if (!sa.debut) sa.approx = true;
+      sa.debut = debut; sa.fin = debut + minutes * 60000; sa.duree = minutes; delete sa.pauseTotale; delete sa.statut; delete sa.pause;
+      sa.effort = +m.effort; sa.douleur = { ...(sa.douleur || {}), apres: +m.apres || 0, zone: +m.apres ? m.zone : "" }; sa.notes = m.notes;
       sa.tentatives = (sa.tentatives || []).filter(t => !t.approx);
       for (const [k, n] of Object.entries(m.grille)) { const [cot, res] = k.split("|"); for (let i = 0; i < n; i++) sa.tentatives.push({ t: now, disc: m.disc, cot, profil: "", res, approx: true }); } });
     ctx.fermerModal(); ctx.rendre(true); ctx.synchroniser("fin de séance"); },
   menuBilan: ctx => { const id = M(ctx).seanceId; ctx.fermerModal(); ctx.state.seanceId = id; ACTIONS_SEANCE.bilanOuvrir(ctx, { id }); },
   menuSauter: ctx => { const id = M(ctx).seanceId; ctx.fermerModal(); ctx.state.seanceId = id; ACTIONS_SEANCE.sauterOuvrir(ctx); },
   menuEditer: ctx => { const s = ctx.seance(M(ctx).seanceId); editeur.ouvrir(ctx, { cible: s.id, contenu: s.contenu }); },
+  menuCopier: ctx => { const s = ctx.seance(M(ctx).seanceId); ctx.ouvrirModal({ type: "copierSeance", seanceId: s.id, date: ajouterJours(s.date, 7) }); },
+  copierSeanceOk: ctx => { const m = M(ctx), s = ctx.seance(m.seanceId); if (!/^\d{4}-\d{2}-\d{2}$/.test(m.date || "")) { ctx.toast("Choisis une date."); return; }
+    const debut = ctx.doc.reglages.dateDebut || ctx.data.dateDebut, sem = semaineDe(debut, m.date), ops = opsCopieSeance(s, sem, nomJour(m.date));
+    if (sem < 1) ops.push({ id: nouvelId("o"), op: "date", cible: ops[0].cible, date: m.date });
+    ctx.modifier("séance copiée", d => { d.ops.push(...ops); }); ctx.fermerModal(); ctx.toast(`Copiée au ${court(m.date)}`, () => ctx.store.annuler()); },
+  copieSemaineOk: ctx => { const m = M(ctx), dests = m.mode === "repeter" ? Array.from({ length: m.n }, (_, i) => m.w + i + 1) : [m.dest];
+    const { ops, refusees } = opsCopieSemaine(ctx.programme, ctx.doc, m.w, dests), faites = dests.filter(x => !refusees.includes(x));
+    if (ops.length) ctx.modifier(`semaine ${m.w} copiée`, d => { d.ops.push(...ops); });
+    ctx.fermerModal(); ctx.toast(`${faites.length ? `Copiée vers ${faites.map(x => "S" + x).join(", ")}` : "Rien copié"}${refusees.length ? ` · ${refusees.map(x => "S" + x).join(", ")} déjà commencée${refusees.length > 1 ? "s" : ""} : laissée${refusees.length > 1 ? "s" : ""}` : ""}`, ops.length ? () => ctx.store.annuler() : undefined); },
   menuDeplacer: ctx => { const s = ctx.seance(M(ctx).seanceId); ctx.ouvrirModal({ type: "deplacer", seanceId: s.id, date: s.date }); },
   menuReinit: ctx => { const id = M(ctx).seanceId; if (!confirm("Effacer toutes les saisies de cette séance ?")) return; ctx.modifier("saisies effacées", d => { delete d.seances[id]; }); ctx.fermerModal(); },
   deplacerOk: ctx => { const m = M(ctx), s = ctx.seance(m.seanceId); if (!/^\d{4}-\d{2}-\d{2}$/.test(m.date || "")) { ctx.toast("Choisis une date."); return; } ctx.modifier("séance déplacée", d => { d.ops = d.ops.filter(o => !(o.op === "date" && o.cible === s.id)); if (m.date !== s.datePrevue) d.ops.push({ id: nouvelId("o"), op: "date", cible: s.id, date: m.date }); }); ctx.fermerModal(); },
-  pauseOk: ctx => { const m = M(ctx); ctx.modifier("pause du programme", d => { d.ops.push({ id: nouvelId("o"), op: "pause", depuis: m.depuis, n: m.n }); }); ctx.fermerModal(); },
+  pauseOk: ctx => { const m = M(ctx), { ids, gardees } = idsAPauser(ctx.programme, ctx.doc, m.depuis);
+    ctx.modifier("pause du programme", d => { d.ops.push({ id: nouvelId("o"), op: "pause", depuis: m.depuis, n: m.n, ids }); }); ctx.fermerModal();
+    ctx.toast(`${ids.length} séance${ids.length > 1 ? "s" : ""} décalée${ids.length > 1 ? "s" : ""}${gardees ? ` ; ${gardees} déjà commencée${gardees > 1 ? "s" : ""} ou faite${gardees > 1 ? "s" : ""} reste${gardees > 1 ? "nt" : ""} en place` : ""}`, () => ctx.store.annuler()); },
   mesuresOk: ctx => { const m = M(ctx); ctx.modifier("mesures", d => { d.mesures[m.semaine] = Object.fromEntries(MESURES.map(([k]) => [k, m[k]]).filter(([, v]) => v !== "" && v != null)); }); ctx.fermerModal(); },
   favori: (ctx, d) => { ctx.modifier("favori", x => { const i = x.favoris.indexOf(d.nom); i >= 0 ? x.favoris.splice(i, 1) : x.favoris.push(d.nom); }); ctx.rendre(); },
   salleOk: ctx => { const m = M(ctx); if (!m.nom) return; ctx.modifier("salle", d => { if (m.id) { const sl = salleDe(d, m.id); Object.assign(sl, { nom: m.nom, type: m.typeSalle, cotation: m.cotation });
@@ -225,9 +269,16 @@ export const actions = {
   secteurRenouveler: ctx => { const m = M(ctx); if (!confirm("Passer toutes les voies de ce secteur en démontées ?")) return; let n = 0; ctx.modifier("secteur renouvelé", d => { n = renouveler(salleDe(d, m.salleId), m.id, ctx.aujourdhui()); }); ctx.fermerModal(); ctx.toast(`${n} voie${n > 1 ? "s" : ""} démontée${n > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
   secteurSupprimer: ctx => { const m = M(ctx); ctx.modifier("secteur supprimé", d => { const sl = salleDe(d, m.salleId); sl.secteurs = sl.secteurs.filter(x => x.id !== m.id); sl.voies.forEach(v => { if (v.secteurId === m.id) v.secteurId = null; }); }); ctx.fermerModal(); },
   voieOk: ctx => { const m = M(ctx); ctx.modifier("voie", d => { const sl = salleDe(d, m.salleId), champs = { couleur: m.couleur || "", cotSalle: m.cotSalle || "", cot: cotApp(sl, m.disc, m.cotSalle, m.couleur), nom: m.nom || "", profil: m.profil || "Vertical", secteurId: m.secteurId || null };
-      if (m.id) { Object.assign(sl.voies.find(x => x.id === m.id), champs); propagerVoies(d, sl); } else sl.voies.push(nouvelleVoie(sl, { disc: m.disc, ...champs }, ctx.aujourdhui())); });
+      if (m.id) { const v = sl.voies.find(x => x.id === m.id); Object.assign(v, champs); if (m.etoile) v.etoile = m.etoile; else delete v.etoile; propagerVoies(d, sl); } else sl.voies.push(nouvelleVoie(sl, { disc: m.disc, ...champs }, ctx.aujourdhui())); });
     const p = m.precedent; ctx.fermerModal(); if (p && p.type !== "voieRapide") ctx.ouvrirModal(p); },
   voieDemonter: ctx => { const m = M(ctx); ctx.modifier("voie démontée", d => { const v = salleDe(d, m.salleId).voies.find(x => x.id === m.id); if (v.statut === "demontee") { v.statut = "enPlace"; v.demontee = null; } else { v.statut = "demontee"; v.demontee = ctx.aujourdhui(); } }); ctx.fermerModal(); },
+  ajoutRapideOk: ctx => { const m = M(ctx), n = +m.nb || 1;
+    ctx.modifier(`${n} voie${n > 1 ? "s" : ""} ajoutée${n > 1 ? "s" : ""}`, d => { const sl = salleDe(d, m.salleId);
+      for (let i = 0; i < n; i++) sl.voies.push(nouvelleVoie(sl, { disc: m.disc, couleur: m.couleur, cotSalle: m.cotSalle, profil: m.profil, secteurId: m.secteurId || null }, ctx.aujourdhui())); });
+    m.total = (m.total || 0) + n; m.nb = 1; m.couleur = ""; m.cotSalle = ""; m.chiffre = ""; ctx.rendre(); },
+  classerSecteurOk: (ctx, d) => { const ids = [...ctx.state.classer], sid = ctx.state.salleId;
+    ctx.modifier("voies classées", doc => { const sl = salleDe(doc, sid); ids.forEach(id => ranger(sl, id, d.id || null, null)); });
+    ctx.state.classer = null; ctx.fermerModal(); ctx.toast(`${ids.length} voie${ids.length > 1 ? "s" : ""} classée${ids.length > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
   passageAncienOk: ctx => { const m = M(ctx); ctx.modifier("passages hors app", d => { for (let i = 0; i < (m.n || 1); i++) d.passagesAnciens.push(nettoyer({ id: nouvelId("pa"), date: m.date, disc: m.disc, cot: m.cot, profil: m.profil, res: m.res, couleur: m.couleur, nom: m.nom, salle: m.salle })); }); ctx.fermerModal(); ctx.toast(`${m.n || 1} passage${m.n > 1 ? "s" : ""} ajouté${m.n > 1 ? "s" : ""}`); },
   nouveauProgrammeOk: ctx => { ctx.modifier("nouveau programme", d => { d.seances = {}; d.ops = []; d.mesures = {}; d.competences = {}; d.feuxVus = {}; d.programmeId = ctx.data.programmeId; }); ctx.state.seanceId = null; ctx.fermerModal(); },
   importOk: ctx => { const m = M(ctx); ctx.store.remplacer(m.doc); ctx.state.seanceId = null; ctx.state.modal = null; ctx.ouvrir("seance"); ctx.toast("Sauvegarde restaurée"); },

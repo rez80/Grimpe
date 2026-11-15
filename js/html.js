@@ -21,3 +21,21 @@ export const echelle = (act, n, actuel, { de = 1, data = {} } = {}) => choix(act
 export const lier = (texte, exercices) => brut(esc(texte).replace(/«\s*(.+?)\s*»/g, (tout, nom) => {
   const k = exercices.findIndex(x => x.nom.toLowerCase() === nom.toLowerCase());
   return k === -1 ? tout : `<button class="exo" data-act="ficheExo" data-k="${k}">${esc(exercices[k].nom)} ⓘ</button>`; }));
+
+// Icônes dessinées (SVG) : sur iPhone, ▶ ⏱ ⚠ s'affichent en émojis colorés ; ces icônes prennent la couleur du texte
+const ICONES = {
+  play: '<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>',
+  pause: '<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/>',
+  repos: '<circle cx="12" cy="13" r="7.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 9v4.5l2.8 1.8M9.5 3h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  alerte: '<path d="M12 3.5 22 20.5H2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="17.6" r="1.3" fill="currentColor"/>',
+  stop: '<rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/>',
+  seance: '<path d="M4 20 10.5 7l3.5 6 2-3L21 20z" fill="currentColor"/><circle cx="17" cy="5" r="2" fill="currentColor"/>',
+  programme: '<rect x="3.5" y="4.5" width="17" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 9.5h17M8 3v3M16 3v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M7 13h3v3H7z" fill="currentColor"/>',
+  progres: '<path d="M3.5 19.5h17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M5 16l4.5-5 3.5 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7h4v4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  plus: '<circle cx="5.5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="18.5" cy="12" r="2" fill="currentColor"/>',
+  aide: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.6 2.4c-.8.4-1.1.9-1.1 1.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2" fill="currentColor"/>',
+};
+export const ico = nom => brut(`<svg class="ico-svg" viewBox="0 0 24 24" aria-hidden="true">${ICONES[nom] || ""}</svg>`);
+// Inclinaison d'un profil (pour les tuiles et les choix)
+const PROFIL_TRAIT = { "Dalle": "M8 18 L13 2", "Vertical": "M11 18 L11 2", "Léger dévers": "M13 18 L9 2", "Dévers": "M15 18 L6 2", "Fort dévers": "M16 18 L3 5", "Toit": "M16 18 L16 8 L2 8" };
+export const pictoProfil = (p, classe = "picto") => PROFIL_TRAIT[p] ? brut(`<svg viewBox="0 0 18 20" class="${classe}" aria-label="${esc(p)}"><path d="M1 19 H17" class="sol"/><path d="${PROFIL_TRAIT[p]}"/></svg>`) : "";

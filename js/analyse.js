@@ -241,9 +241,9 @@ export function phrases({ bilan: B, ts, programme, doc, aujourdhui, echelles, pr
   if (pf.profil) out.push({ cle: "faible", texte: `${pf.profil.profil === "Dalle" ? "La dalle" : "Le " + pf.profil.profil.toLowerCase()} reste le point faible : ${pct(pf.profil.taux)} de réussite sur ${pf.profil.essais} essais${causeNette ? `, et les échecs viennent surtout de « ${pf.cause.cause.toLowerCase()} »` : ""}.` });
   else if (causeNette) out.push({ cle: "faible", texte: `Les échecs viennent surtout de « ${pf.cause.cause.toLowerCase()} » (${pf.cause.n} fois).` });
   // 3. Le prochain cap
-  const prochain = B.feux.find(f => !f.ok && !f.info && projectionFeux[f.id]);
+  const prochain = B.feux.find(f => !f.ok && !f.info && projectionFeux[f.id]), assezDeRecul = ecartJours(B.dateDebut, aujourdhui) >= 28;
   if (prochain) { const p = projectionFeux[prochain.id];
-    out.push({ cle: "cap", texte: `Prochain cap : ${prochain.titre.toLowerCase()} — ${p.critere.toLowerCase()} : ${p.val} sur ${p.cible}${p.semaines ? `, à ce rythme ${p.semaines > 26 ? "dans plus de six mois" : p.semaines === 1 ? "dans une semaine" : `dans ${p.semaines} semaines`}` : p.val > 0 ? ", pas d'avancée sur quatre semaines" : ""}.` }); }
+    out.push({ cle: "cap", texte: `Prochain cap : ${prochain.titre.toLowerCase()} — ${p.critere.toLowerCase()} : ${p.val} sur ${p.cible}${!assezDeRecul ? "" : p.semaines ? `, à ce rythme ${p.semaines > 26 ? "dans plus de six mois" : p.semaines === 1 ? "dans une semaine" : `dans ${p.semaines} semaines`}` : p.val > 0 ? ", pas d'avancée sur quatre semaines" : ""}.` }); }   // « à ce rythme » seulement après 4 semaines
   return out;
 }
 
@@ -252,7 +252,7 @@ export function bilanComplet(args) {
   const B = bilan(args), { data, doc, programme, aujourdhui } = args, params = B.params;
   const ts = tentatives(programme, doc), avant = ajouterJours(aujourdhui, -28);
   const feuxAvant = feuxVerts(ts.filter(t => t.date <= avant), programme, doc, params, data.echelles, avant, B.dateDebut);
-  const projectionFeux = projection(B.feux, feuxAvant);
-  return { ...B, voies: parVoie(ts), projection: projectionFeux, nouveauxFeux: nouveauxFeux(B.feux, doc.feuxVus),
+  const projectionFeux = projection(B.feux, feuxAvant), recul = ecartJours(B.dateDebut, aujourdhui) >= 28;     // « à ce rythme » seulement après 4 semaines
+  return { ...B, recul, voies: parVoie(ts), projection: projectionFeux, nouveauxFeux: nouveauxFeux(B.feux, doc.feuxVus),
            phrases: phrases({ bilan: B, ts, programme, doc, aujourdhui, echelles: data.echelles, projectionFeux }) };
 }

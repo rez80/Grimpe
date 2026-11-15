@@ -32,8 +32,7 @@ export const libelleVoie = v => [v.cotSalle || v.cot || "?", v.couleur ? v.coule
 export const voiesEnPlace = (salle, disc) => salle ? salle.voies.filter(v => v.statut !== "demontee" && (!disc || v.disc === disc)).sort((a, b) => (a.secteurId || "") < (b.secteurId || "") ? -1 : (a.secteurId || "") > (b.secteurId || "") ? 1 : (a.ordre ?? 0) - (b.ordre ?? 0)) : [];
 
 export function nouvelleVoie(salle, { disc, couleur = "", cotSalle = "", nom = "", profil = "", secteurId = null }, aujourdhui) {
-  const sec = salle.secteurs.find(x => x.id === secteurId);
-  return { id: nouvelId("v"), disc, couleur, cotSalle: cotationDe(salle, disc).mode === "couleurs" ? "" : cotSalle, cot: cotApp(salle, disc, cotSalle, couleur), nom, profil: profil || (sec && sec.profil) || "Vertical",
+  return { id: nouvelId("v"), disc, couleur, cotSalle: cotationDe(salle, disc).mode === "couleurs" ? "" : cotSalle, cot: cotApp(salle, disc, cotSalle, couleur), nom, profil: profil || profilHabituel(salle, secteurId),
            secteurId: secteurId || null, ordre: Math.max(-1, ...salle.voies.filter(v => (v.secteurId || null) === (secteurId || null)).map(v => v.ordre ?? 0)) + 1, statut: "enPlace", ouverte: aujourdhui, demontee: null };
 }
 // Une voie déjà connue ? (même discipline, couleur, cotation salle, nom) — évite les doublons à la création
@@ -53,3 +52,10 @@ export function renouveler(salle, secteurId, aujourdhui) { let n = 0; for (const
 
 // Une tentative construite à partir d'une voie de la salle
 export const tentativeDe = (v, salle, extra = {}) => ({ t: Date.now(), disc: v.disc, cot: v.cot || "", cotSalle: v.cotSalle || "", profil: v.profil || "", couleur: v.couleur || "", nom: v.nom || "", salle: salle.id, voieId: v.id, ...extra });
+
+// Profil proposé pour une nouvelle voie d'un secteur : celui fixé sur le secteur, sinon le plus fréquent parmi ses voies, sinon Vertical
+export function profilHabituel(salle, secteurId) {
+  const sec = salle && salle.secteurs.find(x => x.id === secteurId); if (sec && sec.profil) return sec.profil;
+  const n = {}; (salle ? salle.voies : []).filter(v => (v.secteurId || null) === (secteurId || null) && v.profil).forEach(v => n[v.profil] = (n[v.profil] || 0) + 1);
+  return Object.entries(n).sort((a, b) => b[1] - a[1]).map(x => x[0])[0] || "Vertical";
+}

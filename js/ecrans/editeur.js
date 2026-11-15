@@ -2,7 +2,7 @@
 // Le texte à marqueurs reste le format de stockage (et le « mode texte » pour qui le préfère).
 import { h, si, choix } from "../html.js";
 import { lignesDe, contenuDe, analyserLigne, texteDuree } from "../parseur.js";
-import { nouvelId } from "../programme.js";
+import { nouvelId, correspondanceCles, remapperSaisie } from "../programme.js";
 import { semaineDe, nomJour } from "../dates.js";
 
 const M = ctx => ctx.state.modal;
@@ -63,7 +63,8 @@ export const actions = {
   edMode: ctx => { const m = M(ctx); if (m.texte) m.lignes = lignesDe(m.contenu); else m.contenu = contenuDe(m.lignes); m.texte = !m.texte; ctx.rendre(); },
   edOk: ctx => { const m = M(ctx); if (!m.cible && !/^\d{4}-\d{2}-\d{2}$/.test(m.date || "")) { ctx.toast("Choisis une date."); return; }
     const contenu = m.texte ? m.contenu : contenuDe(m.lignes), debut = ctx.doc.reglages.dateDebut || ctx.data.dateDebut;
-    if (m.cible) ctx.modifier("plan modifié", d => { d.ops.push({ id: nouvelId("o"), op: "set", cible: m.cible, contenu }); });
+    if (m.cible) { const map = correspondanceCles(ctx.seance(m.cible).contenu, contenu);          // les saisies déjà faites suivent leur ligne
+      ctx.modifier("plan modifié", d => { d.ops.push({ id: nouvelId("o"), op: "set", cible: m.cible, contenu }); remapperSaisie(d.seances[m.cible], map); }); }
     else { const id = nouvelId("l"), sem = semaineDe(debut, m.date); ctx.modifier("séance créée", d => { d.ops.push({ id: nouvelId("o"), op: "set", cible: id, semaine: sem, jour: nomJour(m.date), activite: m.activite, phase: "Séance créée", contenu }); if (sem < 1) d.ops.push({ id: nouvelId("o"), op: "date", cible: id, date: m.date }); }); ctx.state.seanceId = id; }
     ctx.fermerModal(); ctx.ouvrir("seance"); },
 };

@@ -23,7 +23,7 @@ export function rendre(ctx) {
   // Feux verts avec projection
   out = h`${out}<div class="carte"><h2>Feux verts</h2>${B.feux.map(f => { const p = B.projection[f.id]; return h`<div class="feu ${f.ok ? "ok" : ""}"><div class="feu-titre">${f.ok ? "🟢" : f.info ? "ℹ️" : "⚪"} ${f.titre}</div>
     ${f.criteres.map(c => h`<div class="crit"><span>${c.t}</span>${barre(c.val, c.cible, c.ok ? "ok" : "")}<b>${c.val}${c.pct ? " %" : ""} / ${c.cible}${c.pct ? " %" : ""}</b></div>`)}
-    ${si(p, () => h`<p class="petit">${p.semaines ? `À ce rythme : ${p.semaines > 26 ? "plus de six mois" : p.semaines === 1 ? "une semaine" : p.semaines + " semaines"}.` : p.val > 0 ? "Pas d'avancée sur quatre semaines." : ""}</p>`)}</div>`; })}</div>`;
+    ${si(p && B.recul, () => h`<p class="petit">${p.semaines ? `À ce rythme : ${p.semaines > 26 ? "plus de six mois" : p.semaines === 1 ? "une semaine" : p.semaines + " semaines"}.` : p.val > 0 ? "Pas d'avancée sur quatre semaines." : ""}</p>`)}</div>`; })}</div>`;
 
   out = h`${out}<div class="carte"><h2>Niveau consolidé <span class="petit">≥ ${Math.round(B.params.consolide_taux * 100)} % sur ≥ ${B.params.consolide_essais} essais</span></h2>
     <div class="grille-niv">${Object.values(B.consolides).map(c => h`<div class="niv"><span class="petit">${c.disc} · ${c.groupe}</span><b>${c.niveau || "—"}</b></div>`)}</div>

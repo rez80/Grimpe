@@ -15,12 +15,14 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.1";
+export const APP_VERSION = "8.2";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "plus", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
 
-const state = { vue: "seance", seanceId: null, semaineVue: null, ouverts: new Set(), modal: null, scroll: {}, pile: [], salleId: null, toast: null, filtre: {}, hierIgnoree: null, dernierSecteur: "" };
+const state = { vue: "seance", seanceId: null, semaineVue: null, ouverts: new Set(), modal: null, scroll: {}, pile: [], salleId: null, toast: null, filtre: {}, dernierSecteur: "",
+  origine: null,          // « programme » : la séance a été ouverte depuis le programme → la flèche ‹ y ramène
+  classer: null, ranger: false, ouvertsAvantAide: null };
 let store, cache = { doc: null, programme: null, bilan: null };
 
 const ctx = {
@@ -50,10 +52,16 @@ const ctx = {
 
 function ouvrir(vue, params = {}) {
   state.scroll[state.vue] = window.scrollY;
+  if (vue !== "salle") { state.classer = null; state.ranger = false; }                                   // modes du mur : seulement sur le mur
+  if (vue === "aide") state.ouvertsAvantAide = { vue: state.vue, ouverts: state.ouverts };              // le « ? » rend l'écran tel quel au retour
+  if (vue !== "seance" && vue !== "aide") state.origine = null;
   if (SOUS_ECRANS.includes(vue) && vue !== state.vue) state.pile.push(state.vue); else if (!SOUS_ECRANS.includes(vue)) state.pile = [];
   Object.assign(state, params, { vue, modal: null }); state.ouverts = new Set();
+  const avant = state.ouvertsAvantAide; if (avant && avant.vue === vue && vue !== "aide") { state.ouverts = avant.ouverts; state.ouvertsAvantAide = null; }
   rendre(true);
 }
+// Aide à la bonne section selon l'écran affiché
+const SECTION_AIDE = { seance: "seance", programme: "programme", progres: "progres", salle: "salles", salles: "salles", historique: "salles", sauvegarde: "donnees", reglages: "seance" };
 function retour() { const pile = state.pile, v = pile.pop() || ONGLET_DE[state.vue] || "seance"; state.pile = []; ouvrir(v); state.pile = pile; }
 
 function rendre(enHaut = false) {
@@ -67,7 +75,12 @@ function rendre(enHaut = false) {
   const onglet = ONGLET_DE[state.vue];
   document.querySelectorAll("#onglets button").forEach(b => b.classList.toggle("actif", b.dataset.onglet === onglet));
   const sous = SOUS_ECRANS.includes(state.vue);
-  $("prec").style.visibility = sous || r.fleches ? "visible" : "hidden"; $("prec").dataset.act = sous ? "retour" : "prec";
+  const versProgramme = state.vue === "seance" && state.origine === "programme";
+  $("prec").style.visibility = sous || r.fleches ? "visible" : "hidden"; $("prec").dataset.act = sous ? "retour" : versProgramme ? "retourProgramme" : "prec";
+  $("prec").innerHTML = versProgramme ? '<span class="retour-txt">‹ Programme</span>' : "‹"; $("prec").classList.toggle("large", versProgramme);
+  $("btn-aide").style.visibility = state.vue === "aide" ? "hidden" : "visible";
+  document.body.classList.toggle("mode-ranger", state.vue === "salle" && !!state.ranger);
+  glisserActif = !!r.glisser && !state.modal;
   $("suiv").style.visibility = r.fleches ? "visible" : "hidden";
   $("btn-menu").style.visibility = r.menu ? "visible" : "hidden";
   document.body.dataset.activite = r.activite || "";
@@ -88,6 +101,8 @@ function rendreToast() {
 const ACTIONS = {
   onglet: (c, d) => { if (state.vue === d.onglet) { state.scroll[d.onglet] = 0; state.ouverts = new Set(); } ouvrir(d.onglet); },
   retour: () => retour(),
+  retourProgramme: () => { const s = ctx.seance(state.seanceId); if (s) state.semaineVue = s.semaine; state.origine = null; ouvrir("programme"); },
+  aideContexte: () => { state.filtre.aide = SECTION_AIDE[state.vue] || "principe"; ouvrir("aide"); },
   plier: (c, d) => { state.ouverts.has(d.k) ? state.ouverts.delete(d.k) : state.ouverts.add(d.k); rendre(false); },
   toastAnnuler: () => { if (state.toast && state.toast.annuler) state.toast.annuler(); state.toast = null; rendreToast(); rendre(false); },
   annuler: () => { const l = store.annulable; if (store.annuler()) ctx.toast(`Annulé : ${l}`); rendre(false); },
@@ -106,6 +121,13 @@ document.addEventListener("click", e => {
 document.addEventListener("input", e => { const el = e.target; if (el.dataset.champ && state.modal) state.modal[el.dataset.champ] = el.type === "number" ? (el.value === "" ? "" : +el.value) : el.value;
   if (el.dataset.frappe && ACTIONS[el.dataset.frappe]) ACTIONS[el.dataset.frappe](ctx, el.dataset, el); });                       // « data-frappe » : enregistré à chaque frappe, sans redessiner
 document.addEventListener("change", e => { const el = e.target; if (el.dataset.act && ACTIONS[el.dataset.act]) ACTIONS[el.dataset.act](ctx, el.dataset, el); });
+
+// --- Glisser d'une séance à l'autre (comme en 6.x) ; jamais pendant une séance en cours ---
+let glisserActif = false, depart = null;
+document.addEventListener("touchstart", e => { if (!glisserActif || e.touches.length !== 1 || e.target.closest("input, textarea, .tuiles, .choix, #minuteur, #fond-modal")) { depart = null; return; }
+  depart = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() }; }, { passive: true });
+document.addEventListener("touchend", e => { if (!depart || !glisserActif) return; const t = e.changedTouches[0], dx = t.clientX - depart.x, dy = t.clientY - depart.y, rapide = Date.now() - depart.t < 600; depart = null;
+  if (rapide && Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy)) ACTIONS[dx < 0 ? "suiv" : "prec"](ctx, {}); }, { passive: true });
 
 // --- Retour dans l'app (téléphone déverrouillé, autre app quittée) ---
 // Le temps passé téléphone verrouillé COMPTE dans la séance : en salle, le téléphone est dans le sac entre deux voies.

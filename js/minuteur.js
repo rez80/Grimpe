@@ -1,7 +1,7 @@
 // minuteur.js — repos, chrono d'exercice, fractions de course. Un seul minuteur à la fois.
 // État transitoire (pas dans le document) : conservé dans localStorage pour survivre à un rechargement.
 
-import { $, h, brut } from "./html.js";
+import { $, h, brut, ico } from "./html.js";
 import { mmss, hhmm } from "./dates.js";
 
 const CLE = "grimpe-minuteur";
@@ -61,7 +61,7 @@ export function maj() {
       <svg viewBox="0 0 64 64" class="mn-anneau"><circle cx="32" cy="32" r="27" class="fond"/><circle cx="32" cy="32" r="27" class="arc" style="stroke-dasharray:${circ};stroke-dashoffset:${circ * (1 - frac)}"/></svg>
       <div class="mn-textes"><div class="mn-temps">${mmss(Math.ceil(r))}</div><div class="mn-label">${p.label}${T.boucles > 1 ? ` · ${T.boucle}/${T.boucles}` : ""}</div>${suivant ? h`<div class="mn-suivant">puis ${suivant}</div>` : ""}${heureFin() ? h`<div class="mn-fin">jusqu'à ${hhmm(heureFin())}</div>` : ""}</div>
     </div>
-    <div class="mn-ctrl"><button data-act="mnAjuster" data-sec="-30">−30</button><button data-act="mnPause">${T.restePause != null ? "▶" : "❚❚"}</button><button data-act="mnAjuster" data-sec="30">+30</button><button data-act="mnPasser">Passer</button></div>
+    <div class="mn-ctrl"><button data-act="mnAjuster" data-sec="-30">−30</button><button data-act="mnPause">${T.restePause != null ? ico("play") : ico("pause")}</button><button data-act="mnAjuster" data-sec="30">+30</button><button data-act="mnPasser">Passer</button></div>
     ${T.type === "repos" ? h`<button class="mn-stop" data-act="mnArreter">■ Fin du repos</button>` : ""}`.toString();
 }
 
