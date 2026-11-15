@@ -116,7 +116,7 @@ function ligneEtape(ctx, s, sa, e, num, actuelle, enCours) {
   const mesure = e.mesure ? h`<span class="mesure-champ"><input type="number" inputmode="decimal" step="any" data-act="mesureSaisie" data-k="${e.k}" data-cle="${e.mesure}" value="${(sa.mesures || {})[e.mesure] ?? ""}" placeholder="—"></span>` : "";
   return h`<div class="etape genre-${genre} ${classes(actuelle && "actuelle")}" data-k="${e.k}">
     <div class="etape-ligne">
-      <button class="etape-txt" data-act="plier" data-k="e${e.k}"><span class="num">${actuelle ? "▶" : num}</span><span class="titre">${titre}${e.type === "action" && e.n > 1 ? h` <span class="petit">× ${e.n}</span>` : ""}${notees ? h` <span class="badge">${notees}/${e.n} noté${notees > 1 ? "s" : ""}</span>` : ""}</span><span class="petit duree">${hm(duree)}</span></button>
+      <button class="etape-txt" data-act="plier" data-k="e${e.k}"><span class="num">${actuelle ? "▶" : num}</span><span class="titre">${titre}${e.type === "action" && e.n > 1 ? h` <span class="petit">× ${e.n}</span>` : ""}${notees ? h` <span class="badge">${notees}/${e.n * Math.max(1, e.serie || 1)} noté${notees > 1 ? "s" : ""}</span>` : ""}</span><span class="petit duree">${hm(duree)}</span></button>
       ${mesure}
       ${si(enCours && !actuelle, h`<button class="curseur" data-act="allerA" data-k="${e.k}" aria-label="J'en suis là">⤵</button>`)}
     </div>
@@ -183,6 +183,7 @@ export const actions = {
   version: (ctx, d) => { const s = courant(ctx); ctx.modifierSeance(s.id, "version", sa => { sa.version = +d.n; }); ctx.rendre(); },
   demarrer: ctx => { const s = courant(ctx), disc = discipline(s, ctx.saisie(s.id)), candidates = sallesPour(ctx.doc, disc);
     ctx.modifierSeance(s.id, "début de séance", x => { x.debut = Date.now(); delete x.fin; delete x.statut;
+      if (s.date !== ctx.aujourdhui()) x.dateReelle = ctx.aujourdhui(); else delete x.dateReelle;           // faite un autre jour que prévu : datée du jour réel
       if (!x.salle) x.salle = (ctx.doc.reglages.salleParDefaut || {})[disc] || (candidates.length === 1 ? candidates[0].id : ""); }); ctx.rendre(true); },
   suivant: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), n = etapeSuivante(sa, etapesSeance(s, sa)); if (n) ctx.modifierSeance(s.id, "étape suivante", x => { x.curseur = n.k; }, { annulable: false }); ctx.rendre(); },
   allerA: (ctx, d) => { const s = courant(ctx); ctx.modifierSeance(s.id, "j'en suis là", x => { x.curseur = d.k; }, { annulable: false }); ctx.state.ouverts.delete("e" + d.k); ctx.rendre(); },
@@ -216,9 +217,9 @@ export const actions = {
   douleurOuvrir: ctx => ctx.ouvrirModal({ type: "douleur", seanceId: courant(ctx).id, zone: "", niveau: 3 }),
   sauterOuvrir: ctx => ctx.ouvrirModal({ type: "sauter", seanceId: courant(ctx).id, raison: "" }),
   bilanOuvrir: (ctx, d) => { const s = d && d.id ? ctx.seance(d.id) : courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa);
-    ctx.ouvrirModal({ type: "bilan", seanceId: s.id, disc, effort: sa.effort ?? "", apres: (sa.douleur || {}).apres ?? 0, zone: (sa.douleur || {}).zone || "", notes: sa.notes || "", duree: sa.duree ?? (sa.debut ? Math.round(((sa.fin || Date.now()) - sa.debut - (sa.pauseTotale || 0)) / 60000) : ""),
+    ctx.ouvrirModal({ type: "bilan", seanceId: s.id, disc, effort: sa.effort ?? "", apres: (sa.douleur || {}).apres ?? 0, zone: (sa.douleur || {}).zone || "", notes: sa.notes || "", duree: sa.duree ?? (sa.debut ? Math.round(((sa.fin || Date.now()) - sa.debut - (sa.pauseTotale || 0)) / 60000) : Math.round(dureeSeance(s, etapesSeance(s, sa), ctx.data, ctx.doc.reglages) / 60)),
       grille: Object.fromEntries([...new Set((sa.tentatives || []).filter(t => t.approx).map(t => t.cot + "|" + t.res))].map(k => [k, (sa.tentatives || []).filter(t => t.approx && t.cot + "|" + t.res === k).length])), details: false }); },
-  hierBilan: (ctx, d) => { ctx.state.seanceId = d.id; actions.bilanOuvrir(ctx, { id: d.id }); },
+  hierBilan: (ctx, d) => actions.bilanOuvrir(ctx, { id: d.id }),                                   // on reste sur la séance du jour
   hierSautee: (ctx, d) => ctx.ouvrirModal({ type: "sauter", seanceId: d.id, raison: "" }),
   hierPlusTard: (ctx, d) => { ctx.state.hierIgnoree = d.id; ctx.rendre(); },
   feuVu: (ctx, d) => { ctx.modifier("feu vert vu", doc => { doc.feuxVus[d.id] = ctx.aujourdhui(); }, { annulable: false }); ctx.rendre(); },

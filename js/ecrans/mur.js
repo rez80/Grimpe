@@ -15,7 +15,7 @@ export function rendre(ctx) {
       ${si(s.type === "Bloc et voie", h`<div class="choix compact" style="margin:0">${[["", "Tout"], ["Voie", "Voies"], ["Bloc", "Blocs"]].map(([v, l]) => h`<button data-act="filtreMur" data-valeur="${v}" class="${filtre === v ? "choisi" : ""}">${l}</button>`)}</div>`)}
       <button class="petit-btn ${demontees ? "choisi" : ""}" data-act="filtreDemontees">${demontees ? "En place" : "Démontées"}</button></div>
     <p class="petit">Touche une voie pour sa fiche. Prends-la par ⋮⋮ pour la déplacer dans un autre secteur ou changer l'ordre.</p>
-    ${groupes.filter(g => g.voies.length || g.id).map(g => h`<div class="secteur" data-secteur="${g.id}"><div class="secteur-tete"><b>${g.nom}</b> <span class="petit">${g.profil ? g.profil.toLowerCase() + " · " : ""}${g.voies.length} voie${g.voies.length > 1 ? "s" : ""}</span>
+    ${groupes.filter(g => g.voies.length || g.id || s.secteurs.length).map(g => h`<div class="secteur" data-secteur="${g.id}"><div class="secteur-tete"><b>${g.nom}</b> <span class="petit">${g.profil ? g.profil.toLowerCase() + " · " : ""}${g.voies.length} voie${g.voies.length > 1 ? "s" : ""}</span>
         <span class="ed-outils">${si(!demontees, h`<button data-act="voieNouvelle" data-secteur="${g.id}" data-disc="${filtre || (s.type === "Bloc" ? "Bloc" : "Voie")}">+ voie</button>`)}${si(g.id, h`<button data-act="secteurEditer" data-id="${g.id}">✎</button>`)}</span></div>
         <div class="tuiles zone-depot" data-secteur="${g.id}">${g.voies.map(tuile)}${si(!g.voies.length, h`<span class="petit depot-vide">déposer ici</span>`)}</div></div>`)}
     ${si(!s.voies.length, h`<p class="petit">Aucune voie. Ajoute-les ici, ou directement pendant une séance avec « + Nouvelle voie ».</p>`)}`;

@@ -237,8 +237,9 @@ export function phrases({ bilan: B, ts, programme, doc, aujourdhui, echelles, pr
       out.push({ cle: "niveau-" + disc, texte: `En ${disc.toLowerCase()}, pas encore de niveau consolidé (il faut ${B.params.consolide_essais ?? 5} essais à ${pct(B.params.consolide_taux ?? 0.7)} sur une cotation)${max && max.cot ? ` ; meilleure réussite : ${max.cot}` : ""}.` }); } }
   // 2. Le point faible
   const pf = B.pointsFaibles;
-  if (pf.profil) out.push({ cle: "faible", texte: `${pf.profil.profil === "Dévers" || enDevers(pf.profil.profil) ? "Le " + pf.profil.profil.toLowerCase() : "La " + pf.profil.profil.toLowerCase()} reste le point faible : ${pct(pf.profil.taux)} de réussite sur ${pf.profil.essais} essais${pf.cause ? `, et les échecs viennent surtout de « ${pf.cause.cause.toLowerCase()} »` : ""}.` });
-  else if (pf.cause) out.push({ cle: "faible", texte: `Les échecs viennent surtout de « ${pf.cause.cause.toLowerCase()} » (${pf.cause.n} fois).` });
+  const causeNette = pf.cause && pf.cause.n >= 2;
+  if (pf.profil) out.push({ cle: "faible", texte: `${pf.profil.profil === "Dalle" ? "La dalle" : "Le " + pf.profil.profil.toLowerCase()} reste le point faible : ${pct(pf.profil.taux)} de réussite sur ${pf.profil.essais} essais${causeNette ? `, et les échecs viennent surtout de « ${pf.cause.cause.toLowerCase()} »` : ""}.` });
+  else if (causeNette) out.push({ cle: "faible", texte: `Les échecs viennent surtout de « ${pf.cause.cause.toLowerCase()} » (${pf.cause.n} fois).` });
   // 3. Le prochain cap
   const prochain = B.feux.find(f => !f.ok && !f.info && projectionFeux[f.id]);
   if (prochain) { const p = projectionFeux[prochain.id];

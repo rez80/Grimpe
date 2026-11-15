@@ -15,7 +15,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.0.1";
+export const APP_VERSION = "8.1";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "plus", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
@@ -91,7 +91,8 @@ const ACTIONS = {
   plier: (c, d) => { state.ouverts.has(d.k) ? state.ouverts.delete(d.k) : state.ouverts.add(d.k); rendre(false); },
   toastAnnuler: () => { if (state.toast && state.toast.annuler) state.toast.annuler(); state.toast = null; rendreToast(); rendre(false); },
   annuler: () => { const l = store.annulable; if (store.annuler()) ctx.toast(`Annulé : ${l}`); rendre(false); },
-  majApp: () => { if (navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage("mettre-a-jour"); },
+  // La nouvelle version attend (« waiting ») : c'est à ELLE qu'on demande de prendre la main ; le rechargement suit (controllerchange)
+  majApp: () => { if (enregistrement && enregistrement.waiting) enregistrement.waiting.postMessage("mettre-a-jour"); else location.reload(); },
   ...minuteur.actions, ...seance.actions, ...programme.actions, ...progres.actions, ...plus.actions, ...mur.actions, ...fenetres.actions,
 };
 document.addEventListener("click", e => {
@@ -106,18 +107,23 @@ document.addEventListener("input", e => { const el = e.target; if (el.dataset.ch
   if (el.dataset.frappe && ACTIONS[el.dataset.frappe]) ACTIONS[el.dataset.frappe](ctx, el.dataset, el); });                       // « data-frappe » : enregistré à chaque frappe, sans redessiner
 document.addEventListener("change", e => { const el = e.target; if (el.dataset.act && ACTIONS[el.dataset.act]) ACTIONS[el.dataset.act](ctx, el.dataset, el); });
 
-// --- Fermeture / réouverture de l'app : la séance en cours mémorise la pause ---
-document.addEventListener("visibilitychange", () => {
-  const enCours = ctx.programme.find(s => { const sa = ctx.saisie(s.id); return sa.debut && !sa.fin; }); if (!enCours) return;
-  const technique = { annulable: false };
-  if (document.hidden) ctx.modifierSeance(enCours.id, "pause", sa => { sa.pause = Date.now(); }, technique);
-  else { const sa = ctx.saisie(enCours.id); if (sa.pause) { const dt = Date.now() - sa.pause;
-    ctx.modifierSeance(enCours.id, "reprise", x => { delete x.pause; if (dt > 15 * 60000) x.pauseTotale = (x.pauseTotale || 0) + dt; }, technique);
-    if (dt > 15 * 60000) ctx.toast(`Séance interrompue ${Math.round(dt / 60000)} min : temps non compté`); } rendre(false); }
-});
-// Écran allumé pendant une séance
+// --- Retour dans l'app (téléphone déverrouillé, autre app quittée) ---
+// Le temps passé téléphone verrouillé COMPTE dans la séance : en salle, le téléphone est dans le sac entre deux voies.
+// Au retour : on recalcule tout (la date a pu changer), on ferme une séance oubliée depuis plus de 4 h, on cherche une mise à jour.
+let enregistrement = null;
+function auRetour() {
+  cache.doc = null;
+  const closes = clotureAutomatique(JSON.parse(JSON.stringify(store.doc)), ctx.programme);
+  if (closes.length) store.modifier("clôture automatique", d => clotureAutomatique(d, ctx.programme), { annulable: false });
+  majEcranAllume(); if (enregistrement) enregistrement.update().catch(() => {});
+  if (!state.modal || !document.activeElement || document.activeElement.tagName !== "INPUT") rendre(false);
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && store) auRetour(); });
+// Écran allumé pendant une séance en cours (réglage) ; le système relâche le verrou quand l'app passe en arrière-plan : on le redemande au retour
 let verrou = null;
-async function ecranAllume(on) { try { if (on && !verrou && navigator.wakeLock) { verrou = await navigator.wakeLock.request("screen"); verrou.addEventListener("release", () => verrou = null); } else if (!on && verrou) { await verrou.release(); verrou = null; } } catch { /* refusé */ } }
+async function ecranAllume(on) { try { if (on && !verrou && navigator.wakeLock && !document.hidden) { verrou = await navigator.wakeLock.request("screen"); verrou.addEventListener("release", () => verrou = null); } else if (!on && verrou) { await verrou.release(); verrou = null; } } catch { /* refusé */ } }
+const seanceEnCours = d => ctx.programme.some(s => { const sa = d.seances[s.id]; return sa && sa.debut && !sa.fin; });
+const majEcranAllume = () => ecranAllume(!!store.doc.reglages.ecranAllume && seanceEnCours(store.doc));
 
 // --- Démarrage ---
 (async () => {
@@ -128,13 +134,16 @@ async function ecranAllume(on) { try { if (on && !verrou && navigator.wakeLock) 
   document.documentElement.classList.toggle("grand", !!store.doc.reglages.grand);
   // Une séance restée ouverte depuis plus de 4 h est close ; son bilan sera demandé par la carte « hier »
   { const closes = clotureAutomatique(JSON.parse(JSON.stringify(store.doc)), ctx.programme); if (closes.length) store.modifier("clôture automatique", d => clotureAutomatique(d, ctx.programme), { annulable: false }); }
-  store.abonner((d) => { cache.doc = null; const enCours = ctx.programme.some(s => { const sa = d.seances[s.id]; return sa && sa.debut && !sa.fin; }); ecranAllume(enCours && d.reglages.ecranAllume); });
+  store.abonner(() => { cache.doc = null; majEcranAllume(); });
   minuteur.configurer({ son: store.doc.reglages.son, quandFini: fini => { if (fini.type === "repos") ctx.toast("Repos terminé"); rendre(false); } });
   minuteur.restaurer();
   state.semaineVue = Math.max(1, semaineDe(store.doc.reglages.dateDebut || DATA.dateDebut, ctx.aujourdhui()));
-  rendre(true);
+  rendre(true); majEcranAllume();
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
-    navigator.serviceWorker.register("./sw.js").then(reg => { reg.addEventListener("updatefound", () => { const w = reg.installing; w && w.addEventListener("statechange", () => { if (w.state === "installed" && navigator.serviceWorker.controller) $("bandeau").style.display = "block"; }); }); });
+    const proposer = () => { if (navigator.serviceWorker.controller) $("bandeau").style.display = "block"; };
+    navigator.serviceWorker.register("./sw.js").then(reg => { enregistrement = reg;
+      if (reg.waiting) proposer();                                           // une version trouvée lors d'une ouverture précédente attend déjà
+      reg.addEventListener("updatefound", () => { const w = reg.installing; w && w.addEventListener("statechange", () => { if (w.state === "installed") proposer(); }); }); });
     let avaitControleur = !!navigator.serviceWorker.controller;          // première installation : pas de rechargement
     navigator.serviceWorker.addEventListener("controllerchange", () => { if (avaitControleur) location.reload(); avaitControleur = true; });
   }

@@ -10,7 +10,7 @@ const ICONE = { faite: "✓", abilan: "✓", sautee: "–", encours: "▶", aujo
 export function rendre(ctx) {
   const P = ctx.programme, { state, doc, data } = ctx, auj = ctx.aujourdhui(), debut = doc.reglages.dateDebut || data.dateDebut;
   const semaines = [...new Set(P.map(s => s.semaine))].sort((a, b) => a - b), wNow = semaineDe(debut, auj);
-  if (!semaines.includes(state.semaineVue)) state.semaineVue = semaines.includes(wNow) ? wNow : semaines[0];
+  if (state.semaineVue !== null && !semaines.includes(state.semaineVue)) state.semaineVue = semaines.includes(wNow) ? wNow : semaines[0];   // null = tout replié
   const phases = []; for (const w of semaines) { const ph = (P.find(s => s.semaine === w) || {}).phase || ""; const bloc = ph.split(" · ")[0]; if (!phases.length || phases[phases.length - 1].bloc !== bloc) phases.push({ bloc, semaines: [] }); phases[phases.length - 1].semaines.push(w); }
   let out = h`<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Aujourd'hui</button><button class="petit-btn" data-act="creationOuvrir">+ Séance</button><button class="petit-btn" data-act="progres">Progrès ›</button></div>`;
   for (const ph of phases) {
@@ -29,7 +29,7 @@ export function rendre(ctx) {
 function semaineDetail(ctx, w, sem, auj) {
   const { doc, data } = ctx, debut = doc.reglages.dateDebut || data.dateDebut, lundi = dateSeance(debut, w, "Lundi");
   const jours = JOURS.map((j, i) => { const d = ajouterJours(lundi, i); return { j, d, seances: ctx.programme.filter(s => s.date === d) }; });
-  const mesures = doc.mesures[w];
+  const mesures = doc.mesures[w] && Object.keys(doc.mesures[w]).length;
   return h`<div class="jours">${jours.map(x => h`<div class="jour ${x.d === auj ? "auj" : ""}"><div class="jour-nom">${x.j.slice(0, 3)}<br><span class="petit">${x.d.slice(8, 10)}</span></div>
       ${x.seances.map(s => { const e = etatSeance(s, ctx.saisie(s.id), auj); return h`<button class="pastille-seance etat-${e}" data-act="ouvrirSeance" data-id="${s.id}" data-activite="${s.activite}" aria-label="${s.activite}">${ICONE[e] || s.activite[0]}</button>`; })}</div>`)}</div>
     ${sem.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), t = sa.tentatives || [], et = etapesSeance(s, sa);

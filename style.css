@@ -216,3 +216,4 @@ html.grand { font-size: 19px; } html.grand button { min-height: 48px; } html.gra
 
 /* Champ secret (jeton) : masqué sauf pendant la saisie ; type texte pour que le collage marche sur iPhone (pas de trousseau iCloud) */
 input.secret:not(:focus) { -webkit-text-security: disc; }
+.mn-fin { font-size: 24px; font-weight: 600; margin-top: 10px; font-variant-numeric: tabular-nums; } #minuteur.pastille .mn-fin { display: none; }

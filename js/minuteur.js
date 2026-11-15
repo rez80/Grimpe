@@ -2,7 +2,7 @@
 // État transitoire (pas dans le document) : conservé dans localStorage pour survivre à un rechargement.
 
 import { $, h, brut } from "./html.js";
-import { mmss } from "./dates.js";
+import { mmss, hhmm } from "./dates.js";
 
 const CLE = "grimpe-minuteur";
 let T = null, tick = null, audio = null, surFin = null, reglages = { son: true };
@@ -13,9 +13,15 @@ export function configurer({ son = true, quandFini } = {}) { reglages.son = son;
 // phases : [{ label, duree }] ; après la dernière, fini (ou boucle si « boucles » > 1)
 export function lancer({ type, label, phases, seanceId, k, boucles = 1 }) {
   T = { type, label, phases, boucles, seanceId, k, phase: 0, boucle: 1, fin: Date.now() + phases[0].duree * 1000, restePause: null, total: phases[0].duree, alertes: {} };
-  sauver(); demarrerTick(); ouvrirPlein(true); maj();                     // plein écran ; un appui sur le cadran le réduit en pastille
+  sauver(); demarrerTick(); ouvrirPlein(true); garderEcran(true); maj();   // plein écran ; un appui sur le cadran le réduit en pastille
 }
-export function arreter() { T = null; sauver(); clearInterval(tick); tick = null; $("minuteur").className = ""; maj(); }
+export function arreter() { T = null; sauver(); clearInterval(tick); tick = null; $("minuteur").className = ""; garderEcran(false); maj(); }
+// Pendant un minuteur, l'écran reste allumé (le système le relâche en arrière-plan : on le redemande au retour)
+let verrou = null;
+async function garderEcran(on) { try { if (on && !verrou && navigator.wakeLock && !document.hidden) { verrou = await navigator.wakeLock.request("screen"); verrou.addEventListener("release", () => { verrou = null; }); } else if (!on && verrou) { const v = verrou; verrou = null; await v.release(); } } catch { /* refusé */ } }
+document.addEventListener("visibilitychange", () => { if (!document.hidden && T) { garderEcran(true); maj(); } });
+// Heure de fin de tout ce qui reste (phase en cours + phases et boucles suivantes)
+function heureFin() { if (!T || T.restePause != null) return null; let s = 0; for (let b = T.boucle, p = T.phase + 1; b <= T.boucles; b++, p = 0) for (; p < T.phases.length; p++) s += T.phases[p].duree; return T.fin + s * 1000; }
 export function pauseReprise() {
   if (!T) return;
   if (T.restePause != null) { T.fin = Date.now() + T.restePause * 1000; T.restePause = null; }
@@ -28,14 +34,16 @@ export const ouvrirPlein = plein => { $("minuteur").classList.toggle("plein", !!
 
 function reste() { return T.restePause != null ? T.restePause : Math.max(0, (T.fin - Date.now()) / 1000); }
 function phaseSuivante() {
-  bip("fin");
+  const enRetard = Date.now() - T.fin > 3000;                             // fin passée pendant que l'app dormait : pas de bip en rafale
+  if (!enRetard) bip("fin");
   if (T.phase + 1 < T.phases.length) T.phase++;
   else if (T.boucle < T.boucles) { T.boucle++; T.phase = 0; }
-  else { const fini = T; arreter(); if (surFin) surFin(fini); return; }
-  T.total = T.phases[T.phase].duree; T.fin = Date.now() + T.total * 1000; T.alertes = {}; sauver();
+  else { const fini = T; arreter(); if (surFin) surFin(fini); return false; }
+  T.total = T.phases[T.phase].duree; T.fin = T.fin + T.total * 1000; T.alertes = {}; sauver(); return true;
 }
-function demarrerTick() { clearInterval(tick); tick = setInterval(() => { if (!T) return; const r = reste();
-  if (r <= 0 && T.restePause == null) return phaseSuivante();
+function demarrerTick() { clearInterval(tick); tick = setInterval(() => { if (!T) return;
+  if (T.restePause == null && T.fin <= Date.now()) { while (T && T.restePause == null && T.fin <= Date.now()) if (!phaseSuivante()) return; if (!T) return; }
+  const r = reste();
   if (r <= 10.5 && !T.alertes.dix && T.total > 20) { T.alertes.dix = 1; bip("dix"); }
   if (r <= 3.5 && !T.alertes.trois) { T.alertes.trois = 1; bip("trois"); }
   maj(); }, 250); }
@@ -51,7 +59,7 @@ export function maj() {
     <button class="mn-x" data-act="mnArreter" aria-label="Arrêter">✕</button>
     <div class="mn-corps" data-act="mnPlein">
       <svg viewBox="0 0 64 64" class="mn-anneau"><circle cx="32" cy="32" r="27" class="fond"/><circle cx="32" cy="32" r="27" class="arc" style="stroke-dasharray:${circ};stroke-dashoffset:${circ * (1 - frac)}"/></svg>
-      <div class="mn-textes"><div class="mn-temps">${mmss(Math.ceil(r))}</div><div class="mn-label">${p.label}${T.boucles > 1 ? ` · ${T.boucle}/${T.boucles}` : ""}</div>${suivant ? h`<div class="mn-suivant">puis ${suivant}</div>` : ""}</div>
+      <div class="mn-textes"><div class="mn-temps">${mmss(Math.ceil(r))}</div><div class="mn-label">${p.label}${T.boucles > 1 ? ` · ${T.boucle}/${T.boucles}` : ""}</div>${suivant ? h`<div class="mn-suivant">puis ${suivant}</div>` : ""}${heureFin() ? h`<div class="mn-fin">jusqu'à ${hhmm(heureFin())}</div>` : ""}</div>
     </div>
     <div class="mn-ctrl"><button data-act="mnAjuster" data-sec="-30">−30</button><button data-act="mnPause">${T.restePause != null ? "▶" : "❚❚"}</button><button data-act="mnAjuster" data-sec="30">+30</button><button data-act="mnPasser">Passer</button></div>
     ${T.type === "repos" ? h`<button class="mn-stop" data-act="mnArreter">■ Fin du repos</button>` : ""}`.toString();
@@ -71,8 +79,11 @@ export function debloquerSon() { try { audio = audio || new (window.AudioContext
 
 function sauver() { try { if (T) localStorage.setItem(CLE, JSON.stringify(T)); else localStorage.removeItem(CLE); } catch { /* ignore */ } }
 export function restaurer() {
-  try { const t = JSON.parse(localStorage.getItem(CLE) || "null"); if (t && (t.restePause != null || t.fin > Date.now())) { T = t; demarrerTick(); ouvrirPlein(false); maj(); } else localStorage.removeItem(CLE); } catch { /* ignore */ }
+  try { const t = JSON.parse(localStorage.getItem(CLE) || "null"); if (!t) return; T = t;
+    if (T.restePause == null && !heureFinTotale()) { T = null; localStorage.removeItem(CLE); return; }     // tout est fini depuis : on oublie
+    demarrerTick(); ouvrirPlein(false); garderEcran(true); maj(); } catch { T = null; }
 }
+const heureFinTotale = () => { const f = heureFin(); return f && f > Date.now() ? f : null; };
 export const actions = {
   mnArreter: () => arreter(), mnPause: () => pauseReprise(), mnAjuster: (c, d) => ajuster(+d.sec), mnPasser: () => passer(),
   mnPlein: () => { const m = $("minuteur"); ouvrirPlein(!m.classList.contains("plein")); },
