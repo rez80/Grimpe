@@ -15,7 +15,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.0";
+export const APP_VERSION = "8.0.1";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "plus", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
@@ -102,7 +102,8 @@ document.addEventListener("click", e => {
   e.preventDefault(); f(ctx, b.dataset, b);
 });
 // Champs de saisie : « data-champ » met à jour l'état de la fenêtre (ou appelle une action « data-act » au changement)
-document.addEventListener("input", e => { const el = e.target; if (el.dataset.champ && state.modal) state.modal[el.dataset.champ] = el.type === "number" ? (el.value === "" ? "" : +el.value) : el.value; });
+document.addEventListener("input", e => { const el = e.target; if (el.dataset.champ && state.modal) state.modal[el.dataset.champ] = el.type === "number" ? (el.value === "" ? "" : +el.value) : el.value;
+  if (el.dataset.frappe && ACTIONS[el.dataset.frappe]) ACTIONS[el.dataset.frappe](ctx, el.dataset, el); });                       // « data-frappe » : enregistré à chaque frappe, sans redessiner
 document.addEventListener("change", e => { const el = e.target; if (el.dataset.act && ACTIONS[el.dataset.act]) ACTIONS[el.dataset.act](ctx, el.dataset, el); });
 
 // --- Fermeture / réouverture de l'app : la séance en cours mémorise la pause ---
