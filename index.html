@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grimpe</title>
+<meta name="theme-color" content="#1F4E5A" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121a1d" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Grimpe">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icone-180.png">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="bandeau" style="display:none">Nouvelle version disponible — <button data-act="majApp">mettre à jour</button></div>
+<header id="entete">
+  <button id="prec" data-act="prec" aria-label="Précédent">‹</button>
+  <div id="titre-bloc"><div id="titre">Grimpe</div><div id="infos"></div></div>
+  <button id="btn-menu" data-act="menu" aria-label="Menu">⋯</button>
+  <button id="suiv" data-act="suiv" aria-label="Suivant">›</button>
+</header>
+<main id="ecran"><p class="petit centre" style="padding:40px 0">Chargement…</p></main>
+<nav id="onglets">
+  <button data-act="onglet" data-onglet="seance"><span class="ico">▶</span>Séance</button>
+  <button data-act="onglet" data-onglet="programme"><span class="ico">▦</span>Programme</button>
+  <button data-act="onglet" data-onglet="progres"><span class="ico">↗</span>Progrès</button>
+  <button data-act="onglet" data-onglet="plus"><span class="ico">⋯</span>Plus<span id="pastille-plus" class="pastille-nav" style="display:none"></span></button>
+</nav>
+<div id="minuteur"></div>
+<div id="toast" style="display:none"></div>
+<div id="fond-modal" style="display:none"><div id="modal" role="dialog"></div></div>
+<noscript>Cette app a besoin de JavaScript.</noscript>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+// ecrans/progres.js — d'abord trois phrases, ensuite le détail pour les curieux. Rien n'est calculé ici.
+import { h, si, lier } from "../html.js";
+import { court } from "../dates.js";
+import { hexDe } from "../salles.js";
+
+const FORME = { vert: "Bonne forme", orange: "Forme moyenne", rouge: "Forme basse" };
+const barre = (val, max, classe = "") => h`<span class="barre ${classe}"><span style="width:${max ? Math.min(100, val / max * 100) : 0}%"></span></span>`;
+
+export function rendre(ctx) {
+  const B = ctx.bilan, { data, doc, state } = ctx;
+  let out = h``;
+  for (const f of B.nouveauxFeux) out = h`${out}<div class="carte feu-carte"><div><b>🟢 Feu vert : ${f.titre}</b><br><span class="petit">${f.criteres.map(c => `${c.t} : ${c.val}${c.pct ? " %" : ""}`).join(" · ")}</span></div><button data-act="feuVu" data-id="${f.id}">Vu !</button></div>`;
+
+  // Les phrases
+  out = h`${out}<div class="carte phrases">${B.phrases.length ? B.phrases.map(p => h`<p class="${p.cle}">${p.texte}</p>`) : h`<p>Pas encore de quoi dire quelque chose : grimpe, note deux ou trois voies, et reviens.</p>`}
+    <div class="ligne-res"><span>Forme</span><b>${B.formeJour ? h`<span class="point ${B.formeJour.forme}"></span>${FORME[B.formeJour.forme]} <span class="petit">(${court(B.formeJour.date)})</span>` : "pas encore notée"}</b></div>
+    ${B.vigilance.filter(v => v.niveau !== "vert").map(v => h`<div class="vig ${v.niveau}">${v.texte}</div>`)}</div>`;
+
+  // Projets en cours (toutes salles)
+  const proj = B.voies.filter(v => v.essais > 0 && v.reussies === 0 && (v.voieId || v.couleur || v.nom)).sort((a, b) => b.derniere < a.derniere ? -1 : 1).slice(0, 8);
+  if (proj.length) out = h`${out}<div class="carte"><h2>Projets <span class="petit">tentés, pas encore enchaînés</span></h2>${proj.map(v => h`<div class="ligne-res"><span><span class="pastille" style="background:${hexDe(doc, v.couleur)}"></span> ${v.disc} ${v.cotSalle || v.cot || "?"}${v.nom ? " · " + v.nom : ""} <span class="petit">${(v.profil || "").toLowerCase()}</span></span><span class="petit">${v.essais} essai${v.essais > 1 ? "s" : ""} · ${court(v.derniere)}</span></div>`)}</div>`;
+
+  // Feux verts avec projection
+  out = h`${out}<div class="carte"><h2>Feux verts</h2>${B.feux.map(f => { const p = B.projection[f.id]; return h`<div class="feu ${f.ok ? "ok" : ""}"><div class="feu-titre">${f.ok ? "🟢" : f.info ? "ℹ️" : "⚪"} ${f.titre}</div>
+    ${f.criteres.map(c => h`<div class="crit"><span>${c.t}</span>${barre(c.val, c.cible, c.ok ? "ok" : "")}<b>${c.val}${c.pct ? " %" : ""} / ${c.cible}${c.pct ? " %" : ""}</b></div>`)}
+    ${si(p, () => h`<p class="petit">${p.semaines ? `À ce rythme : ${p.semaines > 26 ? "plus de six mois" : p.semaines === 1 ? "une semaine" : p.semaines + " semaines"}.` : p.val > 0 ? "Pas d'avancée sur quatre semaines." : ""}</p>`)}</div>`; })}</div>`;
+
+  out = h`${out}<div class="carte"><h2>Niveau consolidé <span class="petit">≥ ${Math.round(B.params.consolide_taux * 100)} % sur ≥ ${B.params.consolide_essais} essais</span></h2>
+    <div class="grille-niv">${Object.values(B.consolides).map(c => h`<div class="niv"><span class="petit">${c.disc} · ${c.groupe}</span><b>${c.niveau || "—"}</b></div>`)}</div>
+    <button class="pli" data-act="plier" data-k="detailNiv">${state.ouverts.has("detailNiv") ? "▾" : "▸"} Détail par cotation</button>
+    ${si(state.ouverts.has("detailNiv"), Object.values(B.consolides).filter(c => c.detail.length).map(c => h`<p class="petit"><b>${c.disc} · ${c.groupe}</b></p>${c.detail.map(d => h`<div class="crit"><span>${d.cot}</span>${barre(d.taux, 1, d.taux >= B.params.consolide_taux ? "ok" : "")}<b>${Math.round(d.taux * 100)} % · ${d.essais}</b></div>`)}`))}</div>`;
+
+  const pf = B.pointsFaibles;
+  if (pf.profil || pf.cause) out = h`${out}<div class="carte"><h2>À travailler <span class="petit">${B.params.faible_semaines ?? 8} dernières semaines</span></h2>
+    ${si(pf.profil, h`<p><b>${pf.profil && pf.profil.profil}</b> : ${pf.profil && Math.round(pf.profil.taux * 100)} % de réussite sur ${pf.profil && pf.profil.essais} essais.${pf.profil && pf.profil.conseil ? h` <span class="petit">${pf.profil.conseil.pourquoi}</span><br>${lier(pf.profil.conseil.exercices, data.exercices)}` : ""}</p>`)}
+    ${si(pf.cause, h`<p>Cause d'échec la plus fréquente : <b>${pf.cause && pf.cause.cause}</b> (${pf.cause && pf.cause.n} fois).${pf.cause && pf.cause.conseil ? h` <span class="petit">${pf.cause.conseil.pourquoi}</span><br>${lier(pf.cause.conseil.exercices, data.exercices)}` : ""}</p>`)}</div>`;
+
+  const ch = B.charge, max = Math.max(1, ...ch.semaines.map(w => w.charge));
+  out = h`${out}<div class="carte"><h2>Charge par semaine <span class="petit">minutes × effort</span></h2>
+    ${ch.semaines.length ? h`<div class="histo">${ch.semaines.map(w => h`<div class="col" title="S${w.semaine}"><span class="col-barre" style="height:${w.charge / max * 100}%"></span><span class="petit">S${w.semaine}</span></div>`)}</div>
+      <p class="petit">4 dernières semaines : ${ch.recentes} · 4 précédentes : ${ch.precedentes}${ch.precedentes ? ` · rapport ${(ch.recentes / ch.precedentes).toFixed(2)}` : ""}</p>` : h`<p class="petit">Aucune séance terminée.</p>`}</div>`;
+
+  if (B.meilleures.length) out = h`${out}<div class="carte"><h2>Meilleure cotation réussie</h2><table class="tableau"><tr><th>Sem.</th><th>Voie vert.</th><th>Voie dév.</th><th>Bloc vert.</th><th>Bloc dév.</th></tr>
+    ${B.meilleures.map(w => h`<tr><td>${w.semaine}</td><td>${w["Voie-Vertical"] || ""}</td><td>${w["Voie-Dévers"] || ""}</td><td>${w["Bloc-Vertical"] || ""}</td><td>${w["Bloc-Dévers"] || ""}</td></tr>`)}</table></div>`;
+
+  out = h`${out}<div class="carte"><h2>Douleurs</h2>${B.episodes.length ? B.episodes.slice().reverse().map(e => h`<div class="ligne-res"><span>${e.zone} <span class="petit">${court(e.debut)}${e.fin ? " → " + court(e.fin) : ""}</span></span><b class="${e.fin ? "" : "rouge-txt"}">${e.fin ? "terminé" : "en cours"} · max ${e.max}/10</b></div>`) : h`<p class="petit">Aucune douleur signalée.</p>`}</div>`;
+
+  const mes = Object.entries(doc.mesures).filter(([, m]) => Object.keys(m).length).sort((a, b) => +a[0] - +b[0]);
+  if (mes.length) { const cles = [...new Set(mes.flatMap(([, m]) => Object.keys(m)))].filter(k => k !== "notes");
+    out = h`${out}<div class="carte"><h2>Mesures</h2><table class="tableau"><tr><th>Sem.</th>${cles.map(k => h`<th>${k}</th>`)}</tr>${mes.map(([w, m]) => h`<tr><td>${w}</td>${cles.map(k => h`<td>${m[k] ?? ""}</td>`)}</tr>`)}</table></div>`; }
+  return { html: out, titre: h`<b>Progrès</b>` };
+}
+export const actions = {};
