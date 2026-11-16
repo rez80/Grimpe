@@ -1,4 +1,4 @@
-# Grimpe 8.10 — l'app d'escalade
+# Grimpe 8.12 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -11,7 +11,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 
 ## 1. Ce que fait l'app
 
-**Programme.** L'app s'ouvre sur le programme. La carte « Aujourd'hui » ouvre la séance du jour en un appui ; s'il n'y a pas de séance aujourd'hui, elle montre la prochaine. Si une séance est en cours, l'app s'ouvre directement dessus. Les semaines se déplient. Les pastilles des jours et les cartes de séance sont teintées, en transparence, de la couleur de l'activité (la même que le bandeau de la séance). En haut, le rappel de la séance précédente pas encore réglée : Faite → bilan, Sautée ou Plus tard. Chaque séance a son menu ⋯ :
+**Programme.** L'app s'ouvre sur le programme. La carte « Aujourd'hui » (ou « Prochaine séance ») est un bouton teinté de la couleur de son activité : un appui ouvre la séance. Si une séance est en cours, l'app s'ouvre directement dessus. Les semaines se déplient. Les pastilles des jours et les cartes de séance sont teintées, en transparence, de la couleur de l'activité (la même que le bandeau de la séance). En haut, le rappel de la séance précédente pas encore réglée : Faite → bilan, Sautée ou Plus tard. Chaque séance a son menu ⋯ :
 - bilan ;
 - modifier le plan ;
 - déplacer ;
@@ -70,7 +70,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 - **Déplacer une voie** : prends-la par ⋮⋮ et lâche-la sur une autre voie, dans un secteur ouvert, ou sur le nom d'un secteur replié. Il n'y a pas de mode à activer ni à quitter.
 - **Une voie** a :
   - une couleur : 12 de base, et un appui long montre les nuances (42 teintes) ;
-  - une cotation, notée à la façon de la salle : comme l'app, ses propres niveaux, par couleurs, ou aucune ;
+  - une cotation, notée à la façon de la salle : comme l'app, ses propres niveaux, par couleurs, ou aucune. « Niveau inconnu » est toujours possible : la voie s'affiche « ? » et se complète plus tard ;
   - une **inclinaison** : Dalle, Vertical, Léger dévers, Dévers, Surplomb, Fort dévers, Toit ;
   - des **caractéristiques**, plusieurs possibles : Arête, Traversée, Dièdre, Fissure, Volumes, Réglettes, Bacs, Pinces, Plats, Dynamique, Compression ;
   - un secteur et un nom.
@@ -105,6 +105,10 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 - La Bibliothèque, l'Aide, les Réglages et la Sauvegarde ont des sections repliables. La Bibliothèque et l'Aide ont une recherche.
 - Le « ? » d'un écran ouvre l'aide de cet écran.
 - Changer de page arrive en haut de la page ; le retour ‹ ramène où tu étais.
+- **Thème** : Réglages › Affichage › Thème : Automatique (comme l'iPhone), Clair ou Sombre. Le choix est retenu sur le téléphone.
+- **Repos par défaut** : une liste déroulante par activité (Réglages).
+- **Couleurs** : la Bibliothèque a une teinte par famille de catégories (technique, méthode, endurance, renfort, soin) ; les tuiles de Plus et les sections de Progrès ont chacune leur pastille.
+- **Filtres actifs** : dans une salle, chaque filtre en cours s'affiche en étiquette « ✕ » sous la barre. Les filtres sont propres à chaque salle.
 
 ---
 
@@ -142,7 +146,7 @@ Les données sont dans le téléphone (IndexedDB). Plus › Sauvegarde commence 
 Le jeton reste sur ce téléphone : il n'est jamais dans le document ni dans les exports. Si tu perds le téléphone, révoque le jeton sur GitHub.
 
 **Fichier.** Pour sauvegarder :
-- « Exporter le fichier » partage le document complet (`grimpe-AAAA-MM-JJ.json`, le fichier seul). Dans Mail, vérifie que la pièce jointe est bien là avant d'envoyer : la taille de la sauvegarde est affichée à côté du bouton.
+- « Exporter le fichier » partage le document complet (`Grimpe-sauvegarde-AAAA-MM-JJ-HHhMM.json`, le fichier seul). Dans Mail, vérifie que la pièce jointe est bien là avant d'envoyer : la taille de la sauvegarde est affichée à côté du bouton.
 - « Copier les données » met tout le document dans le presse-papiers, à coller dans Notes ou dans un mail. C'est le plus sûr sur iPhone.
 
 Pour restaurer : « Restaurer depuis un fichier » ou « Restaurer en collant le texte ».
