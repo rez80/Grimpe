@@ -1,4 +1,4 @@
-# Grimpe 8.4 — l'app d'escalade, version complète
+# Grimpe 8.5 — l'app d'escalade, version complète
 
 Même usage que l'app 6.5 : le programme s'écrit dans **Programme.xlsx**, l'app sur l'iPhone sert à faire les séances, un outil Python sur le PC fait le rapport. Même stack : HTML/CSS/JS sans dépendance, PWA sur GitHub Pages, données sur le téléphone, Python + openpyxl.
 
@@ -6,6 +6,28 @@ Deux couches ont été refaites, dans cet ordre :
 
 1. **La structure** (v7) — un seul document versionné, un seul format d'export, les règles de calcul écrites une seule fois, une grammaire explicite, un identifiant stable par séance, des dates en jours entiers, des modules et des tests.
 2. **Le point de vue du grimpeur** (v8) — pendant la séance l'app ne demande rien, une voie se note en la touchant, l'app se souvient des voies et des projets, la sauvegarde se fait toute seule, le programme est dans le calendrier, les progrès tiennent en trois phrases.
+
+## Version 8.5 — historique des voies, calculs vérifiés, écrans rangés comme la Bibliothèque
+
+**Historique d'une voie** : ouvert directement dans sa fiche ; chaque passage (en séance ou hors séance) avec ✕ pour le supprimer tout de suite (« Annuler » quelques secondes, au-dessus de la fenêtre). « + Ajouter » : une réussite (date, aisance, essais) ou des **échecs sur plusieurs dates d'un coup** (une pastille par date, « Date inconnue » possible).
+
+**Passages hors séance** : seulement là où c'est utile — la fiche de la voie (pour une voie de salle) et ⋯ du Programme › « Passages hors séance » (sans voie connue). Retirés de Progrès et de la barre du Programme.
+
+**Ligne de cotation** : un passage noté sans toucher une voie compte comme une **voie déjà faite** (il ne gonfle plus le nombre de voies différentes). Le message après l'appui propose « Nouvelle voie » ; la fenêtre du passage a la même case. La liste des passages de la séance l'indique.
+
+**Calculs corrigés** (`js/analyse.js`, testés) :
+- les essais indiqués après une réussite comptent comme des échecs dans les taux (niveau consolidé, feux, point faible), sans doublon avec ceux déjà notés (`avecEssaisDeclares`) ;
+- une deuxième réussite d'une voie est une répétition : pas d'« essais avant réussite », et seuls les échecs depuis la dernière réussite comptent (`dejaReussie`, `essaisPrecedents`) ;
+- douleur sur 28 jours, forme, avertissements et vigilance utilisent le jour où la séance a vraiment été faite ;
+- la charge compare les 4 dernières semaines **complètes** aux 4 précédentes.
+
+**Consignes** : une seule ligne « Consignes › » sous le bandeau, avant, pendant et après la séance (« Pas de consigne pour cette séance » sinon). Avant, elle n'existait que pendant une séance commencée.
+
+**Pause** : « ⏸ Faire une pause » ; la fenêtre explique à quoi ça sert et montre les nouvelles dates (début de la semaine, fin du programme). **Mesures** : ⓘ qui explique chaque test, et la valeur précédente à côté de chaque champ.
+
+**ⓘ** aussi sur Feux verts, Niveau consolidé et Charge (textes dans `js/infos.js`). Toucher un projet dans Progrès ouvre la fiche de la voie. Progrès › Douleurs › Signalements : ✕ pour supprimer un signalement saisi par erreur.
+
+**Rangés comme la Bibliothèque** : l'Aide (recherche + sections repliables ; le « ? » d'un écran met sa section en tête, ouverte), les Réglages (sections repliables) et la Sauvegarde (une ligne d'état puis sections repliables — présentation seulement, aucune logique de sauvegarde modifiée). Le plan de séance et le détail du niveau utilisent aussi le bloc repliable commun.
 
 ## Version 8.4 — ouverture sur le programme, choix en lignes, salles repliées, aisance
 
