@@ -3,7 +3,7 @@
 import { h, si, classes, lier, ico, pictoProfil, pli } from "../html.js";
 import { etapesSeance, dureeEtape, dureeSeance, etatSeance, discipline, reposDefaut, seanceARegler, activiteAffichee } from "../programme.js";
 import { versionsDe, titreAction } from "../parseur.js";
-import { avertissements, reussi, forme, parVoie, projets, causePrincipale, tentatives as toutesTentatives } from "../analyse.js";
+import { avertissements, reussi, forme, parVoie, projets, causePrincipale, anonyme, tentatives as toutesTentatives } from "../analyse.js";
 import { court, hm, hhmm, mmss, semaineDe, ajouterJours } from "../dates.js";
 import { salleDe, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe } from "../salles.js";
 
@@ -65,6 +65,9 @@ export function rendre(ctx) {
     ${si(etat === "abilan", h`<button class="gros blanc" data-act="bilanOuvrir">Donner le bilan</button>`)}
     ${frise(ctx, s, sa, etapes, enCours ? courante : null)}
   </div>`;
+  // Consignes : une seule ligne, toujours au même endroit (avant, pendant et après la séance)
+  { const inf = etapes.filter(e => e.type === "info" && !/^thème/i.test(e.texte));
+    out = h`${out}${pli("consignes", false, "Consignes", () => inf.length ? h`<div class="consignes">${inf.map(e => h`<div class="info">${lier(e.texte, data.exercices)}</div>`)}</div>` : h`<p class="petit">Pas de consigne pour cette séance.</p>`, { resume: inf.length ? String(inf.length) : "aucune", classe: "carte pli-consignes" })}`; }
 
   // Avertissements, et la version allégée si elle existe
   const averts = avertissements(s, ctx.programme, doc), fj = forme(sa, data.params);
@@ -84,7 +87,6 @@ export function rendre(ctx) {
         <div class="boutons-maintenant">${boutonsEtape(ctx, s, sa, courante, true)}
           ${avecRonds(courante) && nbFait(sa, courante) < courante.n ? h`<button class="principal" data-act="rond" data-k="${courante.k}" data-i="${nbFait(sa, courante)}">+1 · ${nbFait(sa, courante) + 1}/${courante.n}</button>${suivante ? h`<button data-act="suivant">Passer à : ${titreDe(suivante)} ›</button>` : ""}`
             : h`<button class="principal" data-act="suivant">✓ Fait${suivante ? h` · suivant : ${titreDe(suivante)}` : ""}</button>`}</div>` : ""}
-      ${pli("m-consignes", false, "Consignes", () => infosSeance.length ? h`<div class="consignes">${infosSeance.map(e => h`<div class="info">${lier(e.texte, data.exercices)}</div>`)}</div>` : h`<p class="petit">Pas de consigne pour cette séance.</p>`, { resume: infosSeance.length ? `${infosSeance.length}` : "aucune", classe: "pli-maintenant" })}
       ${si(courante, () => pli("m-detail", false, "Détail de l'étape", () => detailEtape(ctx, courante), { classe: "pli-maintenant" }))}
       <div class="boutons-bas"><button data-act="douleurOuvrir">${ico("alerte")} Douleur</button><button class="danger-contour" data-act="bilanOuvrir">${ico("stop")} Fin de séance</button></div>
     </div>`;
@@ -103,18 +105,15 @@ export function rendre(ctx) {
   if (estGrimpe && (enCours || sa.fin || (sa.tentatives || []).length || avant)) out = h`${out}${carteVoies(ctx, s, sa, etapes, disc)}`;
 
   // Le plan : replié pendant une séance de grimpe en cours (la carte Maintenant suffit), ouvert sinon
-  const infos = etapes.filter(e => e.type === "info"), faites = actives(etapes).filter(e => etapeFinie(sa, e)).length;
-  const replie = enCours && estGrimpe && !state.ouverts.has("plan");
-  out = h`${out}${enCours && estGrimpe ? h`<button class="pli titre-plan" data-act="plier" data-k="plan">${replie ? "▸" : "▾"} Plan de séance <span class="petit">${faites}/${actives(etapes).length} faites</span></button>` : h`<h2 class="section">Plan de séance${sa.debut ? h` <span class="petit">${faites}/${actives(etapes).length} faites</span>` : ""}</h2>`}
-  ${si(!replie, () => h`<div class="etapes">
-    ${si(infos.length, h`<button class="pli" data-act="plier" data-k="consignes">${state.ouverts.has("consignes") ? "▾" : "▸"} Consignes (${infos.length})</button>${si(state.ouverts.has("consignes"), h`<div class="consignes">${infos.map(e => h`<div class="info">${lier(e.texte, data.exercices)}</div>`)}</div>`)}`)}
+  const faites = actives(etapes).filter(e => etapeFinie(sa, e)).length, grimpeEnCours = enCours && estGrimpe;
+  out = h`${out}${pli(grimpeEnCours ? "plan-encours" : "plan", !grimpeEnCours, "Plan de séance", () => h`<div class="etapes">
     ${actives(etapes).map((e, n) => ligneEtape(ctx, s, sa, e, n + 1, enCours && courante && courante.k === e.k, enCours))}
     ${si(s.libre && !etapes.length, h`<p class="petit">Séance libre : note simplement ce que tu fais.</p>`)}
-  </div>`)}`;
+  </div>`, { resume: sa.debut ? `${faites}/${actives(etapes).length} faites` : `${actives(etapes).length} étapes`, classe: "pli-plan" })}`;
 
   // Tentatives de la séance
   if ((sa.tentatives || []).length) out = h`${out}<div class="carte"><h2>Passages de la séance <span class="petit">${(sa.tentatives || []).filter(reussi).length} / ${sa.tentatives.length}</span></h2>
-    ${sa.tentatives.map((v, i) => h`<button class="tentative" data-act="resultatEditer" data-i="${i}"><span class="pastille" style="background:${hexDe(doc, v.couleur)}"></span><span>${libelleVoie(v)}${v.profil ? ` · ${v.profil.toLowerCase()}` : ""}${v.approx ? " · en gros" : ""}</span><span class="res res-${v.res}">${v.res === "sec" ? `${v.sec} sec` : RES_LABEL[v.res]}</span></button>`)}</div>`;
+    ${sa.tentatives.map((v, i) => h`<button class="tentative" data-act="resultatEditer" data-i="${i}"><span class="pastille" style="background:${hexDe(doc, v.couleur)}"></span><span>${libelleVoie(v)}${v.profil ? ` · ${v.profil.toLowerCase()}` : ""}${v.approx ? " · en gros" : ""}${anonyme(v) ? (v.nouvelle ? " · nouvelle voie" : " · voie déjà faite") : ""}</span><span class="res res-${v.res}">${v.res === "sec" ? `${v.sec} sec` : RES_LABEL[v.res]}</span></button>`)}</div>`;
   if (s.libre || s.copie) out = h`${out}<button class="gros contour danger" data-act="supprimerLibre">Supprimer cette séance</button>`;
   return { html: out, titre: h`<b>${court(s.date)}</b> · ${activiteAffichee(s, sa)}`, fleches: true, menu: true, activite: disc === "Bloc" ? "Bloc" : s.activite, infos: "", glisser: !enCours };
 }
@@ -181,7 +180,7 @@ function carteVoies(ctx, s, sa, etapes, disc) {
   let out = h`<div class="carte voies"><h2>${nom}</h2>
     <button class="fiche-ligne ligne-salle" data-act="choixSalleOuvrir"><span>Salle</span><span class="val">${salle ? salle.nom : "Salle inconnue"} ›</span></button>
     <h3>Cotations de la séance</h3><div class="cot-rapide">${cots.map(c => h`<div class="cot-ligne"><b>${c}</b><button class="ok" data-act="noterRapide" data-cot="${c}" data-res="ok" aria-label="Réussi en ${c}">✓</button>${si(disc === "Voie", h`<button class="sec" data-act="noterRapide" data-cot="${c}" data-res="sec">sec</button>`)}<button class="ko" data-act="noterRapide" data-cot="${c}" data-res="ko" aria-label="Pas réussi en ${c}">✗</button></div>`)}</div>
-    <p class="petit">Un appui = un passage${salle ? ", sans chercher la voie dans la salle" : ""}. <button class="lien" data-act="resultat">Autre cotation, profil…</button></p>`;
+    <p class="petit">Un appui = un passage${salle ? ", sans chercher la voie dans la salle" : ""}. Il compte comme une <b>voie déjà faite</b> ; pour une nouvelle voie, touche « Nouvelle voie » dans le message qui s'affiche. <button class="lien" data-act="resultat">Autre cotation, profil…</button></p>`;
   if (salle) {
     const voies = parVoie(toutesTentatives(ctx.programme, doc)), enPlace = voiesEnPlace(salle, disc), auj = sa.tentatives || [];
     const histo = id => voies.find(v => v.voieId === id), proj = projets(voies, disc, salle).filter(v => v.voieId && enPlace.some(x => x.id === v.voieId));
@@ -269,7 +268,10 @@ export const actions = {
     ctx.ouvrirModal({ type: "voieRapide", seanceId: s.id, salleId: salle.id, voieId: v.id, disc, res: "", sec: 1, cause: "" }); },
   noterRapide: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa);
     const salle = salleCourante(ctx, s, sa, disc);
-    ajouterTentative(ctx, s, { t: Date.now(), k: cleRattachement(ctx, s, sa, disc), disc, cot: d.cot, cotSalle: "", profil: "", res: d.res, ...(d.res === "sec" ? { sec: 1 } : {}), ...(salle ? { salle: salle.id } : {}) }); ctx.rendre(); },
+    const t = { t: Date.now(), k: cleRattachement(ctx, s, sa, disc), disc, cot: d.cot, cotSalle: "", profil: "", res: d.res, ...(d.res === "sec" ? { sec: 1 } : {}), ...(salle ? { salle: salle.id } : {}) };
+    ajouterTentative(ctx, s, t);
+    ctx.toast(`${RES_LABEL[t.res]} · ${t.cot} · voie déjà faite`, () => ctx.store.annuler(), { label: "Nouvelle voie", action: () => ctx.modifierSeance(s.id, "nouvelle voie", x => { const y = (x.tentatives || []).find(z => z.t === t.t); if (y) y.nouvelle = true; }) });
+    ctx.rendre(); },
   nouvelleVoieOuvrir: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), salle = salleCourante(ctx, s, sa, disc), c = cotationDe(salle, disc);
     ctx.ouvrirModal({ type: "nouvelleVoie", seanceId: s.id, salleId: salle.id, disc, couleur: "", cotSalle: "", chiffre: "", nom: "", profil: "", secteurId: ctx.state.dernierSecteur || "", mode: c.mode }); },
   resultat: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), dernier = (sa.tentatives || []).slice(-1)[0];

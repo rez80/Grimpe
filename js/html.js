@@ -60,3 +60,6 @@ export function pli(cle, defaut, titre, contenu, { resume = "", classe = "", tou
 //   M.section porte la ligne ouverte ; les actions de choix (mChamp, mProfil, mSecteur, mCot…) referment
 // =====================================================================
 export const ligneChoix = (M, cle, label, valeur, contenu) => h`<button class="fiche-ligne" data-act="mSection" data-k="${cle}"><span>${label}</span><span class="val">${valeur || "—"} ${M.section === cle ? "▾" : "›"}</span></button>${M.section === cle ? h`<div class="fiche-contenu">${contenu()}</div>` : ""}`;
+
+// ⓘ : un lien discret qui ouvre l'explication (textes dans infos.js, fenêtre « info »)
+export const info = (cle, texte = "Comment ça marche") => h`<button class="lien lien-info" data-act="infoOuvrir" data-k="${cle}">ⓘ ${texte}</button>`;

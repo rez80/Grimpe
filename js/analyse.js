@@ -12,6 +12,7 @@ export const baseCot = c => String(c ?? "").replace(/\+$/, "");       // 5b+ com
 export const reussi = t => t.res === "ok";
 export const rang = (echelles, disc, cot) => (echelles[disc] || []).indexOf(String(cot));
 
+const avant = (a, b) => (a.date || "") < (b.date || "") || ((a.date || "") === (b.date || "") && (a.t || 0) < (b.t || 0));
 // --- Toutes les tentatives, à plat, datées ---
 export function tentatives(programme, doc) {
   const out = [];
@@ -22,8 +23,25 @@ export function tentatives(programme, doc) {
   for (const t of doc.passagesAnciens || []) out.push({ ...t, seanceId: "ancien-" + t.date, approx: true });
   return out;
 }
-// Identité d'une voie : celle de la salle, sinon cotation + couleur + nom ; une tentative anonyme (y compris approximative) compte pour une voie à elle seule
-const identite = (t, n) => t.voieId ? t.voieId : t.couleur || t.nom ? `${t.disc}|${t.cot}|${t.couleur || ""}|${t.nom || ""}` : `#${n}`;
+// Identité d'une voie : celle de la salle, sinon cotation + couleur + nom.
+// Un passage anonyme (noté sur une ligne de cotation, sans voie) est une voie DÉJÀ FAITE de cette cotation, sauf s'il est marqué « nouvelle voie » :
+// il ne gonfle pas le nombre de voies différentes (prudent). Marqué « nouvelle », il compte pour une voie à lui seul.
+const identite = (t, n) => t.voieId ? t.voieId : t.couleur || t.nom ? `${t.disc}|${t.cot}|${t.couleur || ""}|${t.nom || ""}` : t.nouvelle ? `#${t.t || n}` : `ancienne|${t.disc}|${baseCot(t.cot)}`;
+export const anonyme = t => !t.voieId && !t.couleur && !t.nom;
+
+// Essais déclarés (« réussie au 4ᵉ essai ») : les échecs manquants entrent dans les taux, sans compter deux fois ceux déjà notés.
+export const nbEssaisDeclares = e => e === "5+" ? 5 : +e > 0 ? +e : 0;
+export function avecEssaisDeclares(ts) {
+  const out = [...ts], parVoieId = {};
+  [...ts].sort((a, b) => avant(a, b) ? -1 : 1).forEach(t => {
+    const id = t.voieId || null, h = id ? (parVoieId[id] = parVoieId[id] || { echecs: 0 }) : { echecs: 0 };
+    if (!reussi(t)) { h.echecs++; return; }
+    const manque = Math.max(0, nbEssaisDeclares(t.essaisAvant) - 1 - h.echecs);
+    for (let i = 0; i < manque; i++) out.push({ ...t, res: "ko", virtuel: true, aisance: undefined, essaisAvant: undefined });
+    h.echecs = 0; });
+  return out;
+}
+const dateDe = (s, doc) => ((doc.seances || {})[s.id] || {}).dateReelle || s.date;      // le jour où la séance a vraiment été faite
 export const differentes = l => new Set(l.map((t, n) => identite(t, n))).size;
 export const taux = l => l.length ? l.filter(reussi).length / l.length : 0;
 
@@ -50,7 +68,7 @@ export function feuxVerts(ts, programme, doc, params, echelles, aujourdhui, date
   const v5b = de("Voie", "5b"), b5 = de("Bloc", "5");
   const jours = params.feu_volume_jours ?? 28, limite = ajouterJours(aujourdhui, -jours);
   let dmax = 0;
-  for (const s of programme) { if (s.date < limite || s.date > aujourdhui) continue;
+  for (const s of programme) { const ds = dateDe(s, doc); if (ds < limite || ds > aujourdhui) continue;
     const sa = doc.seances[s.id]; if (!sa) continue; const d = sa.douleur || {};
     dmax = Math.max(dmax, +d.avant || 0, +d.apres || 0, ...(d.pendant || []).map(x => +x.niveau || 0)); }
   const niveau = (disc, cots) => { let niv = cots[0];
@@ -85,10 +103,8 @@ export function forme(saisie, params) {
   return "orange";
 }
 export function derniereForme(programme, doc, aujourdhui, params) {
-  for (let k = programme.length - 1; k >= 0; k--) {
-    const s = programme[k]; if (s.date > aujourdhui) continue;
-    const f = forme(doc.seances[s.id], params); if (f) return { forme: f, date: s.date, seanceId: s.id };
-  }
+  const l = programme.map(s => ({ s, d: dateDe(s, doc) })).filter(x => x.d <= aujourdhui).sort((a, b) => a.d < b.d ? -1 : 1);
+  for (let k = l.length - 1; k >= 0; k--) { const f = forme(doc.seances[l[k].s.id], params); if (f) return { forme: f, date: l[k].d, seanceId: l[k].s.id }; }
   return null;
 }
 
@@ -97,7 +113,7 @@ export function signalements(programme, doc) {
   const out = [];
   for (const s of programme) { const sa = doc.seances[s.id]; if (!sa || !sa.douleur) continue; const d = sa.douleur, date = sa.dateReelle || s.date;
     if (+d.avant > 0) out.push({ date, zone: d.zoneAvant || "?", niveau: +d.avant, quand: "avant", seanceId: s.id });
-    for (const x of d.pendant || []) out.push({ date, zone: x.zone, niveau: +x.niveau, quand: "pendant", seanceId: s.id });
+    (d.pendant || []).forEach((x, i) => out.push({ date, zone: x.zone, niveau: +x.niveau, quand: "pendant", seanceId: s.id, i }));
     if (+d.apres > 0) out.push({ date, zone: d.zone || "?", niveau: +d.apres, quand: "après", seanceId: s.id }); }
   return out.sort((a, b) => a.date < b.date ? -1 : 1);
 }
@@ -122,7 +138,7 @@ export function chargeSemaines(programme, doc, dateDebut, aujourdhui) {
     x.seances++; x.minutes += min; x.charge += min * (+sa.effort || 5); x.parActivite[s.activite] = (x.parActivite[s.activite] || 0) + min; }
   const l = Object.values(W).sort((a, b) => a.semaine - b.semaine);
   const wNow = semaineDe(dateDebut, aujourdhui), somme = (a, b) => l.filter(x => x.semaine >= a && x.semaine <= b).reduce((t, x) => t + x.charge, 0);
-  return { semaines: l, recentes: somme(wNow - 3, wNow), precedentes: somme(wNow - 7, wNow - 4) };
+  return { semaines: l, recentes: somme(wNow - 4, wNow - 1), precedentes: somme(wNow - 8, wNow - 5) };       // semaines complètes seulement
 }
 export const dureeMinutes = sa => sa.duree != null ? +sa.duree : sa.fin && sa.debut ? Math.round((sa.fin - sa.debut - (sa.pauseTotale || 0)) / 60000) : 0;
 
@@ -146,7 +162,7 @@ export function vigilance({ programme, doc, params, aujourdhui, formeJour, episo
   const zones = {}; sig.forEach(x => zones[x.zone] = (zones[x.zone] || 0) + 1);
   Object.entries(zones).filter(([, n]) => n >= 2).forEach(([z, n]) => out.push({ niveau: "orange", texte: `${z} : ${n} signalements en 14 jours` }));
   episodesEnCours.forEach(e => out.push({ niveau: e.max >= 5 ? "rouge" : "orange", texte: `Épisode en cours : ${e.zone} depuis le ${e.debut.slice(8, 10)}/${e.debut.slice(5, 7)} (max ${e.max}/10)` }));
-  const faites = programme.filter(s => doc.seances[s.id] && doc.seances[s.id].fin && s.date <= aujourdhui).slice(-3).map(s => doc.seances[s.id]);
+  const faites = programme.filter(s => doc.seances[s.id] && doc.seances[s.id].fin && dateDe(s, doc) <= aujourdhui).sort((a, b) => dateDe(a, doc) < dateDe(b, doc) ? -1 : 1).slice(-3).map(s => doc.seances[s.id]);
   const d = faites.map(sa => +(sa.douleur || {}).apres || 0);
   if (d.length === 3 && d[0] < d[1] && d[1] < d[2] && d[2] > 0) out.push({ niveau: "orange", texte: "Douleur en hausse sur 3 séances" });
   const ef = faites.slice(-2).map(sa => +sa.effort || 0);
@@ -158,7 +174,7 @@ export function vigilance({ programme, doc, params, aujourdhui, formeJour, episo
 
 // --- Avertissements avant une séance donnée (douleur récente, zone récurrente, efforts élevés) ---
 export function avertissements(s, programme, doc) {
-  const out = [], avant = programme.filter(x => x.date < s.date && ecartJours(x.date, s.date) <= 14);
+  const out = [], avant = programme.filter(x => { const d = dateDe(x, doc); return d < s.date && ecartJours(d, s.date) <= 14; }).sort((a, b) => dateDe(a, doc) < dateDe(b, doc) ? -1 : 1);
   const sig = signalements(avant, doc), derniere = [...sig].reverse().find(x => x.niveau >= 3);
   if (derniere) out.push(`Douleur signalée le ${derniere.date.slice(8, 10)}/${derniere.date.slice(5, 7)} : ${derniere.zone} ${derniere.niveau}/10. Échauffement plus long, ménage cette zone, arrête si ça revient.`);
   const zones = {}; sig.forEach(x => zones[x.zone] = (zones[x.zone] || 0) + 1);
@@ -171,12 +187,12 @@ export function avertissements(s, programme, doc) {
 // --- Bilan complet, pour l'écran Progrès et pour l'export ---
 export function bilan({ data, doc, programme, aujourdhui }) {
   const params = { ...data.params, ...(doc.reglages.params || {}) }, dateDebut = doc.reglages.dateDebut || data.dateDebut;
-  const ts = tentatives(programme, doc);
-  const feux = feuxVerts(ts, programme, doc, params, data.echelles, aujourdhui, dateDebut);
+  const ts = tentatives(programme, doc), tsCalc = avecEssaisDeclares(ts);
+  const feux = feuxVerts(tsCalc, programme, doc, params, data.echelles, aujourdhui, dateDebut);
   const sig = signalements(programme, doc), ep = episodes(sig, params, aujourdhui), charge = chargeSemaines(programme, doc, dateDebut, aujourdhui);
   const formeJour = derniereForme(programme, doc, aujourdhui, params);
-  return { aujourdhui, dateDebut, params, nbTentatives: ts.length, feux, consolides: niveauxConsolides(ts, data.echelles, params), signalements: sig, episodes: ep,
-           charge, formeJour, pointsFaibles: pointsFaibles(ts, data.conseils, params, aujourdhui),
+  return { aujourdhui, dateDebut, params, nbTentatives: ts.length, feux, consolides: niveauxConsolides(tsCalc, data.echelles, params), signalements: sig, episodes: ep,
+           charge, formeJour, pointsFaibles: pointsFaibles(tsCalc, data.conseils, params, aujourdhui),
            vigilance: vigilance({ programme, doc, params, aujourdhui, formeJour, episodesEnCours: ep.filter(e => !e.fin), charge, feux }),
            meilleures: meilleuresParSemaine(ts, data.echelles, dateDebut) };
 }
@@ -253,7 +269,7 @@ export function phrases({ bilan: B, ts, programme, doc, aujourdhui, echelles, pr
 export function bilanComplet(args) {
   const B = bilan(args), { data, doc, programme, aujourdhui } = args, params = B.params;
   const ts = tentatives(programme, doc), avant = ajouterJours(aujourdhui, -28);
-  const feuxAvant = feuxVerts(ts.filter(t => t.date <= avant), programme, doc, params, data.echelles, avant, B.dateDebut);
+  const feuxAvant = feuxVerts(avecEssaisDeclares(ts.filter(t => t.date <= avant)), programme, doc, params, data.echelles, avant, B.dateDebut);
   const projectionFeux = projection(B.feux, feuxAvant), recul = ecartJours(B.dateDebut, aujourdhui) >= 28;     // « à ce rythme » seulement après 4 semaines
   return { ...B, recul, voies: parVoie(ts), projection: projectionFeux, nouveauxFeux: nouveauxFeux(B.feux, doc.feuxVus),
            phrases: phrases({ bilan: B, ts, programme, doc, aujourdhui, echelles: data.echelles, projectionFeux }) };
@@ -261,11 +277,13 @@ export function bilanComplet(args) {
 
 // --- Aisance et essais ---
 export const AISANCES = { facile: "Facile", correct: "Correct", arrache: "Arraché" };
-const avant = (a, b) => (a.date || "") < (b.date || "") || ((a.date || "") === (b.date || "") && (a.t || 0) < (b.t || 0));
-// Essais déjà faits sur cette voie avant ce passage (notés dans l'app ou hors app)
-export const essaisPrecedents = (ts, voieId, ref) => voieId ? ts.filter(t => t.voieId === voieId && t !== ref && (!ref || avant(t, ref))).length : 0;
+// Essais (échecs) faits sur cette voie avant ce passage et depuis sa dernière réussite (notés en séance ou hors séance)
+const precedents = (ts, voieId, ref) => ts.filter(t => t.voieId === voieId && t !== ref && !(ref && t.t && t.t === ref.t && t.date === ref.date) && (!ref || avant(t, ref))).sort((a, b) => avant(a, b) ? -1 : 1);
+export function essaisPrecedents(ts, voieId, ref) { if (!voieId) return 0; const l = precedents(ts, voieId, ref); let n = 0; for (const t of l) n = reussi(t) ? 0 : n + 1; return n; }
+// Réussite précédente de cette voie (date, "" si inconnue) : ce passage est alors une répétition
+export function dejaReussie(ts, voieId, ref) { if (!voieId) return null; const r = precedents(ts, voieId, ref).filter(reussi).pop(); return r ? (r.date || "") : null; }
 // Nombre d'essais jusqu'à la réussite : celui indiqué, sinon calculé (essais précédents + 1), sinon inconnu
-export function essaisAvantReussite(ts, t) { if (t.essaisAvant) return t.essaisAvant; const n = essaisPrecedents(ts, t.voieId, t); return t.voieId && n ? n + 1 : null; }
+export function essaisAvantReussite(ts, t) { if (t.essaisAvant) return t.essaisAvant; if (dejaReussie(ts, t.voieId, t) !== null) return null; const n = essaisPrecedents(ts, t.voieId, t); return t.voieId && n ? n + 1 : null; }
 // Phrase d'aisance : sur les 10 dernières réussites de la cotation la plus fréquente, si au moins 5 ont une aisance notée
 export function phraseAisance(ts, disc, echelles) {
   const r = ts.filter(t => t.disc === disc && reussi(t) && t.aisance && t.cot).sort((a, b) => avant(a, b) ? 1 : -1).slice(0, 10);

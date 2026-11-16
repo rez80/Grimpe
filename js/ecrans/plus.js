@@ -1,5 +1,5 @@
 // ecrans/plus.js — l'onglet Plus et ses sous-écrans : sauvegarde (fichier et GitHub), salles, passages hors séance, calendrier, bibliothèque, réglages, aide.
-import { h, si, lier, pli } from "../html.js";
+import { h, si, lier, pli, brut, forcerOuvert } from "../html.js";
 import { construireExport, nomFichier, partager, lireFichier, verifierImport } from "../export.js";
 import { reussi, tentatives as toutesTentatives } from "../analyse.js";
 import { lireJeton, ecrireJeton, configValide, creerSync } from "../sync.js";
@@ -36,19 +36,19 @@ function menu(ctx) {
 
 function sauvegarde(ctx) {
   const { doc } = ctx, n = Object.values(doc.seances).filter(s => s.fin).length, cfg = doc.reglages.sync || {}, jeton = lireJeton(), sync = doc.derniereSync;
-  return { titre: h`<b>Sauvegarde</b>`, html: h`
-    <div class="carte"><h2>Automatique · GitHub</h2><p class="petit">Remplis les quatre champs puis « Enregistrer et tester ». Après chaque séance, l'app pousse son document dans un dépôt <b>privé</b> à toi : rien à installer, l'historique git garde chaque version, et l'outil PC le lit directement (<code>grimpe.py rapport --github</code>). Le jeton reste sur ce téléphone, jamais dans le document ni dans les exports.</p>
+  return { titre: h`<b>Sauvegarde</b>`, html: h`<div class="carte compacte"><p><b>État</b> · ${n} séance${n > 1 ? "s" : ""} faite${n > 1 ? "s" : ""} sur ce téléphone</p><p class="petit">GitHub : ${sync ? (sync.ok ? `dernier envoi ${new Date(sync.quand).toLocaleString("fr-BE")} ✓` : `échec le ${new Date(sync.quand).toLocaleString("fr-BE")}`) : "jamais envoyé"} · Fichier : ${doc.dernierExport ? `exporté le ${new Date(doc.dernierExport).toLocaleString("fr-BE")}` : "jamais exporté"}</p></div>
+    ${pli("sv-github", false, "Automatique · GitHub", () => h`<p class="petit">Remplis les quatre champs puis « Enregistrer et tester ». Après chaque séance, l'app pousse son document dans un dépôt <b>privé</b> à toi : rien à installer, l'historique git garde chaque version, et l'outil PC le lit directement (<code>grimpe.py rapport --github</code>). Le jeton reste sur ce téléphone, jamais dans le document ni dans les exports.</p>
       <label class="champ">Dépôt (propriétaire / nom)</label><div class="ed-rangee"><input type="text" value="${cfg.owner || ""}" placeholder="ton-pseudo" data-frappe="syncChamp" data-cle="owner" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"><input type="text" value="${cfg.repo || ""}" placeholder="grimpe-donnees" data-frappe="syncChamp" data-cle="repo" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off"></div>
       <label class="champ">Chemin du fichier</label><input type="text" value="${cfg.chemin || "grimpe/grimpe.json"}" data-frappe="syncChamp" data-cle="chemin" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
       <label class="champ">Jeton (fine-grained, « Contents : Read and write » sur ce seul dépôt)</label><input type="text" class="secret" value="${jeton}" placeholder="github_pat_…" data-frappe="syncJeton" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
       <div class="ligne-reg"><span>Pousser après chaque séance</span><button class="bascule ${cfg.auto !== false ? "on" : ""}" data-act="syncAuto" aria-label="Automatique"></button></div>
       <p class="petit">${sync ? (sync.ok ? `Dernier envoi : ${new Date(sync.quand).toLocaleString("fr-BE")} ✓` : `Échec le ${new Date(sync.quand).toLocaleString("fr-BE")} : ${sync.erreur}`) : "Jamais envoyé."}</p>
-      <div class="actions"><button data-act="syncRecuperer">⬇ Récupérer</button><button class="principal" data-act="syncPousser">⬆ Enregistrer et tester</button></div></div>
-    <div class="carte"><h2>Fichier</h2><p class="petit">Le même document en JSON : ${n} séance${n > 1 ? "s" : ""}, réglages, salles, bilan calculé. Sauvegarde et entrée de l'outil PC (<code>grimpe.py rapport fichier.json</code>).</p>
+      <div class="actions"><button data-act="syncRecuperer">⬇ Récupérer</button><button class="principal" data-act="syncPousser">⬆ Enregistrer et tester</button></div>`, { classe: "carte", resume: sync ? (sync.ok ? "✓ " + new Date(sync.quand).toLocaleDateString("fr-BE") : "échec") : "non configurée" })}
+    ${pli("sv-fichier", false, "Fichier", () => h`<p class="petit">Le même document en JSON : ${n} séance${n > 1 ? "s" : ""}, réglages, salles, bilan calculé. Sauvegarde et entrée de l'outil PC (<code>grimpe.py rapport fichier.json</code>).</p>
       <button class="gros principal" data-act="exporter">⬆ Exporter (partager)</button>
       <p class="petit">${doc.dernierExport ? `Dernier export : ${new Date(doc.dernierExport).toLocaleString("fr-BE")}` : "Jamais exporté."}</p>
-      <label class="gros contour fichier">Restaurer depuis un fichier…<input type="file" accept=".json,application/json" data-act="importFichier"></label></div>
-    <div class="carte"><h2>Tout effacer</h2><p class="petit">Efface toutes les saisies, salles et réglages de ce téléphone.</p><button class="gros contour danger" data-act="reinitTout">Effacer toutes les données</button></div>` };
+      <label class="gros contour fichier">Restaurer depuis un fichier…<input type="file" accept=".json,application/json" data-act="importFichier"></label>`, { classe: "carte", resume: doc.dernierExport ? "export " + new Date(doc.dernierExport).toLocaleDateString("fr-BE") : "" })}
+    ${pli("sv-effacer", false, "Tout effacer", () => h`<p class="petit">Efface toutes les saisies, salles et réglages de ce téléphone.</p><button class="gros contour danger" data-act="reinitTout">Effacer toutes les données</button>`, { classe: "carte" })}` };
 }
 
 function biblio(ctx) {
@@ -81,8 +81,8 @@ function salles(ctx) {
 }
 
 function historique(ctx) {
-  const { doc } = ctx, l = [...doc.passagesAnciens].sort((a, b) => (a.date || "0") < (b.date || "0") ? 1 : -1), dates = [...new Set(l.map(p => p.date || ""))];
-  return { titre: h`<b>Passages hors séance</b>`, html: h`<p class="petit">Ce que tu as grimpé sans l'app (avant le programme, un jour sans téléphone, une voie réussie un autre jour). Compte dans les niveaux, les feux verts et les projets ; sans date, il ne compte ni dans la charge ni dans le bilan de la semaine.</p>
+  const { doc } = ctx, l = doc.passagesAnciens.filter(p => !p.voieId).sort((a, b) => (a.date || "0") < (b.date || "0") ? 1 : -1), dates = [...new Set(l.map(p => p.date || ""))];
+  return { titre: h`<b>Passages hors séance</b>`, html: h`<p class="petit">Ce que tu as grimpé sans séance dans l'app et sans voie de salle connue (avant le programme, en extérieur…). Pour une voie d'une salle : sa fiche › Historique › + Ajouter. Sans date, un passage compte dans les niveaux, les feux verts et les projets, pas dans la charge ni dans le bilan de la semaine.</p>
     <button class="gros contour" data-act="passageAncienOuvrir">+ Passage hors séance</button>
     ${dates.map(d => h`<div class="carte compacte"><b>${d ? court(d) : "Date inconnue"}</b>${l.filter(p => (p.date || "") === d).map(p => h`<div class="ligne-res"><span><span class="pastille" style="background:${hexDe(doc, p.couleur)}"></span> ${p.disc} ${p.cot || "?"}${p.nom ? " · " + p.nom : ""} <span class="petit">${(p.profil || "").toLowerCase()}</span></span><span><span class="res res-${p.res}">${RES_LABEL[p.res]}</span> <button class="lien" data-act="passageAncienSuppr" data-id="${p.id}">✕</button></span></div>`)}</div>`)}` };
 }
@@ -98,36 +98,36 @@ function calendrier(ctx) {
 function reglages(ctx) {
   const { doc, data } = ctx, r = doc.reglages, acts = data.listes.Activités || ["Voie", "Bloc", "Maison", "Course"];
   const bascule = (cle, label, aide) => h`<div class="ligne-reg"><span>${label}${aide ? h`<br><span class="petit">${aide}</span>` : ""}</span><button class="bascule ${r[cle] ? "on" : ""}" data-act="reglageBool" data-cle="${cle}" aria-label="${label}"></button></div>`;
-  return { titre: h`<b>Réglages</b>`, html: h`<div class="carte"><h2>Affichage</h2>${bascule("grand", "Grand affichage", "texte et boutons plus grands")}${bascule("ecranAllume", "Écran allumé pendant la séance", "le minuteur le garde allumé de toute façon")}</div>
-    <div class="carte"><h2>Repos par défaut</h2><p class="petit">Utilisé quand la ligne n'indique pas de repos.</p>
+  return { titre: h`<b>Réglages</b>`, html: h`${pli("reg-affichage", false, "Affichage", () => h`${bascule("grand", "Grand affichage", "texte et boutons plus grands")}${bascule("ecranAllume", "Écran allumé pendant la séance", "le minuteur le garde allumé de toute façon")}`, { classe: "carte", resume: r.grand ? "grand affichage" : "" })}
+    ${pli("reg-repos", false, "Repos par défaut", () => h`<p class="petit">Utilisé quand la ligne n'indique pas de repos.</p>
     ${acts.filter(a => a !== "Repos").map(a => h`<div class="ligne-reg"><span>${a}</span><span class="compteur"><button data-act="reglageRepos" data-a="${a}" data-pas="-30">−</button><span>${mmss((r.repos || {})[a] ?? 0)}</span><button data-act="reglageRepos" data-a="${a}" data-pas="30">+</button></span></div>`)}
-    ${bascule("reposAuto", "Repos automatique", "lance le repos dès qu'un passage est noté")}</div>
-    <div class="carte"><h2>Minuteur</h2>${bascule("son", "Sons", "quand l'app est à l'écran ; écran verrouillé, une app web ne sonne pas")}
+    ${bascule("reposAuto", "Repos automatique", "lance le repos dès qu'un passage est noté")}`, { classe: "carte" })}
+    ${pli("reg-minuteur", false, "Minuteur", () => h`${bascule("son", "Sons", "quand l'app est à l'écran ; écran verrouillé, une app web ne sonne pas")}
       <label class="champ">Minuteur natif de l'iPhone via un Raccourci <span class="petit">(facultatif)</span></label><input type="text" value="${r.raccourciRepos || ""}" placeholder="Nom du raccourci, ex. Repos" data-act="reglageRaccourci">
-      <p class="petit">Crée dans Raccourcis un raccourci nommé ainsi : « Obtenir les nombres dans l'entrée » → « Démarrer le minuteur » (secondes). Un bouton 🔔 iPhone apparaît à côté du repos ; il sonne même écran verrouillé, mais quitte l'app une seconde.</p></div>
-    <div class="carte"><h2>Programme</h2><div class="ligne-reg"><span>Date de début<br><span class="petit">un lundi · ${data.dateDebut} dans Programme.xlsx</span></span><input type="date" value="${r.dateDebut || data.dateDebut}" data-act="reglageDate"></div></div>` };
+      <p class="petit">Crée dans Raccourcis un raccourci nommé ainsi : « Obtenir les nombres dans l'entrée » → « Démarrer le minuteur » (secondes). Un bouton 🔔 iPhone apparaît à côté du repos ; il sonne même écran verrouillé, mais quitte l'app une seconde.</p>`, { classe: "carte", resume: r.son ? "sons" : "sans son" })}
+    ${pli("reg-programme", false, "Programme", () => h`<div class="ligne-reg"><span>Date de début<br><span class="petit">un lundi · ${data.dateDebut} dans Programme.xlsx</span></span><input type="date" value="${r.dateDebut || data.dateDebut}" data-act="reglageDate"></div>`, { classe: "carte", resume: court(r.dateDebut || data.dateDebut) })}` };
 }
 
-function aide(ctx) {
-  const k = ctx.state.filtre.aide || "principe";
+function textesAide(ctx) {
   const S = {
     seance: h`<p><b>Commencer.</b> ▸ Commencer lance la séance : pas de questionnaire. Choisis d'abord la variante si la séance en a (Voie / Remplacement bloc…).</p>
       <p><b>Pendant.</b> La carte « Maintenant » montre l'étape en cours, ses minuteurs, et <b>✓ Fait · suivant</b>, qui coche l'étape et passe à la suivante. Dans le plan, chaque étape a sa case ✓ ; une étape répétée (3× gainage) a des ronds : un rond = un passage. Rien n'est obligatoire : l'app avance d'elle-même vers la prochaine étape pas encore faite. « J'en suis là » (dans une étape dépliée) déplace le repère.</p>
       <p><b>Voies et blocs.</b> « Salle : … › » choisit la salle du jour (ou « Salle inconnue »). Les cotations de la séance sont toujours là : un appui = un passage. Dessous, les voies de la salle, rangées par groupes repliables (★ à essayer, projets, cotation du jour, autres). Touche une voie : ✓, sec ou ✗ (puis la cause). Après ✓, tu peux préciser l'aisance (facile, correct, arraché), le nombre d'essais et la date du premier essai, ou simplement fermer.</p>
-      <p><b>Maintenant.</b> « Consignes › » et « Détail de l'étape › » sont toujours sous la carte.</p>
+      <p><b>Consignes.</b> Une ligne « Consignes › » sous le bandeau, avant, pendant et après la séance (« Pas de consigne » s'il n'y en a pas). « Détail de l'étape › » est dans la carte Maintenant.</p>
+      <p><b>Ligne de cotation.</b> Un ✓ / sec / ✗ sans toucher une voie compte comme une <b>voie déjà faite</b> (il ne gonfle pas le nombre de voies différentes). Pour une nouvelle voie : « Nouvelle voie » dans le message, ou dans la fiche du passage.</p>
       <p><b>Fin.</b> ■ Fin de séance : effort, douleur après, et, si tu n'as rien noté, « en gros » ce que tu as grimpé. Les heures se corrigent sous « Heures, notes ».</p>
       <p><b>Naviguer.</b> Glisse vers la gauche ou la droite pour passer à la séance suivante ou précédente (pas pendant une séance en cours). Ouverte depuis le programme, la flèche « ‹ Programme » t'y ramène.</p>`,
     programme: h`<p><b>Aujourd'hui.</b> L'app s'ouvre ici ; la carte du haut ouvre la séance du jour en un appui (ou la prochaine). Une séance en cours s'ouvre directement.</p>
       <p>Les semaines par bloc ; touche une semaine pour ses jours et ses séances. La semaine en cours montre un encadré <b>À faire</b> (séances à régler, mesures du week-end) et, dès qu'une séance est faite, son bilan.</p>
-      <p><b>Outils d'une semaine.</b> 📏 Mesures · ⏸ Pause avant (les séances déjà commencées ou faites ne bougent pas) · Copier · répéter (une semaine commencée n'est jamais écrasée).</p>
+      <p><b>Outils d'une semaine.</b> 📏 Mesures (ⓘ pour les tests) · ⏸ Faire une pause : repousse la semaine et les suivantes de 1 à 4 semaines, la fenêtre montre les nouvelles dates · Copier · répéter (une semaine commencée n'est jamais écrasée).</p>
       <p><b>Une séance.</b> ⋯ à droite de chaque séance (ou dans l'en-tête d'une séance ouverte) : bilan, modifier le plan (les saisies suivent leur ligne), déplacer, copier vers une autre date, sautée ; une séance que tu as créée ou copiée peut être supprimée.</p>
-      <p><b>+ Passage hors séance.</b> Ce que tu as grimpé sans séance dans l'app.</p>`,
+      <p><b>Passages hors séance</b> (⋯ du Programme) : ce que tu as grimpé sans séance et sans voie de salle connue. Pour une voie d'une salle, passe par sa fiche › Historique.</p>`,
     progres: h`<p>En haut, quelques phrases : la semaine, le niveau acquis, le point faible, le prochain cap. « À ce rythme… » n'apparaît qu'après 4 semaines de programme, quand il y a de quoi estimer.</p>
-      <p>Dessous, en sections repliables (l'app retient ce que tu as ouvert) : les projets, les feux verts, le niveau consolidé, à travailler, la charge, les douleurs, les mesures et les passages hors séance.</p>`,
+      <p>Dessous, en sections repliables (l'app retient ce que tu as ouvert) : les projets, les feux verts, le niveau consolidé, à travailler, la charge, les douleurs (et les signalements, pour supprimer une erreur), les mesures. ⓘ explique chaque calcul. Toucher un projet ouvre la fiche de la voie.</p>`,
     salles: h`<p><b>Une salle</b> garde ses voies par secteur, leur couleur, leur niveau et ton historique sur chacune. Façon de coter : comme l'app, ses propres niveaux, par couleurs, ou aucune.</p>
       <p><b>Le mur.</b> En haut, toujours visible : Tout / Voies / Blocs, + Voie, Sélectionner. Les secteurs sont repliés avec un résumé (nombre, couleurs, cotations) ; touche-les pour les ouvrir, l'app s'en souvient. Touche une voie pour sa fiche. Le reste est dans ⋯ : plusieurs voies d'un coup, + Secteur, Ranger (glisser-déposer), voies démontées, modifier la salle. Un secteur rééquipé : ✎ › Renouveler.</p>
       <p><b>Couleurs.</b> 12 couleurs de base ; appui long sur une couleur pour ses nuances.</p>
-      <p><b>Passage hors séance</b> (Programme, ou Progrès › Passages hors séance ; « + Passage d'un autre jour » dans la fiche d'une voie) : ce que tu as grimpé sans séance dans l'app compte aussi. Date inconnue : compte dans les niveaux, les projets et les feux verts, pas dans la charge.</p>`,
+      <p><b>Historique d'une voie.</b> Ouvert dans sa fiche : chaque passage avec ✕ pour le supprimer tout de suite. « + Ajouter » : une réussite (date, aisance, essais), ou des échecs sur plusieurs dates d'un coup (une date par essai, « Date inconnue » possible). Sans date, un passage compte dans les niveaux, les projets et les feux verts, pas dans la charge.</p>`,
     principe: h`<p>Le programme est écrit dans <b>Programme.xlsx</b> et transformé en <code>data.js</code> par <code>outil/grimpe.py app</code>. L'app sert à faire les séances : elle ne demande rien pendant, et calcule tout après (feux verts, forme, niveaux, projets). Sur PC, <code>grimpe.py rapport</code> met ce bilan en page dans <b>Suivi.xlsx</b> et reporte dans Programme.xlsx les séances modifiées ici.</p>
       <p><b>Une séance.</b> Voir l'onglet « Séance » de cette aide.</p>
       <p><b>Couleurs.</b> <span class="genre-txt echauffement">échauffement</span> · <span class="genre-txt securite">sécurité</span> · <span class="genre-txt facile">facile</span> · <span class="genre-txt effort">effort</span> · <span class="genre-txt recup">récupération</span>.</p>
@@ -147,8 +147,20 @@ Planche (s) {mesure planche}</pre>
       <p><b>Modifier le programme.</b> ⋯ › Modifier le plan, Déplacer, ou + Séance dans Programme. Chaque modification est une opération datée ; l'outil PC la reporte dans Programme.xlsx au prochain rapport.</p>
       <p><b>Annuler.</b> ⋯ en haut, sur chaque écran : les 30 derniers gestes. Une suppression propose aussi « Annuler » quelques secondes.</p>`,
   };
-  const onglets = [["seance", "Séance"], ["programme", "Programme"], ["progres", "Progrès"], ["salles", "Salles"], ["principe", "Principe"], ["syntaxe", "Syntaxe"], ["donnees", "Données"]];
-  return { titre: h`<b>Aide</b>`, html: h`<div class="choix compact filtre">${onglets.map(([c, l]) => h`<button data-act="ouvrirAide" data-k="${c}" class="${k === c ? "choisi" : ""}">${l}</button>`)}</div><div class="carte aide">${S[k] || S.principe}</div>` };
+  return S;
+}
+const SECTIONS_AIDE = [["seance", "Séance"], ["programme", "Programme"], ["progres", "Progrès"], ["salles", "Salles"], ["principe", "Principe"], ["syntaxe", "Syntaxe"], ["donnees", "Données"]];
+// Aide : comme la Bibliothèque — une recherche, puis des sections repliables ; le « ? » d'un écran met sa section en tête, ouverte
+function aide(ctx) {
+  const r = ctx.state.filtre.aideRecherche || "";
+  return { titre: h`<b>Aide</b>`, html: h`<input type="search" class="recherche" placeholder="Rechercher dans l'aide…" value="${r}" data-frappe="aideRecherche" aria-label="Rechercher"><div id="aide-liste">${listeAide(ctx, r)}</div>` };
+}
+function listeAide(ctx, recherche) {
+  const S = textesAide(ctx), q = sansAccent(recherche).trim(), k = ctx.state.filtre.aide;
+  if (q) { const res = SECTIONS_AIDE.map(([c, l]) => [l, (String(S[c]).match(/<(p|li)>[\s\S]*?<\/\1>/g) || []).filter(x => sansAccent(x.replace(/<[^>]+>/g, "")).includes(q))]).filter(([, l]) => l.length);
+    return res.length ? res.map(([l, ps]) => h`<div class="carte aide"><h2>${l}</h2>${brut(ps.join(""))}</div>`) : h`<p class="petit">Rien pour « ${recherche} ».</p>`; }
+  const ordre = k ? [...SECTIONS_AIDE.filter(x => x[0] === k), ...SECTIONS_AIDE.filter(x => x[0] !== k)] : SECTIONS_AIDE;
+  return ordre.map(([c, l]) => pli(`aide-${c}`, false, l, () => h`<div class="aide">${S[c]}</div>`, { classe: "carte" }));
 }
 
 // Relit les champs tels qu'affichés (au cas où une frappe n'aurait pas encore été enregistrée) et les enregistre
@@ -161,7 +173,8 @@ const manqueSync = ctx => { const c = ctx.doc.reglages.sync || {}; return !c.own
 const cotationVide = () => ({ Voie: { mode: "standard", liste: [] }, Bloc: { mode: "standard", liste: [] } });
 export const actions = {
   ouvrirVue: (ctx, d) => ctx.ouvrir(d.vue),
-  ouvrirAide: (ctx, d) => { ctx.state.filtre.aide = d.k; if (ctx.state.vue !== "aide") ctx.ouvrir("aide"); else ctx.rendre(); },
+  ouvrirAide: (ctx, d) => { ctx.state.filtre.aide = d.k; forcerOuvert(`aide-${d.k}`); if (ctx.state.vue !== "aide") ctx.ouvrir("aide"); else ctx.rendre(); },
+  aideRecherche: (ctx, d, el) => { ctx.state.filtre.aideRecherche = el.value; const z = document.getElementById("aide-liste"); if (z) z.innerHTML = String(listeAide(ctx, el.value)); },
   exporter: async ctx => { const ex = construireExport({ data: ctx.data, doc: ctx.doc, programme: ctx.programme, bilan: ctx.bilan });
     if (await partager(ex, nomFichier(ctx.aujourdhui()))) { ctx.modifier("export", d => { d.dernierExport = new Date().toISOString(); }, { annulable: false }); ctx.toast("Export partagé"); } ctx.rendre(); },
   importFichier: async (ctx, d, el) => { const f = el.files && el.files[0]; if (!f) return;

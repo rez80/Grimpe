@@ -6,7 +6,7 @@ import { bilanComplet as calculerBilan } from "./analyse.js";
 import { construireExport } from "./export.js";
 import { creerSync, lireJeton, configValide } from "./sync.js";
 import { aujourdhui as dateDuJour, semaineDe } from "./dates.js";
-import { $, h, basculer } from "./html.js";
+import { $, h, basculer, forcerOuvert } from "./html.js";
 import { PALETTE } from "./salles.js";
 import * as minuteur from "./minuteur.js";
 import * as seance from "./ecrans/seance.js";
@@ -16,9 +16,9 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.4";
+export const APP_VERSION = "8.5";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
-const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "progres", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
+const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
 
 const state = { vue: "seance", seanceId: null, semaineVue: null, ouverts: new Set(), modal: null, scroll: {}, pile: [], salleId: null, toast: null, filtre: {}, dernierSecteur: "",
@@ -39,7 +39,7 @@ const ctx = {
   modifierSeance: (id, libelle, fn, opt) => store.modifier(libelle, d => { d.seances[id] = d.seances[id] || {}; fn(d.seances[id], d); }, opt),
   modifier: (libelle, fn, opt) => store.modifier(libelle, fn, opt),
   rendre, ouvrir, ouvrirModal: m => { state.modal = m; rendre(false); }, fermerModal: () => { state.modal = null; rendre(false); },
-  toast: (texte, annuler) => { state.toast = { texte, annuler, t: Date.now() }; rendreToast(); },
+  toast: (texte, annuler, bouton) => { state.toast = { texte, annuler, bouton, t: Date.now() }; rendreToast(); },    // bouton : { label, action } (ex. « Nouvelle voie »)
   minuteur,
   agir: (act, data = {}) => { const f = ACTIONS[act]; if (f) f(ctx, data); else console.warn("action inconnue", act); },
   // Sauvegarde GitHub : silencieuse en automatique, bavarde à la demande
@@ -63,7 +63,7 @@ function ouvrir(vue, params = {}) {
   rendre(true);
 }
 // Aide à la bonne section selon l'écran affiché
-const SECTION_AIDE = { seance: "seance", programme: "programme", progres: "progres", salle: "salles", salles: "salles", historique: "progres", sauvegarde: "donnees", reglages: "seance" };
+const SECTION_AIDE = { seance: "seance", programme: "programme", progres: "progres", salle: "salles", salles: "salles", historique: "programme", sauvegarde: "donnees", reglages: "seance" };
 function retour() { const pile = state.pile, v = pile.pop() || ONGLET_DE[state.vue] || "seance"; state.pile = []; ouvrir(v); state.pile = pile; }
 
 function rendre(enHaut = false) {
@@ -95,7 +95,7 @@ function rendre(enHaut = false) {
 }
 function rendreToast() {
   const t = $("toast"); if (!state.toast) { t.style.display = "none"; return; }
-  t.innerHTML = String(h`<span>${state.toast.texte}</span>${state.toast.annuler ? h`<button data-act="toastAnnuler">Annuler</button>` : ""}`); t.style.display = "flex";
+  t.innerHTML = String(h`<span>${state.toast.texte}</span>${state.toast.bouton ? h`<button data-act="toastBouton">${state.toast.bouton.label}</button>` : ""}${state.toast.annuler ? h`<button data-act="toastAnnuler">Annuler</button>` : ""}`); t.style.display = "flex"; t.classList.toggle("sur-modal", !!state.modal);   // au-dessus d'une fenêtre ouverte (ex. ✕ dans l'historique d'une voie)
   clearTimeout(rendreToast.timer); rendreToast.timer = setTimeout(() => { state.toast = null; rendreToast(); }, 8000);
 }
 
@@ -104,13 +104,14 @@ const ACTIONS = {
   onglet: (c, d) => { if (state.vue === d.onglet) { state.scroll[d.onglet] = 0; state.ouverts = new Set(); } ouvrir(d.onglet); },
   retour: () => retour(),
   retourProgramme: () => { const s = ctx.seance(state.seanceId); if (s) state.semaineVue = s.semaine; state.origine = null; ouvrir("programme"); },
-  aideContexte: () => { state.filtre.aide = SECTION_AIDE[state.vue] || "principe"; ouvrir("aide"); },
+  aideContexte: () => { state.filtre.aide = SECTION_AIDE[state.vue] || "principe"; state.filtre.aideRecherche = ""; forcerOuvert(`aide-${state.filtre.aide}`); ouvrir("aide"); },
   replier: (c, d) => { basculer(d.cle, d.defaut === "1"); rendre(false); },                            // blocs repliables : l'état est retenu
   menuEcran: () => { const ecran = ECRANS[state.vue] || plus;
     if (state.vue === "seance" && ctx.seance(state.seanceId)) return seance.actions.menu(ctx);
     const r = ecran.menuEcran ? ecran.menuEcran(ctx) : null;
     ctx.ouvrirModal({ type: "menuEcran", titre: (r && r.titre) || "Actions", items: (r && r.items) || [] }); },
   plier: (c, d) => { state.ouverts.has(d.k) ? state.ouverts.delete(d.k) : state.ouverts.add(d.k); rendre(false); },
+  toastBouton: () => { const b = state.toast && state.toast.bouton; state.toast = null; rendreToast(); if (b) b.action(); rendre(false); },
   toastAnnuler: () => { if (state.toast && state.toast.annuler) state.toast.annuler(); state.toast = null; rendreToast(); rendre(false); },
   annuler: () => { const l = store.annulable; if (store.annuler()) ctx.toast(`Annulé : ${l}`); rendre(false); },
   // La nouvelle version attend (« waiting ») : c'est à ELLE qu'on demande de prendre la main ; le rechargement suit (controllerchange)

@@ -1,10 +1,11 @@
 // ecrans/fenetres.js — les fenêtres du bas. L'état de la fenêtre est ctx.state.modal (M) ; les champs « data-champ » l'écrivent à la frappe.
-import { h, si, choix, echelle, brut, pictoProfil as dessinProfil, ligneChoix, forcerOuvert } from "../html.js";
+import { h, si, choix, echelle, brut, pictoProfil as dessinProfil, ligneChoix, forcerOuvert, info } from "../html.js";
+import { INFOS } from "../infos.js";
 import { discipline, etapesSeance, nouvelId, idsAPauser, opsCopieSeance, opsCopieSemaine, activiteAffichee } from "../programme.js";
 import { RES_LABEL, ajouterTentative, cleRattachement, actions as ACTIONS_SEANCE } from "./seance.js";
 import { court, semaineDe, nomJour, ajouterJours } from "../dates.js";
 import { salleDe, couleursDe, hexDe, texteSur, cotationDe, cotApp, nouvelleVoie, voieExistante, tentativeDe, libelleVoie, secteurDe, renouveler, profilHabituel, ranger, PALETTE, sallesPour, passagesDe, supprimerVoies, dupliquerVoie, deplacerVoieSalle, deplacerSecteur, supprimerSecteur, supprimerSalle, renommerCouleur, supprimerCouleur, voiesDeCouleur } from "../salles.js";
-import { parVoie, tentatives as toutesTentatives, causePrincipale, essaisPrecedents, essaisAvantReussite, AISANCES } from "../analyse.js";
+import { parVoie, tentatives as toutesTentatives, causePrincipale, essaisPrecedents, essaisAvantReussite, dejaReussie, AISANCES } from "../analyse.js";
 import * as editeur from "./editeur.js";
 
 export const PROFILS = ["Dalle", "Vertical", "Léger dévers", "Dévers", "Fort dévers", "Toit"];
@@ -37,7 +38,9 @@ function cotationSalle(ctx, salle, disc, M) {
 
 // Aisance, essais avant réussite et premier essai : facultatifs, un appui chacun. Si les essais sont connus par l'historique, l'app les calcule.
 function champsReussite(ctx, M) {
-  const calc = M.voieId ? essaisPrecedents(toutesTentatives(ctx.programme, ctx.doc), M.voieId, M.refTentative) : 0;
+  const tous = M.voieId ? toutesTentatives(ctx.programme, ctx.doc) : [], calc = M.voieId ? essaisPrecedents(tous, M.voieId, M.refTentative || (M.date ? { date: M.date, t: Date.now() } : null)) : 0;
+  const deja = M.voieId ? dejaReussie(tous, M.voieId, M.refTentative || (M.date ? { date: M.date, t: Date.now() } : null)) : null;
+  if (deja !== null) return h`<p class="petit">Déjà réussie ${deja ? "le " + court(deja) : "avant"} : c'est une répétition.</p><label class="champ">Aisance</label>${choix("mBascVal", Object.entries(AISANCES), M.aisance || "", { data: { champ: "aisance" } })}`;
   const essais = M.essaisAvant || (calc && !M.corrigerEssais ? null : "");
   return h`<label class="champ">Aisance</label>${choix("mBascVal", Object.entries(AISANCES), M.aisance || "", { data: { champ: "aisance" } })}
     ${calc && !M.corrigerEssais && !M.essaisAvant ? h`<p class="petit">Réussie au <b>${calc + 1}ᵉ essai</b> d'après tes passages. <button class="lien" data-act="mBool" data-k="corrigerEssais">corriger</button></p>`
@@ -45,6 +48,8 @@ function champsReussite(ctx, M) {
         ${si(M.essaisAvant && M.essaisAvant !== "1", () => ligneChoix(M, "premier", "Premier essai le", M.premierEssai === "inconnue" ? "date inconnue" : M.premierEssai ? court(M.premierEssai) : "facultatif", () => h`<div class="ed-rangee"><input type="date" data-champ="premierEssai" value="${M.premierEssai && M.premierEssai !== "inconnue" ? M.premierEssai : ""}"><button data-act="mBascVal" data-champ="premierEssai" data-valeur="inconnue" class="${M.premierEssai === "inconnue" ? "choisi" : ""}">Date inconnue</button></div>`))}`}`;
 }
 const champsTentative = m => ({ aisance: m.aisance || undefined, essaisAvant: m.essaisAvant || undefined, premierEssai: m.essaisAvant && m.essaisAvant !== "1" ? m.premierEssai || undefined : undefined });
+
+const reussiT = t => t.res === "ok";
 
 export function rendre(ctx) {
   const M = ctx.state.modal, { data, doc } = ctx; if (!M) return "";
@@ -92,6 +97,7 @@ export function rendre(ctx) {
       ${si(M.res === "sec", () => h`<label class="champ">Nombre de « sec »</label>${echelle("mChamp", 6, M.sec, { data: { champ: "sec" } })}`)}
       ${si(M.res === "ko", () => ligneChoix(M, "cause", "Cause", M.cause || "facultative", () => choix("mChamp", CAUSES, M.cause, { data: { champ: "cause" }, classe: "compact" })))}
       ${si(M.res === "ok", () => h`${ligneChoix(M, "style", "Style", M.style, () => choix("mChamp", STYLES, M.style, { data: { champ: "style" } }))}${champsReussite(ctx, M)}`)}
+      ${si(!deSalle && !M.couleur && !M.nom, () => h`<button class="ligne-nouvelle ${M.nouvelle ? "choisi" : ""}" data-act="mBool" data-k="nouvelle">${M.nouvelle ? "☑" : "☐"} Nouvelle voie <span class="petit">(sinon : une voie déjà faite)</span></button>`)}
       ${si(!deSalle, () => ligneChoix(M, "plus", "Couleur, nom", [M.couleur, M.nom].filter(Boolean).join(" · ") || "facultatif", () => h`${pastilles(ctx, "mCouleur", M.couleur, salleDe(doc, M.salle))}<label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`))}
       <div class="actions">${M.edit !== undefined ? h`<button class="danger" data-act="resultatSupprimer">Supprimer</button>` : h`<button data-act="mFermer">Annuler</button>`}<button class="principal" data-act="resultatOk" ${M.res ? "" : "disabled"}>Enregistrer</button></div>`; }
 
@@ -120,6 +126,8 @@ export function rendre(ctx) {
       <button data-act="menuSauter">Séance sautée</button>${si(ctx.store.annulable, h`<button data-act="annuler">↶ Annuler : ${ctx.store.annulable}</button>`)}
       <button class="danger" data-act="menuReinit">Effacer les saisies de cette séance</button>${si(s.libre || s.copie, h`<button class="danger" data-act="menuSupprimerSeance">Supprimer cette séance</button>`)}</div><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
 
+    case "info": { const [titre, l] = INFOS[M.k] || ["", []]; return h`<h2>${titre}</h2>${l.map(p => h`<p>${p}</p>`)}<div class="actions"><button class="principal" data-act="infoFermer">OK</button></div>`; }
+
     case "menuEcran": return h`<h2>${M.titre}</h2><div class="menu">${M.items.map((x, i) => h`<button class="${x.danger ? "danger" : ""}" data-act="menuItem" data-i="${i}">${x.label}</button>`)}
       ${si(ctx.store.annulable, h`<button data-act="annuler">↶ Annuler : ${ctx.store.annulable}</button>`)}</div><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
 
@@ -141,12 +149,20 @@ export function rendre(ctx) {
       ${si(x.erreurs, h`<p><b>Erreurs fréquentes.</b> ${x.erreurs}</p>`)}${si(x.facile, h`<p><b>Plus facile.</b> ${x.facile}</p>`)}${si(x.securite, h`<p class="securite">🛡 ${x.securite}</p>`)}
       <div class="actions"><button data-act="favori" data-nom="${x.nom}">${doc.favoris.includes(x.nom) ? "★ Favori" : "☆ Favori"}</button><button class="principal" data-act="mFermer">Fermer</button></div>`; }
 
-    case "mesures": return h`<h2>Mesures · semaine ${M.semaine}</h2><p class="petit">Astuce : une ligne « Planche (s) {mesure planche} » dans la séance du dimanche met le champ directement dans le plan.</p>${MESURES.map(([k, l]) => h`<label class="champ">${l}</label>${k === "notes" ? h`<textarea data-champ="${k}" rows="2">${M[k] || ""}</textarea>` : h`<input type="number" inputmode="decimal" step="any" data-champ="${k}" value="${M[k] ?? ""}">`}`)}${actionsBas("Enregistrer", "mesuresOk")}`;
+    case "mesures": { const prec = k => { const w = Object.keys(doc.mesures).map(Number).filter(x => x < M.semaine && doc.mesures[x][k] != null && doc.mesures[x][k] !== "").sort((a, b) => b - a)[0]; return w ? { w, v: doc.mesures[w][k] } : null; };
+      return h`<h2>Mesures · semaine ${M.semaine}</h2><p class="petit">Quelques tests simples, une fois par semaine, reposé : pour voir si tu progresses. Tout est facultatif. ${info("mesures", "Quels tests, comment ?")}</p>
+      ${MESURES.map(([k, l]) => { const p = k !== "notes" && prec(k); return h`<label class="champ">${l}${p ? h` <span class="petit">· la dernière fois (S${p.w}) : ${p.v}</span>` : ""}</label>${k === "notes" ? h`<textarea data-champ="${k}" rows="2">${M[k] || ""}</textarea>` : h`<input type="number" inputmode="decimal" step="any" data-champ="${k}" value="${M[k] ?? ""}">`}`; })}${actionsBas("Enregistrer", "mesuresOk")}`; }
 
     case "editeur": return editeur.rendre(ctx);
 
-    case "pause": return h`<h2>Mettre le programme en pause</h2><p class="petit">Toutes les séances à partir de la semaine ${M.depuis} sont décalées.</p>
-      <label class="champ">Nombre de semaines</label>${echelle("mChamp", 4, M.n, { data: { champ: "n" } })}<p class="petit">Les séances déjà commencées, faites ou sautées restent à leur date.</p>${actionsBas("Décaler", "pauseOk")}`;
+    case "pause": { const deb = doc.reglages.dateDebut || data.dateDebut, lundi = ajouterJours(deb, 7 * (M.depuis - 1)), apres = ajouterJours(lundi, 7 * (M.n || 1));
+      const fin = ctx.programme.reduce((m, x) => x.date > m ? x.date : m, "");
+      return h`<h2>Faire une pause avant la semaine ${M.depuis}</h2>
+      <p>Tu ne peux pas grimper pendant un moment (blessure, vacances, maladie) ? Le programme t'attend : il reprendra à la semaine ${M.depuis} après la pause, au lieu de te faire sauter des séances.</p>
+      <label class="champ">Durée de la pause</label>${choix("mChamp", [[1, "1 semaine"], [2, "2 semaines"], [3, "3 semaines"], [4, "4 semaines"]], M.n, { data: { champ: "n" }, classe: "compact" })}
+      <div class="carte compacte"><p>La semaine ${M.depuis} commencera le <b>${court(apres)}</b> au lieu du ${court(lundi)}.</p>${fin ? h`<p class="petit">Toutes les semaines suivantes glissent aussi : fin du programme le ${court(ajouterJours(fin, 7 * (M.n || 1)))} au lieu du ${court(fin)}.</p>` : ""}
+        <p class="petit">Les séances déjà commencées, faites ou sautées restent à leur date. Rien n'est effacé ; ⋯ › Annuler défait la pause.</p></div>
+      ${info("pause", "En savoir plus")}${actionsBas(`Décaler de ${M.n || 1} semaine${(M.n || 1) > 1 ? "s" : ""}`, "pauseOk")}`; }
 
     case "salle": { const sl = M.id ? salleDe(doc, M.id) : null, nb = sl ? sl.voies.length : 0;
       const modeDisc = disc => h`<label class="champ">${disc === "Voie" ? "Voies" : "Blocs"}</label>${choix("mMode", [["standard", "Comme l'app"], ["liste", "Ses niveaux"], ["couleurs", "Par couleurs"], ["aucune", "Aucune"]], M.cotation[disc].mode, { data: { disc }, classe: "compact" })}
@@ -171,7 +187,8 @@ export function rendre(ctx) {
       <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="secteurOk" ${M.nom ? "" : "disabled"}>Enregistrer</button></div>
       ${si(M.id, () => h`<div class="zone-danger"><button data-act="secteurRenouveler" ${n ? "" : "disabled"}>⟳ Renouveler : ${n} voie${n > 1 ? "s" : ""} démontée${n > 1 ? "s" : ""}</button><button class="danger" data-act="secteurSupprimer">Supprimer le secteur</button></div>`)}`; }
 
-    case "voie": { const sl = salleDe(doc, M.salleId), hv = M.id ? parVoie(toutesTentatives(ctx.programme, doc)).find(x => x.voieId === M.id) : null, ts = M.id ? toutesTentatives(ctx.programme, doc).filter(t => t.voieId === M.id).slice(-8).reverse() : [];
+    case "voie": { const sl = salleDe(doc, M.salleId), tous = toutesTentatives(ctx.programme, doc), hv = M.id ? parVoie(tous).find(x => x.voieId === M.id) : null,
+        ts = M.id ? tous.filter(t => t.voieId === M.id).sort((a, b) => (a.date || "0") === (b.date || "0") ? (b.t || 0) - (a.t || 0) : (a.date || "0") < (b.date || "0") ? 1 : -1) : [];
       const sec = sl.secteurs.find(x => x.id === M.secteurId), cot = cotationDe(sl, M.disc), autresSalles = doc.salles.filter(x => x.id !== sl.id && (x.type === "Bloc et voie" || x.type === M.disc));
       const libCot = cot.mode === "couleurs" ? (cotApp(sl, M.disc, "", M.couleur) || "selon la couleur") : M.cotSalle || "—";
       // En création : tout est ouvert. En modification : une ligne par réglage, on n'ouvre que ce qu'on change.
@@ -188,8 +205,11 @@ export function rendre(ctx) {
       ${si(sl.secteurs.length, () => ligne("secteur", "Secteur", sec ? sec.nom : "sans secteur", () => choix("mSecteur", [["", "Sans secteur"], ...sl.secteurs.map(x => [x.id, x.nom])], M.secteurId || "", { classe: "compact" })))}
       ${ligne("nom", "Nom ou repère", M.nom || "—", () => h`<input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`)}
       ${si(M.id && autresSalles.length, () => ligne("salle", "Salle", sl.nom, () => h`<p class="petit">Voie notée dans la mauvaise salle ? Déplace-la : ses passages la suivent.</p>${choix("mChamp", [[sl.id, sl.nom + " (actuelle)"], ...autresSalles.map(x => [x.id, x.nom])], M.salleCible || sl.id, { data: { champ: "salleCible" }, classe: "compact" })}`))}
-      ${si(M.id, () => ligne("histo", "Historique", hv ? `${ts.length} dernier${ts.length > 1 ? "s" : ""}` : "aucun passage", () => h`<div class="petit">${ts.map(t => h`<div>${t.date ? court(t.date) : "Date inconnue"} · ${RES_LABEL[t.res]}${t.aisance ? " · " + AISANCES[t.aisance] : ""}${t.essaisAvant ? ` · ${t.essaisAvant === "inconnu" ? "essais inconnus" : t.essaisAvant === "1" ? "flash" : t.essaisAvant + " essais"}` : ""}${t.cause ? " · " + t.cause : ""}</div>`)}</div>
-        <button class="lien" data-act="passageAutreJour">+ Passage d'un autre jour</button>`))}
+      ${si(M.id, () => h`<div class="historique-voie"><div class="hv-tete"><b>Historique</b><button class="petit-btn" data-act="passageAutreJour">+ Ajouter</button></div>
+        ${ts.length ? ts.map(t => { const e = reussiT(t) ? essaisAvantReussite(tous, t) : null, rep = reussiT(t) && dejaReussie(tous, t.voieId, t) !== null;
+          return h`<div class="hv-ligne"><span><b>${t.date ? court(t.date) : "Date inconnue"}</b> · ${RES_LABEL[t.res]}${rep ? " · répétition" : ""}${t.aisance ? " · " + AISANCES[t.aisance].toLowerCase() : ""}${e ? ` · ${e === "inconnu" ? "essais inconnus" : e === "1" || e === 1 ? "flash" : e + " essais"}` : ""}${t.cause ? " · " + t.cause.toLowerCase() : ""}<br><span class="petit">${t.approx ? "hors séance" : "en séance"}</span></span>
+            <button class="hv-suppr" data-act="passageSupprimer" data-pa="${t.approx ? t.id || "" : ""}" data-s="${t.approx ? "" : t.seanceId}" data-t="${t.t || ""}" aria-label="Supprimer ce passage">✕</button></div>`; })
+          : h`<p class="petit">Aucun passage. « + Ajouter » pour noter un passage d'un autre jour (réussite ou échecs).</p>`}</div>`)}
       <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="voieOk">Enregistrer</button></div>
       ${si(M.id, () => h`<div class="fiche-actions"><button data-act="mBasculeEtoile">${M.etoile ? "★ À essayer" : "☆ À essayer"}</button><button data-act="voieDupliquer">⧉ Dupliquer</button>${si(M.statut !== "demontee", h`<button data-act="voieDemonter">Démontée</button>`)}</div>
         <div class="zone-danger"><button class="danger" data-act="voieSupprimer">Supprimer la voie</button></div>`)}`; }
@@ -214,19 +234,24 @@ export function rendre(ctx) {
       return h`<h2>Déplacer ${ctx.state.classer.size} voie${ctx.state.classer.size > 1 ? "s" : ""} vers…</h2><div class="menu">${sl.secteurs.map(x => h`<button data-act="classerSecteurOk" data-id="${x.id}">${x.nom}</button>`)}<button data-act="classerSecteurOk" data-id="">Sans secteur</button></div>
       ${si(!sl.secteurs.length, h`<p class="petit">Aucun secteur : crée-en un avec « + Secteur ».</p>`)}<div class="actions"><button data-act="mFermer">Annuler</button></div>`; }
 
-    case "passageAncien": { const sl = M.salle ? salleDe(doc, M.salle) : null, v = M.voieId && sl ? sl.voies.find(x => x.id === M.voieId) : null;
-      return h`<h2>${v ? "Passage d'un autre jour" : "Passage hors séance"}</h2>
+    case "passageAncien": { const sl = M.salle ? salleDe(doc, M.salle) : null, v = M.voieId && sl ? sl.voies.find(x => x.id === M.voieId) : null, plusieurs = M.res && M.res !== "ok";
+      const dates = M.dates || [], nb = dates.length + (M.inconnues || 0);
+      return h`<h2>${v ? "Ajouter des passages" : "Passage hors séance"}</h2>
       ${v ? h`<p><span class="pastille" style="background:${hexDe(doc, v.couleur, sl)}"></span> <b>${libelleVoie(v)}</b> <span class="petit">· ${sl.nom}</span></p>` : ""}
-      ${ligneChoix(M, "date", "Date", M.dateInconnue ? "inconnue" : court(M.date), () => h`<div class="ed-rangee"><input type="date" data-champ="date" value="${M.date}"><button data-act="mBool" data-k="dateInconnue" class="${M.dateInconnue ? "choisi" : ""}">Date inconnue</button></div>`)}
       ${si(!v, () => h`${ligneChoix(M, "disc", "Discipline", M.disc, () => choix("mChamp", ["Voie", "Bloc"], M.disc, { data: { champ: "disc" } }))}
         <label class="champ">Cotation</label>${selecteurCot(ctx, M.disc, M.cot)}
         ${ligneChoix(M, "profil", "Profil", M.profil, () => choixProfil("mProfil", M.profil))}
         ${ligneChoix(M, "plus", "Couleur, nom", [M.couleur, M.nom].filter(Boolean).join(" · ") || "facultatif", () => h`${pastilles(ctx, "mCouleur", M.couleur)}<input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="Nom (facultatif)">`)}
-        ${si(doc.salles.length, () => ligneChoix(M, "salle", "Salle", (salleDe(doc, M.salle) || {}).nom || "Salle inconnue", () => choix("mChamp", [["", "Salle inconnue"], ...doc.salles.map(x => [x.id, x.nom])], M.salle, { data: { champ: "salle" }, classe: "compact" })))}`)}
-      <label class="champ">Résultat</label>${choix("mChamp", M.disc === "Bloc" ? [["ok", "✓ Réussi"], ["ko", "✗ Pas réussi"]] : [["ok", "✓ Enchaînée"], ["sec", "Avec sec"], ["ko", "✗ Pas réussie"]], M.res, { data: { champ: "res" } })}
-      ${si(M.res === "ok", () => champsReussite(ctx, M))}
-      ${si(!v && M.res !== "ok", () => h`<label class="champ">Combien de fois ?</label>${echelle("mChamp", 8, M.n, { data: { champ: "n" } })}`)}
-      ${actionsBas("Ajouter", "passageAncienOk", !M.res || (!M.date && !M.dateInconnue))}`; }
+        ${si(doc.salles.length, () => ligneChoix(M, "salle", "Salle", (salleDe(doc, M.salle) || {}).nom || "Salle inconnue", () => choix("mChamp", [["", "Salle inconnue"], ...doc.salles.map(x => [x.id, x.nom])], M.salle, { data: { champ: "salle" }, classe: "compact" })))}
+        ${si(!M.couleur && !M.nom, () => h`<button class="ligne-nouvelle ${M.nouvelle ? "choisi" : ""}" data-act="mBool" data-k="nouvelle">${M.nouvelle ? "☑" : "☐"} Nouvelle voie <span class="petit">(sinon : une voie déjà faite)</span></button>`)}`)}
+      <label class="champ">Résultat</label>${choix("mChamp", (v ? v.disc : M.disc) === "Bloc" ? [["ok", "✓ Réussi"], ["ko", "✗ Échec"]] : [["ok", "✓ Enchaînée"], ["sec", "Avec sec"], ["ko", "✗ Échec"]], M.res, { data: { champ: "res" } })}
+      ${plusieurs ? h`<label class="champ">${M.res === "sec" ? "Dates (une par passage)" : "Dates des échecs (une par essai)"}</label>
+        <div class="dates-pastilles">${dates.map((d, i) => h`<button class="date-pastille" data-act="dateRetirer" data-i="${i}">${court(d)} ✕</button>`)}${si(M.inconnues, h`<button class="date-pastille" data-act="inconnueRetirer">Date inconnue ×${M.inconnues} ✕</button>`)}${si(!nb, h`<span class="petit">aucune date</span>`)}</div>
+        <div class="ed-rangee"><input type="date" data-champ="dateAjout" value="${M.dateAjout || ctx.aujourdhui()}"><button data-act="dateAjouter">+ Cette date</button><button data-act="inconnueAjouter">+ Date inconnue</button></div>
+        ${si(!v, () => h`<label class="champ">Combien de fois chaque date ?</label>${echelle("mChamp", 8, M.n, { data: { champ: "n" } })}`)}`
+      : h`${ligneChoix(M, "date", "Date", M.dateInconnue ? "inconnue" : court(M.date), () => h`<div class="ed-rangee"><input type="date" data-champ="date" value="${M.date}"><button data-act="mBool" data-k="dateInconnue" class="${M.dateInconnue ? "choisi" : ""}">Date inconnue</button></div>`)}
+        ${si(M.res === "ok", () => champsReussite(ctx, M))}`}
+      ${actionsBas(plusieurs && nb > 1 ? `Ajouter ${nb * (v ? 1 : M.n || 1)} passages` : "Ajouter", "passageAncienOk", !M.res || (plusieurs ? !nb : !M.date && !M.dateInconnue))}`; }
 
     case "nouveauProgramme": return h`<h2>Nouveau programme</h2><p>Le programme a changé (${data.programmeId}). Les saisies de l'ancien programme ne lui correspondent plus.</p>
       <p class="petit">Exporte d'abord (sauvegarde complète), puis démarre : les séances de l'ancien programme sont effacées ; réglages, salles, passages hors séance et favoris sont gardés.</p>
@@ -289,7 +314,7 @@ export const actions = {
     ctx.fermerModal();
     if (d.res) ajouterTentative(ctx, s, tentativeDe(v, salleDe(ctx.doc, m.salleId), nettoyer({ k: cleRattachement(ctx, s, ctx.saisie(s.id), m.disc), res: d.res, style: d.res === "ok" ? "À vue" : undefined })));
     ctx.rendre(); },
-  resultatOk: ctx => { const m = M(ctx), s = ctx.seance(m.seanceId), t = nettoyer({ t: Date.now(), k: m.k, disc: m.disc, cot: m.cot || "", cotSalle: m.cotSalle, profil: m.profil, res: m.res, sec: m.res === "sec" ? m.sec : undefined, style: m.res === "ok" ? m.style : undefined, cause: m.res === "ko" ? m.cause : undefined, couleur: m.couleur, nom: m.nom, salle: m.salle, voieId: m.voieId, ...(m.res === "ok" ? champsTentative(m) : {}) });
+  resultatOk: ctx => { const m = M(ctx), s = ctx.seance(m.seanceId), t = nettoyer({ t: Date.now(), k: m.k, disc: m.disc, cot: m.cot || "", cotSalle: m.cotSalle, profil: m.profil, res: m.res, sec: m.res === "sec" ? m.sec : undefined, style: m.res === "ok" ? m.style : undefined, cause: m.res === "ko" ? m.cause : undefined, couleur: m.couleur, nom: m.nom, salle: m.salle, voieId: m.voieId, nouvelle: !m.voieId && !m.couleur && !m.nom && m.nouvelle ? true : undefined, ...(m.res === "ok" ? champsTentative(m) : {}) });
     if (m.edit !== undefined) { ctx.modifierSeance(s.id, "correction", sa => { const anc = sa.tentatives[m.edit]; sa.tentatives[m.edit] = { ...t, t: anc.t, k: anc.k, approx: anc.approx }; }); ctx.fermerModal(); }
     else { ctx.fermerModal(); ajouterTentative(ctx, s, t); } ctx.rendre(); },
   resultatSupprimer: ctx => { const m = M(ctx); ctx.modifierSeance(m.seanceId, "passage supprimé", sa => { sa.tentatives.splice(m.edit, 1); }); ctx.fermerModal(); },
@@ -383,15 +408,28 @@ export const actions = {
     ctx.modifier(m.quoi === "profil" ? "profil modifié" : "cotation modifiée", doc => { const sl = salleDe(doc, sid);
       sl.voies.filter(v => ids.includes(v.id) && (m.quoi === "profil" || v.disc === m.disc)).forEach(v => { if (m.quoi === "profil") v.profil = d.valeur; else { v.cotSalle = m.cotSalle || ""; v.cot = cotApp(sl, v.disc, v.cotSalle, v.couleur); } }); propagerVoies(doc, sl); });
     ctx.state.classer = null; ctx.fermerModal(); ctx.toast(`${ids.length} voie${ids.length > 1 ? "s" : ""} modifiée${ids.length > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
-  passageAncienOk: ctx => { const m = M(ctx), sl = m.salle ? salleDe(ctx.doc, m.salle) : null, v = m.voieId && sl ? sl.voies.find(x => x.id === m.voieId) : null, n = v || m.res === "ok" ? 1 : (m.n || 1);
-    const base = v ? { disc: v.disc, cot: v.cot, cotSalle: v.cotSalle, profil: v.profil, couleur: v.couleur, nom: v.nom, salle: sl.id, voieId: v.id } : { disc: m.disc, cot: m.cot, profil: m.profil, couleur: m.couleur, nom: m.nom, salle: m.salle };
-    ctx.modifier("passage hors séance", d => { for (let i = 0; i < n; i++) d.passagesAnciens.push(nettoyer({ id: nouvelId("pa"), t: Date.now() + i, date: m.dateInconnue ? "" : m.date, dateInconnue: m.dateInconnue || undefined, ...base, res: m.res, sec: m.res === "sec" ? 1 : undefined, ...(m.res === "ok" ? champsTentative(m) : {}) })); });
-    const p = m.precedent; ctx.fermerModal(); if (p) ctx.ouvrirModal(p); ctx.toast(`${n} passage${n > 1 ? "s" : ""} ajouté${n > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
-  passageAutreJour: (ctx, d) => { const m = M(ctx); ctx.ouvrirModal({ type: "passageAncien", salle: m.salleId, voieId: m.id, disc: m.disc, date: ctx.aujourdhui(), dateInconnue: false, res: "", n: 1, precedent: m }); },
+  passageAncienOk: ctx => { const m = M(ctx), sl = m.salle ? salleDe(ctx.doc, m.salle) : null, v = m.voieId && sl ? sl.voies.find(x => x.id === m.voieId) : null;
+    const base = v ? { disc: v.disc, cot: v.cot, cotSalle: v.cotSalle, profil: v.profil, couleur: v.couleur, nom: v.nom, salle: sl.id, voieId: v.id } : { disc: m.disc, cot: m.cot, profil: m.profil, couleur: m.couleur, nom: m.nom, salle: m.salle, nouvelle: !m.couleur && !m.nom && m.nouvelle ? true : undefined };
+    const plusieurs = m.res !== "ok", dates = plusieurs ? [...(m.dates || []), ...Array(m.inconnues || 0).fill("")] : [m.dateInconnue ? "" : m.date], fois = plusieurs && !v ? (m.n || 1) : 1;
+    let n = 0;
+    ctx.modifier("passage hors séance", d => { for (const date of dates) for (let i = 0; i < fois; i++) d.passagesAnciens.push(nettoyer({ id: nouvelId("pa"), t: Date.now() + n++, date, dateInconnue: date ? undefined : true, ...base, res: m.res, sec: m.res === "sec" ? 1 : undefined, ...(m.res === "ok" ? champsTentative(m) : {}) })); });
+    const p = m.precedent; ctx.fermerModal(); if (p) ctx.ouvrirModal({ ...p, section: "" }); ctx.toast(`${n} passage${n > 1 ? "s" : ""} ajouté${n > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
+  dateAjouter: ctx => { const m = M(ctx), d = m.dateAjout || ctx.aujourdhui(); m.dates = [...(m.dates || []), d].sort(); ctx.rendre(); },
+  dateRetirer: (ctx, d) => { const m = M(ctx); m.dates = (m.dates || []).filter((x, i) => i !== +d.i); ctx.rendre(); },
+  inconnueAjouter: ctx => { M(ctx).inconnues = (M(ctx).inconnues || 0) + 1; ctx.rendre(); },
+  inconnueRetirer: ctx => { M(ctx).inconnues = 0; ctx.rendre(); },
+  // ✕ dans l'historique d'une voie : supprimé tout de suite, « Annuler » quelques secondes
+  passageSupprimer: (ctx, d) => {
+    if (d.pa) ctx.modifier("passage supprimé", x => { x.passagesAnciens = x.passagesAnciens.filter(p => p.id !== d.pa); });
+    else ctx.modifierSeance(d.s, "passage supprimé", sa => { const l = sa.tentatives || [], i = l.findIndex(t => String(t.t || "") === d.t && t.voieId === M(ctx).id); if (i >= 0) l.splice(i, 1); });
+    ctx.toast("Passage supprimé", () => ctx.store.annuler()); ctx.rendre(); },
+  passageAutreJour: (ctx, d) => { const m = M(ctx); ctx.ouvrirModal({ type: "passageAncien", salle: m.salleId, voieId: m.id, disc: m.disc, date: ctx.aujourdhui(), dateInconnue: false, res: "", n: 1, dates: [], inconnues: 0, precedent: m }); },
   salleDuJour: (ctx, d) => { const m = M(ctx), s = ctx.seance(m.seanceId);
     ctx.modifier("salle du jour", doc => { const sa = doc.seances[s.id] = doc.seances[s.id] || {}; sa.salle = d.id; doc.reglages.salleParDefaut = { ...(doc.reglages.salleParDefaut || {}), [m.disc]: d.id }; }, { annulable: false }); ctx.fermerModal(); },
   salleDuJourNouvelle: ctx => { const m = M(ctx); ctx.ouvrirModal({ type: "salle", nom: "", typeSalle: m.disc, cotation: { Voie: { mode: "standard", liste: [] }, Bloc: { mode: "standard", liste: [] } }, pourSeance: m.seanceId, pourDisc: m.disc }); },
   menuSupprimerSeance: ctx => { const id = M(ctx).seanceId; ctx.modifier("séance supprimée", d => { d.ops = d.ops.filter(o => o.cible !== id); delete d.seances[id]; }); ctx.state.seanceId = null; ctx.fermerModal(); ctx.toast("Séance supprimée", () => ctx.store.annuler()); },
+  infoOuvrir: (ctx, d) => ctx.ouvrirModal({ type: "info", k: d.k, precedent: ctx.state.modal }),
+  infoFermer: ctx => { const p = M(ctx).precedent; ctx.fermerModal(); if (p) ctx.ouvrirModal(p); },
   menuItem: (ctx, d) => { const x = M(ctx).items[+d.i]; ctx.fermerModal(); ctx.agir(x.act, x.data || {}); },
   nouveauProgrammeOk: ctx => { ctx.modifier("nouveau programme", d => { d.seances = {}; d.ops = []; d.mesures = {}; d.competences = {}; d.feuxVus = {}; d.programmeId = ctx.data.programmeId; }); ctx.state.seanceId = null; ctx.fermerModal(); },
   importOk: ctx => { const m = M(ctx); ctx.store.remplacer(m.doc); ctx.state.seanceId = null; ctx.state.modal = null; ctx.ouvrir("seance"); ctx.toast("Sauvegarde restaurée"); },

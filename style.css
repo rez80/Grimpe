@@ -308,3 +308,17 @@ input.recherche { width: 100%; padding: 10px 12px; border: 1px solid var(--trait
 .pastille[data-base] { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 .nom-couleur { margin: 4px 0 0; }
 #nuancier .pastille { width: 36px; height: 36px; min-height: 0; padding: 0; }
+
+/* ===== 8.5 ===== */
+.historique-voie { margin: 12px 0; border-top: 1px solid var(--trait); padding-top: 8px; }
+.hv-tete { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.hv-ligne { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--trait); font-size: 15px; }
+.hv-suppr { min-width: 38px; min-height: 38px; padding: 0; border: none; background: none; color: var(--texte-2); font-size: 16px; }
+.dates-pastilles { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.date-pastille { min-height: 0; padding: 5px 10px; border-radius: 16px; font-size: 14px; }
+.ligne-nouvelle { width: 100%; text-align: left; margin: 8px 0; background: none; }
+.ligne-nouvelle.choisi { border-color: var(--accent); }
+.lien-info { display: inline-block; margin: 2px 0 8px; font-size: 14px; }
+button.ligne-res.ligne-bouton { width: 100%; background: none; border: none; border-radius: 0; text-align: left; padding: 8px 0; min-height: 44px; }
+.pli-consignes { margin-top: 0; }
+#toast.sur-modal { z-index: 45; top: calc(12px + var(--haut)); bottom: auto; }
