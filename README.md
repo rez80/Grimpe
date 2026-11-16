@@ -1,4 +1,4 @@
-# Grimpe 8.3 — l'app d'escalade, version complète
+# Grimpe 8.4 — l'app d'escalade, version complète
 
 Même usage que l'app 6.5 : le programme s'écrit dans **Programme.xlsx**, l'app sur l'iPhone sert à faire les séances, un outil Python sur le PC fait le rapport. Même stack : HTML/CSS/JS sans dépendance, PWA sur GitHub Pages, données sur le téléphone, Python + openpyxl.
 
@@ -6,6 +6,30 @@ Deux couches ont été refaites, dans cet ordre :
 
 1. **La structure** (v7) — un seul document versionné, un seul format d'export, les règles de calcul écrites une seule fois, une grammaire explicite, un identifiant stable par séance, des dates en jours entiers, des modules et des tests.
 2. **Le point de vue du grimpeur** (v8) — pendant la séance l'app ne demande rien, une voie se note en la touchant, l'app se souvient des voies et des projets, la sauvegarde se fait toute seule, le programme est dans le calendrier, les progrès tiennent en trois phrases.
+
+## Version 8.4 — ouverture sur le programme, choix en lignes, salles repliées, aisance
+
+**Ouverture.** L'app s'ouvre sur le Programme, avec une carte **Aujourd'hui** en haut (la séance du jour, sinon la prochaine) : un appui l'ouvre. Une séance en cours s'ouvre directement.
+
+**Programme.** ⋯ à droite de chaque séance : bilan, modifier le plan, déplacer, copier, sautée, et Supprimer pour une séance créée ou copiée. « + Passage hors séance » à côté de « + Séance ». Une séance de voie faite en variante bloc s'affiche « Bloc » partout (`activiteAffichee`).
+
+**Séance.** La carte Voies (ou Blocs) a trois parties : la ligne « Salle : … › » (tes salles du bon type, « Salle inconnue », « + Nouvelle salle… »), les cotations de la séance toujours présentes (✓ / sec / ✗ en voie, ✓ / ✗ en bloc ; autour du niveau consolidé si la séance n'en prévoit pas), puis les voies de la salle en groupes repliables (★ À essayer, Projets, En 5b…, Autres). Sous la carte Maintenant : « Consignes › » (toujours là, « Pas de consigne pour cette séance » sinon) et « Détail de l'étape › ».
+
+**Après une réussite.** ✓ reste un seul appui : le passage est enregistré, la fenêtre reste ouverte avec des lignes facultatives : aisance (Facile · Correct · Arraché), essais avant réussite (calculés d'après tes passages s'ils sont connus, sinon 1 / 2 / 3 / 4 / 5+ / Inconnu) et date du premier essai (ou « inconnue »). « Fermer » suffit. La tuile affiche « ✓ facile » ; la fiche de la voie montre aisance et essais dans son historique, et une phrase de Progrès dit si tes réussites sont souvent arrachées.
+
+**Passages hors séance** (ex-« Hors app ») : « + Passage hors séance » dans le Programme et dans Progrès (où vit la liste) ; « + Passage d'un autre jour » dans la fiche d'une voie, pré-rempli. Date ou « Date inconnue » : sans date, le passage compte dans les niveaux, les projets et les feux verts, pas dans la charge ni dans le bilan de la semaine.
+
+**Choix en lignes.** Partout où il y a plusieurs options : une ligne « Libellé : valeur › » qui s'ouvre au toucher et se referme au choix (salle, zone de douleur, cause, raison d'une séance sautée, profil, secteur, type de salle, façon de coter, discipline, style). Les choix rapides restent des boutons (✓ / sec / ✗, échelles 0–10, forme).
+
+**Salles.** La liste est en cartes : couleurs présentes, nombre de voies et de blocs, secteurs, dernière séance, ✎. Dans une salle : barre collante (Tout / Voies / Blocs, + Voie, Sélectionner) ; le reste dans ⋯ (plusieurs voies, + Secteur, Ranger, démontées, modifier la salle). Les secteurs sont repliés avec un résumé (nombre, pastilles de couleur, étendue des cotations) ; l'app retient ceux que tu as ouverts et rouvre celui où tu viens d'ajouter une voie.
+
+**Couleurs.** 12 couleurs de base ; un appui long montre leurs nuances (42 teintes, tous les anciens noms gardés).
+
+**Harmonie.** ⋯ en haut sur chaque écran (actions de l'écran + Annuler ; la tuile Annuler quitte Plus). Progrès en sections repliables (les phrases restent ouvertes). Bibliothèque : recherche et catégories repliables. Plus : Sauvegarde, Salles, Calendrier (inchangé), Bibliothèque, Réglages, Aide.
+
+**Inchangé, comme demandé** : l'abonnement calendrier et tout ce qui touche à la sauvegarde (fichier, GitHub, jeton).
+
+**Outil PC** : la feuille Tentatives de Suivi.xlsx a trois colonnes de plus (Aisance, Essais avant réussite, Premier essai) ; un passage sans date y figure « inconnue ».
 
 ## Version 8.3 — modifier et supprimer salles, secteurs et voies
 
