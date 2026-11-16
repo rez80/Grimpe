@@ -1,4 +1,4 @@
-# Grimpe 8.9 — l'app d'escalade
+# Grimpe 8.10 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -11,7 +11,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 
 ## 1. Ce que fait l'app
 
-**Programme.** L'app s'ouvre sur le programme. La carte « Aujourd'hui » ouvre la séance du jour en un appui ; s'il n'y a pas de séance aujourd'hui, elle montre la prochaine. Si une séance est en cours, l'app s'ouvre directement dessus. Les semaines se déplient. Les pastilles des jours prennent la couleur du plan de la séance, c'est-à-dire le type d'étape qui prend le plus de temps (facile, effort, récup…), avec une légende dessous. Chaque séance a son menu ⋯ :
+**Programme.** L'app s'ouvre sur le programme. La carte « Aujourd'hui » ouvre la séance du jour en un appui ; s'il n'y a pas de séance aujourd'hui, elle montre la prochaine. Si une séance est en cours, l'app s'ouvre directement dessus. Les semaines se déplient. Les pastilles des jours et les cartes de séance sont teintées, en transparence, de la couleur de l'activité (la même que le bandeau de la séance). En haut, le rappel de la séance précédente pas encore réglée : Faite → bilan, Sautée ou Plus tard. Chaque séance a son menu ⋯ :
 - bilan ;
 - modifier le plan ;
 - déplacer ;
@@ -28,7 +28,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 - **⚠ Douleur** note une douleur pendant la séance.
 - **■ Fin de séance** demande l'effort, la douleur après, et, si tu n'as rien noté, « en gros ce que tu as grimpé ». Ça fait trois appuis.
 - **Une séance restée ouverte** se ferme toute seule après quatre heures.
-- **Le lendemain**, une séance oubliée revient en une carte : faite, sautée, ou plus tard.
+- **Le lendemain**, une séance oubliée revient en une carte en haut du Programme : faite, sautée, ou plus tard.
 
 **Voies et blocs pendant la séance.** La carte « Voies » (ou « Blocs ») est courte et repliable :
 - **Salle : … ›** choisit la salle du jour : une de tes salles, « Salle inconnue » ou « + Nouvelle salle… ». La même règle vaut en voie et en bloc : par défaut, c'est la dernière salle choisie, si elle accepte la discipline. « Salle inconnue » vaut pour la séance.
