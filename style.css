@@ -364,3 +364,26 @@ p, li, h1, h2, h3, .consignes, .aide, .info { -webkit-user-select: text; user-se
 .pli-consignes.avec .info:last-child { border-bottom: none; }
 .pli-consignes.sans { opacity: .8; }
 @media (prefers-color-scheme: dark) { .pli-consignes.avec { background: #3A2E17; } .pli-consignes.avec .pli-titre { color: #FFD48A; } }
+
+/* ===== 8.8 ===== */
+/* Boutons plus fins : même hauteur que les autres (44 px), texte normal */
+button.gros { padding: 10px 14px; font-size: 16px; min-height: 44px; margin: 6px 0; }
+.bandeau-seance .gros.blanc { margin-top: 10px; }
+.hier-btns button { min-height: 40px; padding: 6px 8px; font-size: 15px; }
+.hier { gap: 8px; }
+.carte.voies .gros.principal { margin: 8px 0 2px; }
+.auj-seance { padding: 10px 12px; }
+.carte-restaurer { border-left: 5px solid var(--orange); }
+.carte-restaurer .ed-rangee button { flex: 1; min-height: 40px; }
+.secteur.depot-cible { outline: 3px dashed var(--accent); outline-offset: 2px; }
+/* En bref : bâtonnets par niveau */
+.recap-disc { margin: 4px 0 10px; }
+.batons { display: flex; align-items: flex-end; gap: 6px; overflow-x: auto; padding: 6px 2px 2px; }
+.baton { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; min-width: 34px; min-height: 0; padding: 2px 3px; border: none; background: none; border-radius: 8px; }
+.baton-barre { width: 22px; border-radius: 5px 5px 2px 2px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.baton-n { font-size: 13px; font-weight: 700; } .baton-niv { font-size: 13px; color: var(--texte-2); min-height: 16px; }
+.baton.choisi { background: var(--fond); outline: 2px solid var(--accent); }
+.recap-filtre { font-weight: 600; margin: 4px 0; }
+/* Cartes de salle colorées */
+.carte-salle { color: #1d2a2e; } .carte-salle .cs-corps { color: inherit; } .carte-salle .item-edit { background: rgba(255,255,255,.45); border: none; color: inherit; }
+.cs-infos { font-size: 15px; opacity: .8; }

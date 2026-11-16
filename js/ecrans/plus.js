@@ -1,9 +1,9 @@
 // ecrans/plus.js — l'onglet Plus et ses sous-écrans : sauvegarde (fichier et GitHub), salles, passages hors séance, calendrier, bibliothèque, réglages, aide.
 import { h, si, lier, pli, brut, forcerOuvert } from "../html.js";
-import { construireExport, nomFichier, partager, lireFichier, verifierImport } from "../export.js";
+import { construireExport, nomFichier, partager, lireFichier, verifierImport, copierTexte, lireTexte, tailleKo } from "../export.js";
 import { reussi, tentatives as toutesTentatives } from "../analyse.js";
 import { lireJeton, ecrireJeton, configValide, creerSync } from "../sync.js";
-import { hexDe } from "../salles.js";
+import { fondSalle, hexDe } from "../salles.js";
 import { court, mmss } from "../dates.js";
 import { RES_LABEL } from "./seance.js";
 
@@ -45,9 +45,12 @@ function sauvegarde(ctx) {
       <p class="petit">${sync ? (sync.ok ? `Dernier envoi : ${new Date(sync.quand).toLocaleString("fr-BE")} ✓` : `Échec le ${new Date(sync.quand).toLocaleString("fr-BE")} : ${sync.erreur}`) : "Jamais envoyé."}</p>
       <div class="actions"><button data-act="syncRecuperer">⬇ Récupérer</button><button class="principal" data-act="syncPousser">⬆ Enregistrer et tester</button></div>`, { classe: "carte", resume: sync ? (sync.ok ? "✓ " + new Date(sync.quand).toLocaleDateString("fr-BE") : "échec") : "non configurée" })}
     ${pli("sv-fichier", false, "Fichier", () => h`<p class="petit">Le même document en JSON : ${n} séance${n > 1 ? "s" : ""}, réglages, salles, bilan calculé. Sauvegarde et entrée de l'outil PC (<code>grimpe.py rapport fichier.json</code>).</p>
-      <button class="gros principal" data-act="exporter">⬆ Exporter (partager)</button>
+      <button class="gros principal" data-act="exporter">⬆ Exporter le fichier</button>
+      <button class="gros contour" data-act="copierDonnees">⧉ Copier les données <span class="petit">(à coller dans Notes ou un mail)</span></button>
+      <p class="petit">Taille de la sauvegarde : ${tailleKo(construireExport({ data: ctx.data, doc, programme: ctx.programme, bilan: ctx.bilan }))} ko. Dans Mail, vérifie que la pièce jointe « grimpe-….json » est bien là avant d'envoyer.</p>
       <p class="petit">${doc.dernierExport ? `Dernier export : ${new Date(doc.dernierExport).toLocaleString("fr-BE")}` : "Jamais exporté."}</p>
-      <label class="gros contour fichier">Restaurer depuis un fichier…<input type="file" accept=".json,application/json" data-act="importFichier"></label>`, { classe: "carte", resume: doc.dernierExport ? "export " + new Date(doc.dernierExport).toLocaleDateString("fr-BE") : "" })}
+      <label class="gros contour fichier">Restaurer depuis un fichier…<input type="file" accept=".json,.txt,application/json,text/plain" data-act="importFichier"></label>
+      <button class="gros contour" data-act="collerOuvrir">Restaurer en collant le texte…</button>`, { classe: "carte", resume: doc.dernierExport ? "export " + new Date(doc.dernierExport).toLocaleDateString("fr-BE") : "" })}
     ${pli("sv-effacer", false, "Tout effacer", () => h`<p class="petit">Efface toutes les saisies, salles et réglages de ce téléphone.</p><button class="gros contour danger" data-act="reinitTout">Effacer toutes les données</button>`, { classe: "carte" })}` };
 }
 
@@ -72,9 +75,8 @@ function salles(ctx) {
   const { doc } = ctx, ts = toutesTentatives(ctx.programme, doc);
   return { titre: h`<b>Salles</b>`, html: h`<div class="cartes-salles">${doc.salles.map(s => { const v = s.voies.filter(x => x.statut !== "demontee"), cs = [...new Set(v.map(x => x.couleur).filter(Boolean))];
       const derniere = ts.filter(t => t.salle === s.id && t.date).map(t => t.date).sort().pop(), nv = v.filter(x => x.disc === "Voie").length, nb = v.filter(x => x.disc === "Bloc").length;
-      return h`<div class="carte-salle"><button class="cs-corps" data-act="salleOuvrir" data-id="${s.id}"><b>${s.nom}</b><span class="petit">${s.type}${s.secteurs.length ? ` · ${s.secteurs.length} secteur${s.secteurs.length > 1 ? "s" : ""}` : ""}</span>
-        <span class="points">${cs.slice(0, 12).map(c => h`<i style="background:${hexDe(doc, c, s)}"></i>`)}</span>
-        <span class="petit">${[s.type !== "Bloc" ? `${nv} voie${nv > 1 ? "s" : ""}` : "", s.type !== "Voie" ? `${nb} bloc${nb > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ")}${derniere ? ` · dernière séance ${court(derniere)}` : ""}</span></button>
+      return h`<div class="carte-salle" style="background:${fondSalle(doc, s)}"><button class="cs-corps" data-act="salleOuvrir" data-id="${s.id}"><b>${s.nom}</b>
+        <span class="cs-infos">${s.type === "Bloc et voie" ? "Bloc et voie" : s.type === "Bloc" ? "Bloc" : "Voie"} · ${[s.type !== "Bloc" ? `${nv} voie${nv > 1 ? "s" : ""}` : "", s.type !== "Voie" ? `${nb} bloc${nb > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ")}</span></button>
         <button class="item-edit" data-act="salleEditer" data-id="${s.id}" aria-label="Modifier la salle">✎</button></div>`; })}</div>
     ${si(!doc.salles.length, h`<p class="petit">Une salle, c'est ta mémoire des voies : couleur, niveau, secteur, et ton historique sur chacune. Pendant une séance, tu touches la voie au lieu de remplir une fiche.</p>`)}
     <button class="gros contour" data-act="salleNouvelle">+ Nouvelle salle</button>` };
@@ -125,7 +127,7 @@ function textesAide(ctx) {
     progres: h`<p>En haut, quelques phrases : la semaine, le niveau acquis, le point faible, le prochain cap. « À ce rythme… » n'apparaît qu'après 4 semaines de programme, quand il y a de quoi estimer.</p>
       <p>Dessous, en sections repliables (l'app retient ce que tu as ouvert) : les projets, les feux verts, le niveau consolidé, à travailler, la charge, les douleurs (et les signalements, pour supprimer une erreur), les mesures. ⓘ explique chaque calcul. Toucher un projet ouvre la fiche de la voie.</p>`,
     salles: h`<p><b>Une salle</b> garde ses voies par secteur, leur couleur, leur niveau et ton historique sur chacune. Façon de coter : comme l'app, ses propres niveaux, par couleurs, ou aucune.</p>
-      <p><b>Le mur.</b> En haut, toujours visible : Tout / Voies / Blocs, + Voie, Sélectionner. Les secteurs sont repliés avec un résumé (nombre, couleurs, cotations) ; touche-les pour les ouvrir, l'app s'en souvient. Touche une voie pour sa fiche. Le reste est dans ⋯ : plusieurs voies d'un coup, + Secteur, Ranger (glisser-déposer), voies démontées, modifier la salle. Un secteur rééquipé : ✎ › Renouveler.</p>
+      <p><b>Le mur.</b> En haut, toujours visible : Tout / Voies / Blocs, + Voie, Sélectionner. Les secteurs sont repliés avec un résumé (nombre, couleurs, cotations) ; touche-les pour les ouvrir, l'app s'en souvient. Touche une voie pour sa fiche. + Secteur est dans la barre. Pour déplacer une voie : ⋮⋮ puis lâche-la sur une voie, un secteur ouvert ou le nom d'un secteur replié. ⋯ : plusieurs voies d'un coup, démontées, modifier la salle. Un secteur rééquipé : ✎ › Renouveler.</p>
       <p><b>Couleurs.</b> 12 couleurs de base ; appui long sur une couleur pour ses nuances.</p>
       <p><b>Inclinaison et caractéristiques.</b> L'inclinaison (dalle, vertical, léger dévers, dévers, surplomb, fort dévers, toit) est un seul choix ; les caractéristiques (arête, traversée, dièdre, fissure, volumes, réglettes, bacs, pinces, plats, dynamique, compression) se cumulent, dans la fiche de la voie. Le mur se filtre par caractéristique ; Progrès › À travailler dit laquelle tu réussis le moins.</p>
       <p><b>Historique d'une voie.</b> Ouvert dans sa fiche : chaque passage avec ✕ pour le supprimer tout de suite. « + Ajouter » : une réussite (date, aisance, essais), ou des échecs sur plusieurs dates d'un coup (une date par essai, « Date inconnue » possible). Sans date, un passage compte dans les niveaux, les projets et les feux verts, pas dans la charge.</p>`,
@@ -178,6 +180,11 @@ export const actions = {
   aideRecherche: (ctx, d, el) => { ctx.state.filtre.aideRecherche = el.value; const z = document.getElementById("aide-liste"); if (z) z.innerHTML = String(listeAide(ctx, el.value)); },
   exporter: async ctx => { const ex = construireExport({ data: ctx.data, doc: ctx.doc, programme: ctx.programme, bilan: ctx.bilan });
     if (await partager(ex, nomFichier(ctx.aujourdhui()))) { ctx.modifier("export", d => { d.dernierExport = new Date().toISOString(); }, { annulable: false }); ctx.toast("Export partagé"); } ctx.rendre(); },
+  copierDonnees: async ctx => { const ex = construireExport({ data: ctx.data, doc: ctx.doc, programme: ctx.programme, bilan: ctx.bilan });
+    if (await copierTexte(ex)) { ctx.modifier("export", d => { d.dernierExport = new Date().toISOString(); }, { annulable: false }); ctx.toast(`Données copiées (${tailleKo(ex)} ko) : colle-les dans Notes ou un mail`); }
+    else ctx.toast("La copie n'a pas marché : utilise « Exporter le fichier »"); ctx.rendre(); },
+  copierOuExporter: ctx => { forcerOuvert("sv-fichier"); ctx.ouvrir("sauvegarde"); },
+  collerOuvrir: ctx => ctx.ouvrirModal({ type: "coller", texte: "" }),
   importFichier: async (ctx, d, el) => { const f = el.files && el.files[0]; if (!f) return;
     try { const obj = await lireFichier(f), v = verifierImport(obj, ctx.data); ctx.ouvrirModal({ type: "import", ...v, source: "fichier" }); } catch (e) { alert(e.message); } el.value = ""; },
   reinitTout: ctx => { if (!confirm("Effacer TOUTES les données de l'app sur ce téléphone ?") || !confirm("Vraiment ? As-tu une sauvegarde ?")) return; ctx.store.reinitialiser(); ctx.state.seanceId = null; ctx.ouvrir("seance"); },

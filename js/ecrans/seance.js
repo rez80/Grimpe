@@ -5,7 +5,7 @@ import { etapesSeance, dureeEtape, dureeSeance, etatSeance, discipline, reposDef
 import { versionsDe, titreAction } from "../parseur.js";
 import { avertissements, reussi, forme, parVoie, projets, causePrincipale, anonyme, tentatives as toutesTentatives } from "../analyse.js";
 import { court, hm, hhmm, mmss, semaineDe, ajouterJours } from "../dates.js";
-import { salleDe, salleParDefautPour, retenirSalle, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe } from "../salles.js";
+import { salleDe, profilHabituel, salleParDefautPour, retenirSalle, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe } from "../salles.js";
 
 export const GENRES = { echauffement: "Échauffement", securite: "Sécurité", facile: "Facile", effort: "Effort", recup: "Récupération" };
 export const RES_LABEL = { ok: "Réussi", sec: "Avec sec", ko: "Échec" };
@@ -111,7 +111,7 @@ export function rendre(ctx) {
   out = h`${out}${pli(grimpeEnCours ? "plan-encours" : "plan", !grimpeEnCours, "Plan de séance", () => h`<div class="etapes">
     ${actives(etapes).map((e, n) => ligneEtape(ctx, s, sa, e, n + 1, enCours && courante && courante.k === e.k, enCours))}
     ${si(s.libre && !etapes.length, h`<p class="petit">Séance libre : note simplement ce que tu fais.</p>`)}
-  </div>`, { resume: sa.debut ? `${faites}/${actives(etapes).length} faites` : `${actives(etapes).length} étapes`, classe: "pli-plan" })}`;
+  </div>`, { resume: sa.debut ? `${faites}/${actives(etapes).length} faites` : `${actives(etapes).length} étapes`, classe: "carte pli-plan" })}`;
 
   if (s.libre || s.copie) out = h`${out}<button class="gros contour danger" data-act="supprimerLibre">Supprimer cette séance</button>`;
   return { html: out, titre: h`<b>${court(s.date)}</b> · ${activiteAffichee(s, sa)}`, fleches: true, menu: true, activite: disc === "Bloc" ? "Bloc" : s.activite, infos: "", glisser: !enCours };
@@ -304,7 +304,7 @@ export const actions = {
     ctx.toast(`${RES_LABEL[t.res]} · ${t.cot} · voie déjà faite`, () => ctx.store.annuler(), { label: "Nouvelle voie", action: () => ctx.modifierSeance(s.id, "nouvelle voie", x => { const y = (x.tentatives || []).find(z => z.t === t.t); if (y) y.nouvelle = true; }) });
     ctx.rendre(); },
   nouvelleVoieOuvrir: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), salle = salleCourante(ctx, s, sa, disc), c = cotationDe(salle, disc);
-    ctx.ouvrirModal({ type: "nouvelleVoie", seanceId: s.id, salleId: salle.id, disc, couleur: "", cotSalle: "", chiffre: "", nom: "", profil: "", secteurId: ctx.state.dernierSecteur || "", mode: c.mode }); },
+    ctx.ouvrirModal({ type: "nouvelleVoie", seanceId: s.id, salleId: salle.id, disc, couleur: "", cotSalle: "", chiffre: "", nom: "", profil: profilHabituel(salle, ctx.state.dernierSecteur || null), secteurId: ctx.state.dernierSecteur || "", mode: c.mode }); },
   resultat: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), dernier = (sa.tentatives || []).slice(-1)[0];
     ctx.ouvrirModal({ type: "resultat", seanceId: s.id, k: cleRattachement(ctx, s, sa, disc), disc, cot: dernier ? dernier.cot : "", profil: "Vertical", res: "", sec: 1, style: "", couleur: "", nom: "", cause: "", salle: sa.salle || "" }); },
   resultatEditer: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), t = sa.tentatives[+d.i]; ctx.ouvrirModal({ type: "resultat", seanceId: s.id, edit: +d.i, ...t, sec: t.sec || 1, profil: t.profil || "Vertical", style: t.style || "" }); },

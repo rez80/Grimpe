@@ -16,7 +16,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.7";
+export const APP_VERSION = "8.8";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
@@ -181,6 +181,7 @@ const majEcranAllume = () => ecranAllume(!!store.doc.reglages.ecranAllume && sea
 // --- Démarrage ---
 (async () => {
   store = await ouvrirStore();
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch { /* demande facultative : l'iPhone n'efface alors plus le stockage de lui-même */ }
   if (store.doc.programmeId && store.doc.programmeId !== DATA.programmeId && Object.keys(store.doc.seances).length)
     state.modal = { type: "nouveauProgramme", bloquant: true };
   else if (!store.doc.programmeId) store.modifier("programme", d => { d.programmeId = DATA.programmeId; }, { annulable: false });

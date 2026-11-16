@@ -12,7 +12,7 @@ export function rendre(ctx) {
   const semaines = [...new Set(P.map(s => s.semaine))].sort((a, b) => a - b), wNow = semaineDe(debut, auj);
   if (state.semaineVue !== null && !semaines.includes(state.semaineVue)) state.semaineVue = semaines.includes(wNow) ? wNow : semaines[0];   // null = tout replié
   const phases = []; for (const w of semaines) { const ph = (P.find(s => s.semaine === w) || {}).phase || ""; const bloc = ph.split(" · ")[0]; if (!phases.length || phases[phases.length - 1].bloc !== bloc) phases.push({ bloc, semaines: [] }); phases[phases.length - 1].semaines.push(w); }
-  let out = h`${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn" data-act="creationOuvrir">+ Séance</button><button class="petit-btn" data-act="progres">Progrès ›</button></div>`;
+  let out = h`${carteRestaurer(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn" data-act="creationOuvrir">+ Séance</button><button class="petit-btn" data-act="progres">Progrès ›</button></div>`;
   for (const ph of phases) {
     out = h`${out}<h3 class="bloc-titre">${ph.bloc || "Programme"}</h3>`;
     for (const w of ph.semaines) {
@@ -24,6 +24,16 @@ export function rendre(ctx) {
     }
   }
   return { html: out, titre: h`<b>Programme</b>` };
+}
+
+// App vide (nouvelle installation, téléphone changé…) : proposer tout de suite de restaurer une sauvegarde
+const CLE_VIDE = "grimpe-depart-vide-vu";
+function carteRestaurer(ctx) {
+  const d = ctx.doc, vide = !Object.keys(d.seances || {}).length && !(d.salles || []).length && !(d.passagesAnciens || []).length;
+  let vu = false; try { vu = !!localStorage.getItem(CLE_VIDE); } catch { /* ignore */ }
+  if (!vide || vu) return "";
+  return h`<div class="carte carte-restaurer"><b>Tu avais déjà des données ?</b><p class="petit">Restaure-les depuis une sauvegarde (fichier, texte copié, ou GitHub).</p>
+    <div class="ed-rangee"><button class="principal" data-act="copierOuExporter">Restaurer…</button><button data-act="departVide">Non, je commence</button></div></div>`;
 }
 
 // La carte du haut : la séance du jour (un appui pour l'ouvrir), sinon la prochaine
@@ -69,6 +79,7 @@ export const actions = {
   ouvrirSeance: (ctx, d) => ctx.ouvrir("seance", { seanceId: d.id, origine: "programme" }),          // la flèche ‹ ramènera ici
   copieSemaineOuvrir: (ctx, d) => ctx.ouvrirModal({ type: "copieSemaine", w: +d.w, mode: "repeter", dest: +d.w + 1, n: 1 }),
   progres: ctx => ctx.ouvrir("progres"),
+  departVide: ctx => { try { localStorage.setItem(CLE_VIDE, "1"); } catch { /* ignore */ } ctx.rendre(); },
   seanceMenu: (ctx, d) => { ctx.state.seanceId = d.id; ctx.ouvrirModal({ type: "menu", seanceId: d.id }); },
   passageHorsSeance: ctx => ctx.ouvrirModal({ type: "passageAncien", date: ctx.aujourdhui(), dateInconnue: false, disc: "Voie", cot: "", chiffre: "", profil: "Vertical", res: "", n: 1, couleur: "", nom: "", salle: "" }),
   creationOuvrir: ctx => editeur.ouvrir(ctx, { date: ctx.aujourdhui(), activite: "Voie", contenu: "" }),

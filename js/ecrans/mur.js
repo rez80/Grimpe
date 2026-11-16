@@ -1,6 +1,6 @@
 // ecrans/mur.js — le mur d'une salle : les voies par secteur, en tuiles, rangées au doigt (glisser-déposer).
 import { h, si, pictoProfil, ouvert, pli, liste as listeDeroulante, forcerOuvert } from "../html.js";
-import { salleDe, hexDe, texteSur, ranger, cotationDe, profilHabituel, passagesDe, supprimerVoies } from "../salles.js";
+import { salleDe, hexDe, texteSur, ranger, cotationDe, profilHabituel, inclinaisonSecteur, passagesDe, supprimerVoies, couleursDe } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, reussi, rang } from "../analyse.js";
 import { court } from "../dates.js";
 
@@ -8,8 +8,8 @@ export function rendre(ctx) {
   const { doc, state } = ctx, s = salleDe(doc, state.salleId); if (!s) return { html: h`<p class="carte">Salle introuvable.</p>`, titre: "Salle" };
   const filtre = state.filtre.mur || "", demontees = !!state.filtre.demontees, voies = parVoie(toutesTentatives(ctx.programme, doc));
   const fCot = state.filtre.cotMur && state.filtre.cotMur.salle === s.id ? state.filtre.cotMur : null, fCarac = state.filtre.carac || "", caracsPresentes = [...new Set(s.voies.flatMap(v => v.carac || []))].sort();
-  const liste = s.voies.filter(v => (demontees ? v.statut === "demontee" : v.statut !== "demontee") && (!filtre || v.disc === filtre) && (!fCarac || (v.carac || []).includes(fCarac)) && (!fCot || (v.cotSalle || v.cot || "?") === fCot.cot && v.disc === fCot.disc)).sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
-  const groupes = [...s.secteurs.map(sec => ({ id: sec.id, nom: sec.nom, profil: sec.profil, voies: liste.filter(v => v.secteurId === sec.id) })), { id: "", nom: "Sans secteur", profil: "", voies: liste.filter(v => !v.secteurId || !s.secteurs.some(x => x.id === v.secteurId)) }];
+  const liste = s.voies.filter(v => (demontees ? v.statut === "demontee" : v.statut !== "demontee") && (!filtre || v.disc === filtre) && (!fCarac || (v.carac || []).includes(fCarac)) && (!fCot || niveauDe(s, v) === fCot.cot && v.disc === fCot.disc)).sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
+  const groupes = [...s.secteurs.map(sec => ({ id: sec.id, nom: sec.nom, profil: inclinaisonSecteur(s, sec.id), voies: liste.filter(v => v.secteurId === sec.id) })), { id: "", nom: "Sans secteur", profil: "", voies: liste.filter(v => !v.secteurId || !s.secteurs.some(x => x.id === v.secteurId)) }];
   const classer = state.classer, ranger = state.ranger;
   const tuile = v => { const hv = voies.find(x => x.voieId === v.id), hex = hexDe(doc, v.couleur, s);
     return h`<div class="tuile-voie glissable ${classer && classer.has(v.id) ? "selectionnee" : ""}" draggable="false" data-id="${v.id}" data-act="${classer ? "classerBascule" : "voieEditer"}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (v.profil || "").toLowerCase()}</span><span class="tuile-histo">${hv ? `${hv.reussies ? "✓" + (hv.reussies > 1 ? hv.reussies : "") : ""}${hv.essais - hv.reussies ? " ✗" + (hv.essais - hv.reussies) : ""}` : ""}${v.statut === "demontee" ? ` démontée ${v.demontee ? court(v.demontee) : ""}` : ""}</span>${si(!demontees && !classer, h`<span class="poignee" aria-label="Déplacer">⋮⋮</span>`)}</div>`; };
@@ -26,28 +26,38 @@ export function rendre(ctx) {
     return h`<span class="petit">${g.voies.length} ${g.voies.length > 1 ? "voies" : "voie"}${et ? " · " + et : ""}</span> <span class="points">${cs.slice(0, 8).map(c => h`<i style="background:${hexDe(doc, c, s)}"></i>`)}</span>`; };
   // En bref : combien de voies (et de blocs) par cotation, en un coup d'œil ; toucher une cotation filtre le mur
   const enPlace = s.voies.filter(v => v.statut !== "demontee"), nDem = s.voies.length - enPlace.length;
+  // En bref : un bâtonnet par niveau, hauteur = nombre de voies ; couleur du niveau (salle par couleurs) ou couleur de prises la plus présente
   const recap = pli(`recap-${s.id}`, true, "En bref", () => h`${["Voie", "Bloc"].map(disc => { const l = enPlace.filter(v => v.disc === disc); if (!l.length) return "";
-      const cots = {}; l.forEach(v => { const c = v.cotSalle || v.cot || "?"; cots[c] = (cots[c] || 0) + 1; });
-      const ordre = Object.keys(cots).sort((a, b) => rang(ctx.data.echelles, disc, a) - rang(ctx.data.echelles, disc, b) || (a < b ? -1 : 1));
-      return h`<div class="recap-ligne"><b>${disc === "Bloc" ? "Blocs" : "Voies"} (${l.length})</b><span class="recap-cots">${ordre.map(c => h`<button class="recap-cot ${fCot && fCot.disc === disc && fCot.cot === c ? "choisi" : ""}" data-act="filtreCotMur" data-disc="${disc}" data-valeur="${c}">${c}<span>${cots[c]}</span></button>`)}</span></div>`; })}
-    <p class="petit">${s.secteurs.length} secteur${s.secteurs.length > 1 ? "s" : ""}${nDem ? ` · ${nDem} démontée${nDem > 1 ? "s" : ""}` : ""}${fCot ? h` · filtre ${fCot.cot} <button class="lien" data-act="filtreCotMur" data-disc="${fCot.disc}" data-valeur="${fCot.cot}">✕</button>` : ""}</p>`,
+      const c = cotationDe(s, disc), G = {}; l.forEach(v => { const k = niveauDe(s, v); (G[k] = G[k] || []).push(v); });
+      const ordre = Object.keys(G).sort((a, b) => ordreNiveau(ctx, s, disc, a) - ordreNiveau(ctx, s, disc, b) || (a < b ? -1 : 1)), max = Math.max(...ordre.map(k => G[k].length));
+      const teinte = k => { if (c.mode === "couleurs") return hexDe(doc, k, s); const n = {}; G[k].forEach(v => v.couleur && (n[v.couleur] = (n[v.couleur] || 0) + 1)); const top = Object.entries(n).sort((a, b) => b[1] - a[1])[0]; return top ? hexDe(doc, top[0], s) : "#9aa5ab"; };
+      const mot = n => disc === "Bloc" ? (n > 1 ? "blocs" : "bloc") : (n > 1 ? "voies" : "voie"), nom = k => c.mode === "couleurs" ? k.toLowerCase() : k;
+      return h`<div class="recap-disc"><b>${disc === "Bloc" ? "Blocs" : "Voies"} · ${l.length}</b><div class="batons">${ordre.map(k => { const actif = fCot && fCot.disc === disc && fCot.cot === k;
+        return h`<button class="baton ${actif ? "choisi" : ""}" data-act="filtreCotMur" data-disc="${disc}" data-valeur="${k}" aria-label="Niveau ${nom(k)} : ${G[k].length} ${mot(G[k].length)}"><span class="baton-n">${G[k].length}</span><span class="baton-barre" style="height:${Math.round(8 + 64 * G[k].length / max)}px;background:${teinte(k)}"></span><span class="baton-niv">${c.mode === "couleurs" ? "" : k}</span></button>`; })}</div></div>`; })}
+    ${si(fCot, () => h`<p class="recap-filtre">Niv ${cotationDe(s, fCot.disc).mode === "couleurs" ? fCot.cot.toLowerCase() : fCot.cot} : ${enPlace.filter(v => v.disc === fCot.disc && niveauDe(s, v) === fCot.cot).length} ${fCot.disc === "Bloc" ? "bloc(s)" : "voie(s)"} <button class="lien" data-act="filtreCotMur" data-disc="${fCot.disc}" data-valeur="${fCot.cot}">✕ tout afficher</button></p>`)}
+    <p class="petit">${s.secteurs.length} secteur${s.secteurs.length > 1 ? "s" : ""}${nDem ? ` · ${nDem} démontée${nDem > 1 ? "s" : ""}` : ""} · touche un bâton pour ne voir que ce niveau</p>`,
     { resume: [enPlace.filter(v => v.disc === "Voie").length && `${enPlace.filter(v => v.disc === "Voie").length} voies`, enPlace.filter(v => v.disc === "Bloc").length && `${enPlace.filter(v => v.disc === "Bloc").length} blocs`].filter(Boolean).join(" · "), classe: "carte recap-salle" });
   const html = h`${si(!ranger && !demontees && enPlace.length, () => recap)}<div class="barre-mur">${si(s.type === "Bloc et voie", h`<div class="choix compact segmente">${[["", "Tout"], ["Voie", "Voies"], ["Bloc", "Blocs"]].map(([v, l]) => h`<button data-act="filtreMur" data-valeur="${v}" class="${filtre === v ? "choisi" : ""}">${l}</button>`)}</div>`)}
       ${si(!demontees && !ranger, h`<button class="petit-btn principal" data-act="voieNouvelle" data-secteur="${s.secteurs.some(x => x.id === state.dernierSecteur) ? state.dernierSecteur : ""}" data-disc="${discDefaut}">+ ${discDefaut === "Bloc" ? "Bloc" : "Voie"}</button>`)}
-      ${ranger ? h`<button class="petit-btn choisi" data-act="rangerBascule">Ranger : fini</button>` : h`<button class="petit-btn" data-act="classerDebut">Sélectionner</button>`}
+      ${si(!demontees, h`<button class="petit-btn" data-act="secteurNouveau">+ Secteur</button>`)}<button class="petit-btn" data-act="classerDebut">Sélectionner</button>
       ${si(caracsPresentes.length && !ranger, () => listeDeroulante("carac", caracsPresentes, fCarac, { act: "filtreCarac", vide: "Toutes caractéristiques" }))}</div>
     ${si(demontees, h`<p class="bandeau-info">Voies démontées · <button class="lien" data-act="filtreDemontees">revenir aux voies en place</button></p>`)}
-    ${si(ranger, h`<p class="petit">Mode Ranger : fais glisser les voies où tu veux, puis « Ranger : fini ».</p>`)}
     ${groupes.filter(g => g.voies.length || g.id || s.secteurs.length).map(g => { const cle = `sec-${s.id}-${g.id}`, o = tout || ouvert(cle, false);
       return h`<div class="secteur ${o ? "ouvert" : "replie"}" data-secteur="${g.id}"><div class="secteur-tete">
         <button class="secteur-plier" data-act="replier" data-cle="${cle}" data-defaut="" aria-expanded="${o ? "true" : "false"}"><span class="pli-fleche">${o ? "▾" : "▸"}</span><span><b>${g.nom}</b>${g.profil ? h` <span class="petit">${g.profil.toLowerCase()}</span>` : ""}<br>${resume(g)}</span></button>
         <span class="ed-outils">${si(g.id, h`<button data-act="secteurEditer" data-id="${g.id}" aria-label="Modifier le secteur">✎</button>`)}${si(!demontees, h`<button data-act="voieNouvelle" data-secteur="${g.id}" data-disc="${discDefaut}" aria-label="Ajouter dans ${g.nom}">+</button>`)}</span></div>
         ${si(o, () => h`<div class="tuiles zone-depot" data-secteur="${g.id}">${g.voies.map(tuile)}${si(!g.voies.length, h`<span class="petit depot-vide">${ranger ? "déposer ici" : "aucune voie"}</span>`)}</div>`)}</div>`; })}
     ${si(!s.voies.length, h`<p class="petit">Aucune voie. Ajoute-les avec « + ${discDefaut === "Bloc" ? "Bloc" : "Voie"} », ou directement pendant une séance.</p>`)}
-    ${si(!ranger, h`<p class="petit">Touche une voie pour sa fiche ; prends-la par ⋮⋮ pour la déplacer. Le reste (secteurs, plusieurs voies, ranger, démontées, salle) : ⋯ en haut.</p>`)}`;
+    ${si(!ranger, h`<p class="petit">Touche une voie pour sa fiche. Pour la déplacer, prends-la par ⋮⋮ et lâche-la sur une autre voie, dans un secteur ouvert, ou sur le nom d'un secteur replié. Plusieurs voies d'un coup, démontées, salle : ⋯ en haut.</p>`)}`;
   document.body.classList.toggle("mode-ranger", !!ranger);
   return { html, titre: h`<b>${s.nom}</b>`, infos: `${cotationDe(s, "Voie").mode !== "standard" || cotationDe(s, "Bloc").mode !== "standard" ? "cotation propre à la salle" : ""}` };
 }
+
+// Niveau d'une voie tel que la salle l'affiche (la couleur, pour une salle qui cote par couleurs) et son rang
+const niveauDe = (s, v) => cotationDe(s, v.disc).mode === "couleurs" ? v.couleur || "?" : v.cotSalle || v.cot || "?";
+function ordreNiveau(ctx, s, disc, k) { const c = cotationDe(s, disc);
+  if (c.mode === "liste" || c.mode === "couleurs") { const i = c.liste.findIndex(x => x.salle === k); return i < 0 ? 999 : i; }
+  const r = rang(ctx.data.echelles, disc, k); return r < 0 ? 999 : r; }
 
 // --- Glisser-déposer (pointer events) : on prend la tuile par sa poignée ⋮⋮ ; dépôt sur une tuile (avant elle) ou sur un secteur (à la fin) ---
 let installe = false;
@@ -56,7 +66,8 @@ export function apresRendu(ctx) {
   let actif = null, fantome = null, bouge = false;
   const nettoyer = () => { if (fantome) fantome.remove(); fantome = null; racine.querySelectorAll(".depot-cible, .en-glisse").forEach(x => x.classList.remove("depot-cible", "en-glisse")); actif = null; document.body.classList.remove("glisse-en-cours"); };
   const cibleSous = (x, y) => { if (fantome) fantome.style.display = "none"; const el = document.elementFromPoint(x, y); if (fantome) fantome.style.display = ""; if (!el) return null;
-    const tuile = el.closest(".tuile-voie.glissable"), zone = el.closest(".zone-depot"); return tuile && tuile !== actif ? { tuile, zone: tuile.closest(".zone-depot") } : zone ? { tuile: null, zone } : null; };
+    const tuile = el.closest(".tuile-voie.glissable"), zone = el.closest(".zone-depot"), sec = el.closest(".secteur[data-secteur]");
+    return tuile && tuile !== actif ? { tuile, zone: tuile.closest(".zone-depot") } : zone ? { tuile: null, zone } : sec ? { tuile: null, zone: sec } : null; };
   const placer = (x, y) => { if (fantome) { fantome.style.left = (x - fantome.offsetWidth / 2) + "px"; fantome.style.top = (y - 30) + "px"; } };
   racine.addEventListener("pointerdown", e => { if (e.button > 0 || ctx.state.vue !== "salle" || ctx.state.classer) return;
     const p = e.target.closest(".poignee") || (ctx.state.ranger && e.target.closest(".tuile-voie.glissable")); if (!p) return; const t = p.closest(".tuile-voie.glissable"); if (!t) return;
@@ -66,7 +77,8 @@ export function apresRendu(ctx) {
     racine.querySelectorAll(".depot-cible").forEach(x => x.classList.remove("depot-cible")); const c = cibleSous(e.clientX, e.clientY); if (c) (c.tuile || c.zone).classList.add("depot-cible"); });
   const lacher = e => { if (!actif) return; const c = cibleSous(e.clientX, e.clientY), id = actif.dataset.id; nettoyer();
     if (!c) return; const secteurId = c.zone.dataset.secteur || null, avantId = c.tuile ? c.tuile.dataset.id : null;
-    ctx.modifier("voie rangée", d => { ranger(salleDe(d, ctx.state.salleId), id, secteurId, avantId); }); ctx.rendre(); };
+    const avant = (salleDe(ctx.doc, ctx.state.salleId).voies.find(v => v.id === id) || {}).secteurId || null, sec = salleDe(ctx.doc, ctx.state.salleId).secteurs.find(x => x.id === secteurId);
+    ctx.modifier("voie rangée", d => { ranger(salleDe(d, ctx.state.salleId), id, secteurId, avantId); }); if (avant !== secteurId) ctx.toast(`Déplacée dans ${sec ? sec.nom : "Sans secteur"}`, () => ctx.store.annuler()); ctx.rendre(); };
   racine.addEventListener("pointerup", lacher); racine.addEventListener("pointercancel", nettoyer);
   // Un glissement ne doit pas ouvrir la fiche
   racine.addEventListener("click", e => { if (ctx.state.vue === "salle" && (e.target.closest(".poignee") || (ctx.state.ranger && e.target.closest(".tuile-voie.glissable")))) { e.stopPropagation(); e.preventDefault(); } }, true);
@@ -76,7 +88,7 @@ export function apresRendu(ctx) {
 export function menuEcran(ctx) { const s = salleDe(ctx.doc, ctx.state.salleId); if (!s) return null; const dem = !!ctx.state.filtre.demontees;
   return { titre: s.nom, items: [
     ...(dem ? [] : [{ label: "+ Plusieurs voies d'un coup", act: "ajoutRapideOuvrir" }]), { label: "+ Secteur", act: "secteurNouveau" },
-    ...(dem ? [] : [{ label: ctx.state.ranger ? "Ranger : fini" : "Ranger les voies (glisser-déposer)", act: "rangerBascule" }]), { label: "Sélectionner plusieurs voies", act: "classerDebut" },
+    { label: "Sélectionner plusieurs voies", act: "classerDebut" },
     { label: dem ? "Voir les voies en place" : "Voir les voies démontées", act: "filtreDemontees" }, { label: "✎ Modifier la salle", act: "salleEditer" }] }; }
 
 export const actions = {

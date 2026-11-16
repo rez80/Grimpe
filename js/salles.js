@@ -52,6 +52,9 @@ export function salleParDefautPour(doc, disc) { const r = doc.reglages || {}, ok
   return ok(r.salleDuJour) || ok((r.salleParDefaut || {})[disc]) || ""; }
 // Retenir le choix de salle du jour (« Salle inconnue » vaut pour la séance seulement)
 export function retenirSalle(doc, disc, id) { if (!id) return; doc.reglages.salleDuJour = id; doc.reglages.salleParDefaut = { ...(doc.reglages.salleParDefaut || {}), [disc]: id }; }
+// Couleur de fond de la carte d'une salle : choisie, sinon une teinte douce selon sa place dans la liste
+export const FONDS_SALLE = ["#DCEFE7", "#E1E7FA", "#FBE3CF", "#F2DDF1", "#FFF1C2", "#D8EFF6", "#EDE4D6", "#E3F1D3"];
+export const fondSalle = (doc, s) => s.fond || FONDS_SALLE[Math.max(0, doc.salles.indexOf(s)) % FONDS_SALLE.length];
 // Caractéristiques d'une voie (plusieurs possibles), par famille ; l'inclinaison reste le « profil »
 export const CARACTERISTIQUES = [{ groupe: "Mur et forme", options: ["Arête", "Traversée", "Dièdre", "Fissure", "Volumes"] }, { groupe: "Prises", options: ["Réglettes", "Bacs", "Pinces", "Plats"] }, { groupe: "Mouvement", options: ["Dynamique", "Compression"] }];
 export function nouvelleVoie(salle, { disc, couleur = "", cotSalle = "", nom = "", profil = "", secteurId = null, carac = [] }, aujourdhui) {
@@ -77,11 +80,15 @@ export function renouveler(salle, secteurId, aujourdhui) { let n = 0; for (const
 export const tentativeDe = (v, salle, extra = {}) => ({ t: Date.now(), disc: v.disc, cot: v.cot || "", cotSalle: v.cotSalle || "", profil: v.profil || "", couleur: v.couleur || "", nom: v.nom || "", salle: salle.id, voieId: v.id, ...extra });
 
 // Profil proposé pour une nouvelle voie d'un secteur : celui fixé sur le secteur, sinon le plus fréquent parmi ses voies, sinon Vertical
-export function profilHabituel(salle, secteurId) {
-  const sec = salle && salle.secteurs.find(x => x.id === secteurId); if (sec && sec.profil) return sec.profil;
-  const n = {}; (salle ? salle.voies : []).filter(v => (v.secteurId || null) === (secteurId || null) && v.profil).forEach(v => n[v.profil] = (n[v.profil] || 0) + 1);
-  return Object.entries(n).sort((a, b) => b[1] - a[1]).map(x => x[0])[0] || "Vertical";
+// Inclinaison d'un secteur : la plus fréquente parmi ses voies, en trois catégories seulement (Dalle, Vertical, Dévers) ; sinon celle donnée à sa création
+export const categorieInclinaison = p => !p ? "" : p === "Dalle" || p === "Vertical" ? p : "Dévers";
+export function inclinaisonSecteur(salle, secteurId) {
+  const n = {}; (salle ? salle.voies : []).filter(v => v.statut !== "demontee" && (v.secteurId || null) === (secteurId || null) && v.profil).forEach(v => { const c = categorieInclinaison(v.profil); n[c] = (n[c] || 0) + 1; });
+  const sec = salle && salle.secteurs.find(x => x.id === secteurId);
+  return Object.entries(n).sort((a, b) => b[1] - a[1]).map(x => x[0])[0] || categorieInclinaison(sec && sec.profil) || "";
 }
+// Inclinaison proposée pour une nouvelle voie de ce secteur
+export const profilHabituel = (salle, secteurId) => inclinaisonSecteur(salle, secteurId) || "Vertical";
 
 // =====================================================================
 // Modifier et supprimer (fonctions pures sur le document ; l'annulation est assurée par le store)
