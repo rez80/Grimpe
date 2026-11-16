@@ -1,4 +1,4 @@
-# Grimpe 8.7 — l'app d'escalade
+# Grimpe 8.8 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -55,9 +55,16 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 
 **Salles.**
 - **La liste** est en cartes : couleurs présentes, nombre de voies et de blocs, secteurs, dernière séance, ✎.
-- **En bref**, en haut d'une salle : le nombre de voies et de blocs par cotation (« 5b · 6 »), le nombre de secteurs et de voies démontées. Toucher une cotation filtre le mur.
-- **Dans une salle**, une barre reste en haut : Tout / Voies / Blocs, + Voie, Sélectionner, et un filtre par caractéristique. Le reste est dans ⋯ : plusieurs voies d'un coup, + Secteur, Ranger (glisser-déposer), voies démontées, modifier la salle.
-- **Les secteurs** sont repliés avec un résumé (nombre, couleurs, étendue des cotations). L'app retient ceux que tu ouvres.
+- **Les cartes de salle** affichent le type et le nombre de voies et de blocs, sur une couleur de fond (automatique, à changer dans ✎).
+- **En bref**, en haut d'une salle : un bâtonnet par niveau, dont la hauteur donne le nombre de voies. Sa couleur est celle du niveau dans une salle qui cote par couleurs, sinon la couleur de prises la plus présente. Toucher un bâton filtre le mur (« Niv 5b : 6 voies »).
+- **La façon de coter** d'une salle se règle en trois questions :
+  1. comment la salle note ses niveaux : cotation française ou Fontainebleau, chiffres, lettres, chiffres et lettres, couleurs, autres, ou pas de niveaux ;
+  2. combien de niveaux différents : l'app crée la liste toute seule ;
+  3. l'équivalent de chaque niveau dans la cotation de l'app : une liste déroulante, pré-remplie et modifiable.
+- **Dans une salle**, une barre reste en haut : Tout / Voies / Blocs, + Voie, + Secteur, Sélectionner, et un filtre par caractéristique. Le reste est dans ⋯ : plusieurs voies d'un coup, voies démontées, modifier la salle.
+- **Les secteurs** sont repliés avec un résumé (inclinaison, nombre, couleurs, étendue des cotations). L'app retient ceux que tu ouvres.
+- **L'inclinaison d'un secteur** est calculée : c'est la plus fréquente parmi ses voies, en trois catégories (Dalle, Vertical, Dévers). Les nouvelles voies du secteur la prennent par défaut. À la création d'un secteur vide, on la choisit parmi ces trois catégories.
+- **Déplacer une voie** : prends-la par ⋮⋮ et lâche-la sur une autre voie, dans un secteur ouvert, ou sur le nom d'un secteur replié. Il n'y a pas de mode à activer ni à quitter.
 - **Une voie** a :
   - une couleur : 12 de base, et un appui long montre les nuances (42 teintes) ;
   - une cotation, notée à la façon de la salle : comme l'app, ses propres niveaux, par couleurs, ou aucune ;
@@ -111,7 +118,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 2. Touche **Partager › Sur l'écran d'accueil**.
 3. Lance l'app depuis son icône. Elle fonctionne ensuite hors ligne.
 
-L'iPhone mémorise l'icône au moment de l'ajout. Si l'écran d'accueil montre une lettre (« G ») au lieu du dessin, supprime l'icône et ajoute-la à nouveau depuis Safari. Tes données restent : elles sont liées à l'adresse de l'app, pas à l'icône. Par prudence, fais quand même un export avant.
+⚠️ **Sur iPhone, les données de l'app sont liées à son icône.** Supprimer l'icône de l'écran d'accueil efface toutes les données de l'app. Avant de supprimer et de rajouter l'icône (par exemple pour corriger son image), fais une sauvegarde et vérifie-la (voir 3). Pour vérifier que Safari a bien la dernière version avant d'ajouter l'icône, regarde le numéro de version en bas de l'onglet Plus.
 
 ### 2.3 Mettre à jour
 Remplace les fichiers dans le dépôt. À la prochaine ouverture, ou au retour dans l'app, un bandeau « Nouvelle version disponible — mettre à jour » apparaît ; un appui suffit. Tes données ne sont pas touchées.
@@ -131,7 +138,13 @@ Les données sont dans le téléphone (IndexedDB). Plus › Sauvegarde commence 
 
 Le jeton reste sur ce téléphone : il n'est jamais dans le document ni dans les exports. Si tu perds le téléphone, révoque le jeton sur GitHub.
 
-**Fichier.** « Exporter » produit le document complet en JSON, à partager ou à garder. « Restaurer depuis un fichier » le recharge.
+**Fichier.** Pour sauvegarder :
+- « Exporter le fichier » partage le document complet (`grimpe-AAAA-MM-JJ.json`, le fichier seul). Dans Mail, vérifie que la pièce jointe est bien là avant d'envoyer : la taille de la sauvegarde est affichée à côté du bouton.
+- « Copier les données » met tout le document dans le presse-papiers, à coller dans Notes ou dans un mail. C'est le plus sûr sur iPhone.
+
+Pour restaurer : « Restaurer depuis un fichier » ou « Restaurer en collant le texte ».
+
+Quand l'app est vide (nouvelle installation), le Programme propose tout de suite de restaurer. Sans sauvegarde GitHub, un rappel « Sauvegarder » apparaît en fin de séance si la dernière sauvegarde a plus de 7 jours. L'app demande aussi à l'iPhone de ne pas effacer son stockage de lui-même.
 
 **Tout effacer.** Efface toutes les données de ce téléphone.
 
