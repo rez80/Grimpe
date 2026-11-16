@@ -47,6 +47,8 @@ export function rendre(ctx) {
         <button class="secteur-plier" data-act="replier" data-cle="${cle}" data-defaut="" aria-expanded="${o ? "true" : "false"}"><span class="pli-fleche">${o ? "▾" : "▸"}</span><span><b>${g.nom}</b>${g.profil ? h` <span class="petit">${g.profil.toLowerCase()}</span>` : ""}<br>${resume(g)}</span></button>
         <span class="ed-outils">${si(g.id, h`<button data-act="secteurEditer" data-id="${g.id}" aria-label="Modifier le secteur">✎</button>`)}${si(!demontees, h`<button data-act="voieNouvelle" data-secteur="${g.id}" data-disc="${discDefaut}" aria-label="Ajouter dans ${g.nom}">+</button>`)}</span></div>
         ${si(o, () => h`<div class="tuiles zone-depot" data-secteur="${g.id}">${g.voies.map(tuile)}${si(!g.voies.length, h`<span class="petit depot-vide">${ranger ? "déposer ici" : "aucune voie"}</span>`)}</div>`)}</div>`; })}
+    ${si(fCot && !liste.length, () => h`<p class="avert">Aucune ${fCot.disc === "Bloc" ? "bloc" : "voie"} de ce niveau ici. <button class="lien" data-act="filtreCotMur" data-disc="${fCot.disc}" data-valeur="${fCot.cot}">Tout afficher</button></p>`)}
+    ${si(!s.voies.length, h`<button class="gros principal" data-act="inventaireOuvrir">Inventaire rapide : combien de voies par niveau ?</button>`)}
     ${si(!s.voies.length, h`<p class="petit">Aucune voie. Ajoute-les avec « + ${discDefaut === "Bloc" ? "Bloc" : "Voie"} », ou directement pendant une séance.</p>`)}
     ${si(!ranger, h`<p class="petit">Touche une voie pour sa fiche. Pour la déplacer, prends-la par ⋮⋮ et lâche-la sur une autre voie, dans un secteur ouvert, ou sur le nom d'un secteur replié. Plusieurs voies d'un coup, démontées, salle : ⋯ en haut.</p>`)}`;
   document.body.classList.toggle("mode-ranger", !!ranger);
@@ -87,7 +89,7 @@ export function apresRendu(ctx) {
 // ⋯ de l'en-tête sur le mur
 export function menuEcran(ctx) { const s = salleDe(ctx.doc, ctx.state.salleId); if (!s) return null; const dem = !!ctx.state.filtre.demontees;
   return { titre: s.nom, items: [
-    ...(dem ? [] : [{ label: "+ Plusieurs voies d'un coup", act: "ajoutRapideOuvrir" }]), { label: "+ Secteur", act: "secteurNouveau" },
+    ...(dem ? [] : [{ label: "Inventaire rapide (nombre de voies par niveau)", act: "inventaireOuvrir" }, { label: "+ Plusieurs voies d'un coup", act: "ajoutRapideOuvrir" }]), { label: "+ Secteur", act: "secteurNouveau" },
     { label: "Sélectionner plusieurs voies", act: "classerDebut" },
     { label: dem ? "Voir les voies en place" : "Voir les voies démontées", act: "filtreDemontees" }, { label: "✎ Modifier la salle", act: "salleEditer" }] }; }
 
@@ -116,11 +118,17 @@ export const actions = {
     ctx.ouvrirModal({ type: "ajoutRapide", salleId: s.id, disc, couleur: "", cotSalle: "", chiffre: "", nb: 1, secteurId: ctx.state.dernierSecteur || "", profil: "", total: 0 }); },
   filtreCotMur: (ctx, d) => { const f = ctx.state.filtre, id = ctx.state.salleId;
     f.cotMur = f.cotMur && f.cotMur.salle === id && f.cotMur.cot === d.valeur && f.cotMur.disc === d.disc ? null : { salle: id, disc: d.disc, cot: d.valeur };
-    if (f.cotMur) for (const sec of [...(ctx.doc.salles.find(x => x.id === id) || { secteurs: [] }).secteurs.map(x => x.id), ""]) forcerOuvert(`sec-${id}-${sec}`); ctx.rendre(); },
+    if (f.cotMur) { f.mur = ""; f.carac = ""; f.demontees = false;                      // les autres filtres ne doivent pas cacher le niveau touché
+      for (const sec of [...(ctx.doc.salles.find(x => x.id === id) || { secteurs: [] }).secteurs.map(x => x.id), ""]) forcerOuvert(`sec-${id}-${sec}`); }
+    ctx.rendre();
+    if (f.cotMur) setTimeout(() => { const t = document.querySelector("#ecran .tuile-voie"); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 140, behavior: "smooth" }); }, 50); },
+  inventaireOuvrir: ctx => { const s = salleDe(ctx.doc, ctx.state.salleId), disc = ctx.state.filtre.mur || (s.type === "Bloc" ? "Bloc" : "Voie");
+    ctx.ouvrirModal({ type: "inventaire", salleId: s.id, disc, secteurId: s.secteurs.some(x => x.id === ctx.state.dernierSecteur) ? ctx.state.dernierSecteur : "", comptes: {}, couleur: "" }); },
   filtreMur: (ctx, d) => { ctx.state.filtre.mur = d.valeur; ctx.rendre(); },
   filtreCarac: (ctx, d, el) => { ctx.state.filtre.carac = el.value; if (el.value) for (const sec of [...(ctx.doc.salles.find(x => x.id === ctx.state.salleId) || { secteurs: [] }).secteurs.map(x => x.id), ""]) forcerOuvert(`sec-${ctx.state.salleId}-${sec}`); ctx.rendre(); },
-  secteurNouveau: ctx => ctx.ouvrirModal({ type: "secteur", salleId: ctx.state.salleId, nom: "", profil: "Vertical" }),
+  secteurNouveau: ctx => { const n = salleDe(ctx.doc, ctx.state.salleId).secteurs.length; ctx.ouvrirModal({ type: "secteurs", salleId: ctx.state.salleId, noms: [String(n + 1)], departNom: n + 1 }); },
   secteurEditer: (ctx, d) => { const sec = salleDe(ctx.doc, ctx.state.salleId).secteurs.find(x => x.id === d.id); ctx.ouvrirModal({ type: "secteur", salleId: ctx.state.salleId, id: sec.id, nom: sec.nom, profil: sec.profil || "Vertical" }); },
-  voieNouvelle: (ctx, d) => { const s = salleDe(ctx.doc, ctx.state.salleId); ctx.ouvrirModal({ type: "voie", salleId: s.id, disc: d.disc, cotSalle: "", chiffre: "", couleur: "", profil: profilHabituel(s, d.secteur || null), nom: "", secteurId: d.secteur || "" }); },
+  voieNouvelle: (ctx, d) => { const s = salleDe(ctx.doc, ctx.state.salleId), dn = (ctx.state.derniers || {})[`${s.id}-${d.disc}`] || {};          // dernière couleur et dernier niveau utilisés : déjà remplis
+    ctx.ouvrirModal({ type: "voie", salleId: s.id, disc: d.disc, cotSalle: dn.cotSalle || "", chiffre: (dn.cotSalle || "")[0] || "", couleur: dn.couleur || "", profil: profilHabituel(s, d.secteur || null), nom: "", secteurId: d.secteur || "" }); },
   voieEditer: (ctx, d) => { const v = salleDe(ctx.doc, ctx.state.salleId).voies.find(x => x.id === d.id); ctx.ouvrirModal({ type: "voie", salleId: ctx.state.salleId, ...v, chiffre: (v.cotSalle || "")[0] || "" }); },
 };

@@ -387,3 +387,13 @@ button.gros { padding: 10px 14px; font-size: 16px; min-height: 44px; margin: 6px
 /* Cartes de salle colorées */
 .carte-salle { color: #1d2a2e; } .carte-salle .cs-corps { color: inherit; } .carte-salle .item-edit { background: rgba(255,255,255,.45); border: none; color: inherit; }
 .cs-infos { font-size: 15px; opacity: .8; }
+
+/* ===== 8.9 ===== */
+/* Programme : la pastille d'une séance prend la couleur de son plan (type d'étape dominant) */
+.pastille-seance.genre-echauffement { background: var(--echauffement); } .pastille-seance.genre-securite { background: var(--securite); }
+.pastille-seance.genre-facile { background: var(--facile); } .pastille-seance.genre-effort { background: var(--effort); } .pastille-seance.genre-recup { background: var(--recup); }
+.legende-genres { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; color: var(--texte-2); margin: 2px 0 8px; }
+.legende-genres i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; background: var(--g); }
+.legende-genres i.genre-echauffement { --g: var(--echauffement); } .legende-genres i.genre-securite { --g: var(--securite); } .legende-genres i.genre-facile { --g: var(--facile); } .legende-genres i.genre-effort { --g: var(--effort); } .legende-genres i.genre-recup { --g: var(--recup); }
+.noms-secteurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; margin: 4px 0 8px; } .noms-secteurs input { min-width: 0; }
+.inventaire .ligne-reg { padding: 4px 0; }
