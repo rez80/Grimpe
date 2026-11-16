@@ -16,7 +16,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.6";
+export const APP_VERSION = "8.7";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
@@ -64,10 +64,13 @@ function ouvrir(vue, params = {}) {
 }
 // Aide à la bonne section selon l'écran affiché
 const SECTION_AIDE = { seance: "seance", programme: "programme", progres: "progres", salle: "salles", salles: "salles", historique: "programme", sauvegarde: "donnees", reglages: "seance" };
-function retour() { const pile = state.pile, v = pile.pop() || ONGLET_DE[state.vue] || "seance"; state.pile = []; ouvrir(v); state.pile = pile; }
+function retour() { const pile = state.pile, v = pile.pop() || ONGLET_DE[state.vue] || "seance"; state.pile = []; state.parRetour = true; ouvrir(v); state.pile = pile; }
 
 function rendre(enHaut = false) {
   const y = window.scrollY;
+  // Le champ en cours de saisie garde le clavier, le curseur et la sélection si l'écran est redessiné (copier-coller, fin d'un repos…)
+  const actif = document.activeElement, cleChamp = actif && actif.matches && actif.matches("input, textarea") ? ["champ", "frappe", "cle", "act"].map(k => actif.dataset[k] ? `[data-${k}="${CSS.escape(actif.dataset[k])}"]` : "").join("") : "";
+  const selection = cleChamp && actif.selectionStart != null ? [actif.selectionStart, actif.selectionEnd] : null, dansModal = actif && actif.closest && !!actif.closest("#modal");
   const ecran = ECRANS[state.vue] || plus;                       // les sous-écrans de Plus sont rendus par plus.js, le mur par mur.js
   const r = ecran.rendre(ctx);
   $("ecran").innerHTML = String(r.html);
@@ -90,7 +93,9 @@ function rendre(enHaut = false) {
   $("modal").innerHTML = state.modal ? String(fenetres.rendre(ctx)) : "";
   const pastille = $("pastille-plus"), joursExport = store.doc.dernierExport ? (Date.now() - new Date(store.doc.dernierExport)) / 864e5 : 99;
   pastille.style.display = joursExport > 7 ? "" : "none";
-  if (enHaut) window.scrollTo(0, state.scroll[state.vue] || 0); else window.scrollTo(0, y);
+  // Changer de page : en haut, pour ne rien rater ; le retour ‹ ramène où l'on était
+  if (enHaut) { window.scrollTo(0, state.parRetour ? state.scroll[state.vue] || 0 : 0); state.parRetour = false; } else window.scrollTo(0, y);
+  if (cleChamp) { const el = document.querySelector(`${dansModal ? "#modal" : "#ecran"} ${cleChamp}`); if (el && el !== document.activeElement) { el.focus({ preventScroll: true }); if (selection) try { el.setSelectionRange(...selection); } catch { /* type sans sélection */ } } }
   minuteur.maj();
 }
 function rendreToast() {
@@ -103,7 +108,7 @@ function rendreToast() {
 const ACTIONS = {
   onglet: (c, d) => { if (state.vue === d.onglet) { state.scroll[d.onglet] = 0; state.ouverts = new Set(); } ouvrir(d.onglet); },
   retour: () => retour(),
-  retourProgramme: () => { const s = ctx.seance(state.seanceId); if (s) state.semaineVue = s.semaine; state.origine = null; ouvrir("programme"); },
+  retourProgramme: () => { const s = ctx.seance(state.seanceId); if (s) state.semaineVue = s.semaine; state.origine = null; state.parRetour = true; ouvrir("programme"); },
   aideContexte: () => { state.filtre.aide = SECTION_AIDE[state.vue] || "principe"; state.filtre.aideRecherche = ""; forcerOuvert(`aide-${state.filtre.aide}`); ouvrir("aide"); },
   replier: (c, d) => { basculer(d.cle, d.defaut === "1"); rendre(false); },                            // blocs repliables : l'état est retenu
   menuEcran: () => { const ecran = ECRANS[state.vue] || plus;

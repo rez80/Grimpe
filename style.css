@@ -344,3 +344,23 @@ select.liste[multiple] { min-height: 120px; }
 .noter-haut { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; }
 .noter-haut button { min-height: 52px; }
 .filtre-couleurs { margin-bottom: 6px; }
+
+/* ===== 8.7 ===== */
+/* Frise : la durée (min) écrite dans chaque phase */
+.frise { height: 18px; }
+.frise-seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; line-height: 1; color: rgba(255,255,255,.95); text-shadow: 0 0 2px rgba(0,0,0,.45); overflow: hidden; }
+/* Copier-coller : les champs et les textes restent sélectionnables partout */
+input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+p, li, h1, h2, h3, .consignes, .aide, .info { -webkit-user-select: text; user-select: text; }
+/* Salle : En bref */
+.recap-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; } .recap-ligne b { min-width: 86px; }
+.recap-cots { display: flex; flex-wrap: wrap; gap: 6px; }
+.recap-cot { min-height: 34px; padding: 3px 10px; border-radius: 16px; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; }
+.recap-cot span { font-weight: 400; color: var(--texte-2); } .recap-cot.choisi span { color: inherit; }
+/* Consignes mises en évidence */
+.pli-consignes.avec { background: #FFF6E5; border-left: 5px solid var(--orange); }
+.pli-consignes.avec .pli-titre { color: #7A4B00; }
+.pli-consignes.avec .info { font-size: 16px; padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,.12); }
+.pli-consignes.avec .info:last-child { border-bottom: none; }
+.pli-consignes.sans { opacity: .8; }
+@media (prefers-color-scheme: dark) { .pli-consignes.avec { background: #3A2E17; } .pli-consignes.avec .pli-titre { color: #FFD48A; } }

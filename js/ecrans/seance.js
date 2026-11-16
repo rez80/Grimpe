@@ -1,11 +1,11 @@
 // ecrans/seance.js — l'écran Séance, vu du mur : rien n'est demandé pendant la séance.
 // Le plan se lit, un curseur dit où on en est, les voies se touchent, la douleur et la fin ont un bouton. C'est tout.
-import { h, si, classes, lier, ico, pictoProfil, pli } from "../html.js";
+import { h, si, classes, lier, ico, pictoProfil, pli, ouvert } from "../html.js";
 import { etapesSeance, dureeEtape, dureeSeance, etatSeance, discipline, reposDefaut, seanceARegler, activiteAffichee } from "../programme.js";
 import { versionsDe, titreAction } from "../parseur.js";
 import { avertissements, reussi, forme, parVoie, projets, causePrincipale, anonyme, tentatives as toutesTentatives } from "../analyse.js";
 import { court, hm, hhmm, mmss, semaineDe, ajouterJours } from "../dates.js";
-import { salleDe, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe } from "../salles.js";
+import { salleDe, salleParDefautPour, retenirSalle, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe } from "../salles.js";
 
 export const GENRES = { echauffement: "Échauffement", securite: "Sécurité", facile: "Facile", effort: "Effort", recup: "Récupération" };
 export const RES_LABEL = { ok: "Réussi", sec: "Avec sec", ko: "Échec" };
@@ -34,7 +34,8 @@ export function etapeCourante(sa, etapes) { const a = actives(etapes); if (!a.le
 // La prochaine étape pas encore faite après « k » (puis depuis le début)
 function prochaineApres(sa, etapes, k) { const a = actives(etapes), i = a.findIndex(e => e.k === k); return [...a.slice(i + 1), ...a.slice(0, Math.max(0, i))].find(e => !etapeFinie(sa, e)) || null; }
 const etapeSuivante = (sa, etapes) => { const c = etapeCourante(sa, etapes); return c ? prochaineApres(sa, etapes, c.k) : null; };
-export const salleCourante = (ctx, s, sa, disc) => salleDe(ctx.doc, sa.salle || (ctx.doc.reglages.salleParDefaut || {})[disc]);
+// La salle de la séance : celle choisie (« » = salle inconnue, voulu), sinon la salle par défaut — même règle en voie et en bloc
+export const salleCourante = (ctx, s, sa, disc) => salleDe(ctx.doc, sa.salle !== undefined ? sa.salle : salleParDefautPour(ctx.doc, disc));
 const dureeReelle = sa => sa.duree != null ? sa.duree * 60 : (sa.fin - sa.debut - (sa.pauseTotale || 0)) / 1000;
 
 export function rendre(ctx) {
@@ -67,7 +68,8 @@ export function rendre(ctx) {
   </div>`;
   // Consignes : une seule ligne, toujours au même endroit (avant, pendant et après la séance)
   { const inf = etapes.filter(e => e.type === "info" && !/^thème/i.test(e.texte));
-    out = h`${out}${pli("consignes", false, "Consignes", () => inf.length ? h`<div class="consignes">${inf.map(e => h`<div class="info">${lier(e.texte, data.exercices)}</div>`)}</div>` : h`<p class="petit">Pas de consigne pour cette séance.</p>`, { resume: inf.length ? String(inf.length) : "aucune", classe: "carte pli-consignes" })}`; }
+    const apercu = inf.length ? inf[0].texte.replace(/[{}«»]/g, "").slice(0, 48) + (inf[0].texte.length > 48 || inf.length > 1 ? "…" : "") : "aucune";
+    out = h`${out}${pli("consignes-seance", true, "📋 Consignes", () => inf.length ? h`<div class="consignes">${inf.map(e => h`<div class="info">${lier(e.texte, data.exercices)}</div>`)}</div>` : h`<p class="petit">Pas de consigne pour cette séance.</p>`, { resume: inf.length ? (ouvert("consignes-seance", true) ? String(inf.length) : apercu) : "aucune", classe: `carte pli-consignes ${inf.length ? "avec" : "sans"}` })}`; }
 
   // Avertissements, et la version allégée si elle existe
   const averts = avertissements(s, ctx.programme, doc), fj = forme(sa, data.params);
@@ -156,7 +158,8 @@ function feuBadge(ctx, cible) {
 function frise(ctx, s, sa, etapes, courante) {
   const a = actives(etapes); if (a.length < 2) return "";
   const d = a.map(e => Math.max(60, dureeEtape(e, s, ctx.data, ctx.doc.reglages)));
-  return h`<div class="frise" aria-hidden="true">${a.map((e, i) => h`<span class="frise-seg genre-${e.type === "routine" ? e.genre || "echauffement" : e.genre} ${classes(etapeFinie(sa, e) && "fait", courante && courante.k === e.k && "ici")}" style="flex-grow:${d[i]}"></span>`)}</div>`;
+  const tot = d.reduce((x, y) => x + y, 0);       // la durée de chaque phase, en minutes, quand le segment est assez large pour l'écrire
+  return h`<div class="frise" aria-hidden="true">${a.map((e, i) => h`<span class="frise-seg genre-${e.type === "routine" ? e.genre || "echauffement" : e.genre} ${classes(etapeFinie(sa, e) && "fait", courante && courante.k === e.k && "ici")}" style="flex-grow:${d[i]}" title="${Math.round(d[i] / 60)} min">${d[i] / tot >= 0.055 ? Math.max(1, Math.round(d[i] / 60)) : ""}</span>`)}</div>`;
 }
 const CLE_PLUS_TARD = "grimpe-hier-plus-tard";
 const plusTard = () => { try { return localStorage.getItem(CLE_PLUS_TARD) || ""; } catch { return ""; } };
@@ -190,7 +193,7 @@ function groupesDuJour(sa) {
 function carteVoies(ctx, s, sa, etapes, disc) {
   const { doc } = ctx, salle = salleCourante(ctx, s, sa, disc), nom = disc === "Bloc" ? "Blocs" : "Voies", cots = cotationsRapides(ctx, etapes, disc), groupes = groupesDuJour(sa);
   const C = salle ? ciblesDe(ctx, salle, disc) : null, n = (sa.tentatives || []).length, ok = (sa.tentatives || []).filter(reussi).length;
-  return h`<div class="carte voies"><h2>${nom}</h2>
+  return pli(`carte-${disc}`, true, nom, () => h`
     <button class="fiche-ligne ligne-salle" data-act="choixSalleOuvrir"><span>Salle</span><span class="val">${salle ? salle.nom : "Salle inconnue"} ›</span></button>
     <button class="gros principal" data-act="noterOuvrir">+ Noter un passage</button>
     ${si(C && C.cibles.length, () => h`<h3>Tes cibles <span class="petit">★ à essayer, projets</span></h3><div class="tuiles cibles">${C.cibles.slice(0, 6).map(v => tuileVoie(ctx, salle, v, sa.tentatives || [], C.voies))}</div>`)}
@@ -198,8 +201,8 @@ function carteVoies(ctx, s, sa, etapes, disc) {
     <div class="cot-rapide compacte">${cots.map(c => h`<div class="cot-ligne"><b>${c}</b><button class="ok" data-act="noterRapide" data-cot="${c}" data-res="ok" aria-label="Réussi en ${c}">✓</button>${si(disc === "Voie", h`<button class="sec" data-act="noterRapide" data-cot="${c}" data-res="sec">sec</button>`)}<button class="ko" data-act="noterRapide" data-cot="${c}" data-res="ko" aria-label="Pas réussi en ${c}">✗</button></div>`)}</div>
     ${si(n, () => h`<h3>Aujourd'hui <span class="petit">${ok} réussi${ok > 1 ? "s" : ""} sur ${n}</span></h3><div class="jour-passages">${groupes.map(g => h`<div class="groupe-passages"><span class="gp-voie"><span class="pastille" style="background:${hexDe(doc, g.t.couleur, salleDe(doc, g.t.salle))}"></span> ${libelleVoie(g.t)}${anonyme(g.t) ? h` <span class="petit">${g.t.nouvelle ? "nouvelle" : "déjà faite"}</span>` : ""}</span>
         <span class="gp-res">${g.l.map(([t, i]) => h`<button class="tentative res res-${t.res}" data-act="resultatEditer" data-i="${i}" aria-label="Corriger ce passage">${t.res === "sec" ? `${t.sec} sec` : RES_LABEL[t.res]}${t.aisance === "facile" ? " facile" : ""}${t.approx ? " ~" : ""}</button>`)}<button class="encore" data-act="encore" data-i="${g.l[g.l.length - 1][1]}" aria-label="Encore un passage sur cette voie">+ encore</button></span></div>`)}</div><p class="petit">Touche un résultat pour le corriger.</p>`)}
-    ${si(salle, () => h`<button class="lien" data-act="murOuvrir" data-id="${salle.id}">Voir tout le mur de ${salle.nom} ›</button>`)}
-  </div>`;
+    ${si(salle, () => h`<button class="lien" data-act="murOuvrir" data-id="${salle.id}">Voir tout le mur de ${salle.nom} ›</button>`)}`,
+    { resume: `${salle ? salle.nom : "salle inconnue"}${n ? ` · ${ok}/${n}` : ""}`, classe: "carte voies" });
 }
 // La fenêtre « Noter un passage » : en haut nouvelle voie / sans voie précise ; puis filtres couleur et cotation → 1 à 3 voies ; cibles et voies d'aujourd'hui d'abord
 export function fenetreNoter(ctx, M) {
@@ -249,7 +252,7 @@ export const actions = {
   demarrer: ctx => { const s = courant(ctx), disc = discipline(s, ctx.saisie(s.id)), candidates = sallesPour(ctx.doc, disc);
     ctx.modifierSeance(s.id, "début de séance", x => { x.debut = Date.now(); delete x.fin; delete x.statut;
       if (s.date !== ctx.aujourdhui()) x.dateReelle = ctx.aujourdhui(); else delete x.dateReelle;           // faite un autre jour que prévu : datée du jour réel
-      if (!x.salle) x.salle = (ctx.doc.reglages.salleParDefaut || {})[disc] || (candidates.length === 1 ? candidates[0].id : ""); }); ctx.rendre(true); },
+      if (x.salle === undefined) x.salle = salleParDefautPour(ctx.doc, disc) || (candidates.length === 1 ? candidates[0].id : ""); }); ctx.rendre(true); },
   // « ✓ Fait · suivant » : coche l'étape en cours et passe à la prochaine pas encore faite
   suivant: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), etapes = etapesSeance(s, sa), c = etapeCourante(sa, etapes); if (!c) return;
     ctx.modifierSeance(s.id, "étape faite", x => { demarrerSiBesoin(x); x.faites = x.faites || {}; if (!avecRonds(c)) x.faites[c.k] = Math.max(1, x.faites[c.k] || 0);
@@ -284,14 +287,14 @@ export const actions = {
       if (v === null) { delete sa.mesures[d.cle]; delete doc.mesures[sem][d.cle]; } else { sa.mesures[d.cle] = v; doc.mesures[sem][d.cle] = v; } }); },
   choixSalleOuvrir: ctx => { const s = courant(ctx); ctx.ouvrirModal({ type: "choixSalle", seanceId: s.id, disc: discipline(s, ctx.saisie(s.id)) }); },
   choisirSalle: (ctx, d) => { const s = courant(ctx), disc = discipline(s, ctx.saisie(s.id));
-    ctx.modifier("salle", doc => { const sa = doc.seances[s.id] = doc.seances[s.id] || {}; sa.salle = d.id; doc.reglages.salleParDefaut = { ...(doc.reglages.salleParDefaut || {}), [disc]: d.id }; }, { annulable: false }); ctx.rendre(); },
+    ctx.modifier("salle", doc => { const sa = doc.seances[s.id] = doc.seances[s.id] || {}; sa.salle = d.id; retenirSalle(doc, disc, d.id); }, { annulable: false }); ctx.rendre(); },
   noterOuvrir: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id); ctx.ouvrirModal({ type: "noter", seanceId: s.id, disc: discipline(s, sa), fCouleur: "", fCot: "" }); },
   noterFiltre: (ctx, d) => { const m = ctx.state.modal; if (d.k === "tout") { m.fCouleur = ""; m.fCot = ""; } else m[d.k] = m[d.k] === d.valeur ? "" : d.valeur; ctx.rendre(); },
   murOuvrir: (ctx, d) => ctx.ouvrir("salle", { salleId: d.id }),
   // « + encore » : même voie (de la salle : sa fenêtre rapide ; sans voie : la fenêtre du passage, pré-remplie)
   encore: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), t = sa.tentatives[+d.i]; if (!t) return;
     if (t.voieId && salleDe(ctx.doc, t.salle) && salleDe(ctx.doc, t.salle).voies.some(v => v.id === t.voieId)) return actions.voieRapide(ctx, { id: t.voieId, salle: t.salle });
-    ctx.ouvrirModal({ type: "resultat", seanceId: s.id, k: cleRattachement(ctx, s, sa, t.disc), disc: t.disc, cot: t.cot, cotSalle: t.cotSalle, profil: t.profil || "Vertical", res: "", sec: 1, style: "Après travail", couleur: t.couleur || "", nom: t.nom || "", cause: "", salle: t.salle || "", nouvelle: false }); },
+    ctx.ouvrirModal({ type: "resultat", seanceId: s.id, k: cleRattachement(ctx, s, sa, t.disc), disc: t.disc, cot: t.cot, cotSalle: t.cotSalle, profil: t.profil || "Vertical", res: "", sec: 1, style: "", couleur: t.couleur || "", nom: t.nom || "", cause: "", salle: t.salle || "", nouvelle: false }); },
   voieRapide: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), salle = (d.salle && salleDe(ctx.doc, d.salle)) || salleCourante(ctx, s, sa, disc), v = salle && salle.voies.find(x => x.id === d.id); if (!v) return;
     ctx.ouvrirModal({ type: "voieRapide", seanceId: s.id, salleId: salle.id, voieId: v.id, disc, res: "", sec: 1, cause: "" }); },
   noterRapide: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa);
@@ -303,8 +306,8 @@ export const actions = {
   nouvelleVoieOuvrir: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), salle = salleCourante(ctx, s, sa, disc), c = cotationDe(salle, disc);
     ctx.ouvrirModal({ type: "nouvelleVoie", seanceId: s.id, salleId: salle.id, disc, couleur: "", cotSalle: "", chiffre: "", nom: "", profil: "", secteurId: ctx.state.dernierSecteur || "", mode: c.mode }); },
   resultat: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), dernier = (sa.tentatives || []).slice(-1)[0];
-    ctx.ouvrirModal({ type: "resultat", seanceId: s.id, k: cleRattachement(ctx, s, sa, disc), disc, cot: dernier ? dernier.cot : "", profil: "Vertical", res: "", sec: 1, style: "À vue", couleur: "", nom: "", cause: "", salle: sa.salle || "" }); },
-  resultatEditer: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), t = sa.tentatives[+d.i]; ctx.ouvrirModal({ type: "resultat", seanceId: s.id, edit: +d.i, ...t, sec: t.sec || 1, profil: t.profil || "Vertical", style: t.style || "À vue" }); },
+    ctx.ouvrirModal({ type: "resultat", seanceId: s.id, k: cleRattachement(ctx, s, sa, disc), disc, cot: dernier ? dernier.cot : "", profil: "Vertical", res: "", sec: 1, style: "", couleur: "", nom: "", cause: "", salle: sa.salle || "" }); },
+  resultatEditer: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), t = sa.tentatives[+d.i]; ctx.ouvrirModal({ type: "resultat", seanceId: s.id, edit: +d.i, ...t, sec: t.sec || 1, profil: t.profil || "Vertical", style: t.style || "" }); },
   douleurOuvrir: ctx => ctx.ouvrirModal({ type: "douleur", seanceId: courant(ctx).id, zone: "", niveau: 3 }),
   sauterOuvrir: ctx => ctx.ouvrirModal({ type: "sauter", seanceId: courant(ctx).id, raison: "" }),
   bilanOuvrir: (ctx, d) => { const s = d && d.id ? ctx.seance(d.id) : courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa);

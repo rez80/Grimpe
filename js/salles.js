@@ -47,6 +47,11 @@ export const libelleVoie = v => [v.cotSalle || v.cot || "?", v.couleur ? v.coule
 
 export const voiesEnPlace = (salle, disc) => salle ? salle.voies.filter(v => v.statut !== "demontee" && (!disc || v.disc === disc)).sort((a, b) => (a.secteurId || "") < (b.secteurId || "") ? -1 : (a.secteurId || "") > (b.secteurId || "") ? 1 : (a.ordre ?? 0) - (b.ordre ?? 0)) : [];
 
+// Salle du jour par défaut : la dernière salle choisie (quelle que soit la discipline) si elle accepte cette discipline, sinon l'ancienne préférence par discipline
+export function salleParDefautPour(doc, disc) { const r = doc.reglages || {}, ok = id => { const s = id && (doc.salles || []).find(x => x.id === id); return s && (s.type === disc || s.type === "Bloc et voie") ? id : ""; };
+  return ok(r.salleDuJour) || ok((r.salleParDefaut || {})[disc]) || ""; }
+// Retenir le choix de salle du jour (« Salle inconnue » vaut pour la séance seulement)
+export function retenirSalle(doc, disc, id) { if (!id) return; doc.reglages.salleDuJour = id; doc.reglages.salleParDefaut = { ...(doc.reglages.salleParDefaut || {}), [disc]: id }; }
 // Caractéristiques d'une voie (plusieurs possibles), par famille ; l'inclinaison reste le « profil »
 export const CARACTERISTIQUES = [{ groupe: "Mur et forme", options: ["Arête", "Traversée", "Dièdre", "Fissure", "Volumes"] }, { groupe: "Prises", options: ["Réglettes", "Bacs", "Pinces", "Plats"] }, { groupe: "Mouvement", options: ["Dynamique", "Compression"] }];
 export function nouvelleVoie(salle, { disc, couleur = "", cotSalle = "", nom = "", profil = "", secteurId = null, carac = [] }, aujourdhui) {

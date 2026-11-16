@@ -1,8 +1,8 @@
 // sw.js — hors ligne : tout est mis en cache à l'installation ; la VERSION est réécrite par outil/grimpe.py à chaque génération.
-const VERSION = "20261116-111518";
+const VERSION = "20261116-115040";
 const CACHE = "grimpe-" + VERSION;
-const FICHIERS = ["./", "./index.html", "./style.css", "./data.js", "./manifest.webmanifest", "./icone.svg", "./icone-180.png", "./icone-512.png",
-  "./js/app.js", "./js/store.js", "./js/dates.js", "./js/html.js", "./js/parseur.js", "./js/programme.js", "./js/analyse.js", "./js/export.js", "./js/minuteur.js", "./js/sync.js", "./js/salles.js",
+const FICHIERS = ["./", "./index.html", "./style.css", "./data.js", "./manifest.webmanifest", "./icone.svg", "./icone-180.png", "./icone-192.png", "./icone-512.png", "./apple-touch-icon.png",
+  "./js/app.js", "./js/store.js", "./js/dates.js", "./js/html.js", "./js/parseur.js", "./js/programme.js", "./js/analyse.js", "./js/export.js", "./js/minuteur.js", "./js/sync.js", "./js/salles.js", "./js/infos.js",
   "./js/ecrans/seance.js", "./js/ecrans/programme.js", "./js/ecrans/progres.js", "./js/ecrans/plus.js", "./js/ecrans/mur.js", "./js/ecrans/editeur.js", "./js/ecrans/fenetres.js"];
 
 // cache: "reload" : contourne le cache HTTP de GitHub Pages (10 min), sinon une mise à jour peut mélanger anciens et nouveaux fichiers
