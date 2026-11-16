@@ -11,11 +11,9 @@
   --rayon: 14px; --ombre: 0 1px 3px rgba(0,0,0,.08);
   --haut: env(safe-area-inset-top, 0px); --bas: env(safe-area-inset-bottom, 0px);
 }
-@media (prefers-color-scheme: dark) {
-  :root { --entete: #261F30; --fond: #151310; --carte: #221F1A; --texte: #ECE7DE; --texte-2: #A79F92; --trait: #2E2A23; --accent: #E3B45A; --accent-txt: #1E1505; --ocre: #E3B45A;
+html.sombre { --entete: #261F30; --fond: #151310; --carte: #221F1A; --texte: #ECE7DE; --texte-2: #A79F92; --trait: #2E2A23; --accent: #E3B45A; --accent-txt: #1E1505; --ocre: #E3B45A;
     --voie: #5AA6E0; --bloc: #F08A73; --maison: #A3B84E; --course: #9A7CD0; --exterieur: #1f9a9a; --echauffement: #f0b65a; --ombre: none;
     --bandeau-voie: #245F8F; --bandeau-bloc: #A9483A; --bandeau-maison: #56671F; --bandeau-course: #4A3473; }
-}
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { font: 16px/1.4 -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif; background: var(--fond); color: var(--texte); }
 body { margin: 0; min-height: 100vh; padding-bottom: calc(110px + var(--bas)); }
@@ -57,7 +55,7 @@ p { margin: 6px 0; } .petit { font-size: 13px; color: var(--texte-2); } .centre 
 .ligne-res { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--trait); gap: 10px; } .ligne-res:last-of-type { border-bottom: none; }
 .liens { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
 .avert { background: #fff4e0; color: #6b4a00; border-left: 4px solid var(--orange); border-radius: 10px; padding: 10px 12px; margin: 8px 0; font-size: 14px; }
-@media (prefers-color-scheme: dark) { .avert { background: #3a2d12; color: #ffd98a; } }
+html.sombre .avert { background: #3a2d12; color: #ffd98a; }
 .vig { padding: 6px 10px; border-radius: 8px; margin: 4px 0; font-size: 14px; border-left: 4px solid var(--gris); background: var(--fond); }
 .vig.orange { border-color: var(--orange); } .vig.rouge { border-color: var(--rouge); } .vig.vert { border-color: var(--vert); }
 .point { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; } .point.vert { background: var(--vert); } .point.orange { background: var(--orange); } .point.rouge { background: var(--rouge); }
@@ -161,7 +159,7 @@ label.fichier { display: block; text-align: center; cursor: pointer; } label.fic
 #modal { background: var(--carte); width: 100%; max-width: 640px; max-height: 92vh; overflow-y: auto; border-radius: 18px 18px 0 0; padding: 16px 16px calc(16px + var(--bas)); animation: monter .18s ease-out; }
 @keyframes monter { from { transform: translateY(40px); opacity: 0; } }
 #modal h2 { font-size: 19px; margin-bottom: 6px; } .actions { display: flex; gap: 8px; margin-top: 16px; } .actions button { flex: 1; padding: 12px; } .actions .principal { flex: 2; }
-.securite { background: #e8f1fb; border-radius: 8px; padding: 8px; font-size: 14px; } @media (prefers-color-scheme: dark) { .securite { background: #1a2d44; } }
+.securite { background: #e8f1fb; border-radius: 8px; padding: 8px; font-size: 14px; } html.sombre .securite { background: #1a2d44; }
 
 /* Minuteur : pastille en bas à droite, ou plein écran */
 #minuteur { display: none; }
@@ -187,7 +185,7 @@ label.fichier { display: block; text-align: center; cursor: pointer; } label.fic
 a.bouton { display: inline-block; background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 8px 12px; min-height: 40px; text-decoration: none; color: inherit; line-height: 22px; }
 .forme-ligne { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 2px 0 10px; } .forme-ligne button { flex: 1; padding: 8px 4px; font-size: 15px; }
 .hier { display: flex; flex-direction: column; gap: 10px; border-left: 5px solid var(--ocre); } .hier-btns { display: flex; gap: 8px; } .hier-btns button { flex: 1; }
-.feu-carte { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #e6f4ea; border: 1px solid var(--vert); } @media (prefers-color-scheme: dark) { .feu-carte { background: #16301f; } }
+.feu-carte { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #e6f4ea; border: 1px solid var(--vert); } html.sombre .feu-carte { background: #16301f; }
 .feu-carte button { white-space: nowrap; }
 .curseur { width: 40px; height: 40px; padding: 0; border-radius: 50%; border: 1px solid var(--trait); flex-shrink: 0; font-size: 18px; color: var(--texte-2); }
 .mesure-champ input { width: 84px; margin: 0; padding: 8px; text-align: right; }
@@ -366,7 +364,7 @@ p, li, h1, h2, h3, .consignes, .aide, .info { -webkit-user-select: text; user-se
 .pli-consignes.avec .info { font-size: 16px; padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,.12); }
 .pli-consignes.avec .info:last-child { border-bottom: none; }
 .pli-consignes.sans { opacity: .8; }
-@media (prefers-color-scheme: dark) { .pli-consignes.avec { background: #3A2E17; } .pli-consignes.avec .pli-titre { color: #FFD48A; } }
+html.sombre .pli-consignes.avec { background: #3A2E17; } html.sombre .pli-consignes.avec .pli-titre { color: #FFD48A; }
 
 /* ===== 8.8 ===== */
 /* Boutons plus fins : même hauteur que les autres (44 px), texte normal */
@@ -408,3 +406,43 @@ button.gros { padding: 10px 14px; font-size: 16px; min-height: 44px; margin: 6px
 .pastille-seance.etat-avenir { opacity: .75; }
 /* Couleurs 8.11 : bouton blanc du bandeau, texte toujours foncé (lisible en mode sombre) */
 .bandeau-seance .blanc, .bandeau-seance .blanc * { color: #1d2a2f; }
+
+/* Thème : html.sombre est posé par l'app (Réglages › Affichage › Thème : automatique, clair ou sombre) */
+html.sombre { color-scheme: dark; }
+.choisi-lien { font-weight: 700; text-decoration: none; }
+
+/* ===== 8.12 ===== */
+/* Carte « Aujourd'hui / Prochaine séance » et rappel : teintés par l'activité, toute la carte est le bouton */
+.auj-seance, .hier { --a: var(--ocre); }
+.auj-seance[data-activite="Voie"], .hier[data-activite="Voie"] { --a: var(--voie); } .auj-seance[data-activite="Bloc"], .hier[data-activite="Bloc"] { --a: var(--bloc); }
+.auj-seance[data-activite="Maison"], .hier[data-activite="Maison"] { --a: var(--maison); } .auj-seance[data-activite="Course"], .hier[data-activite="Course"] { --a: var(--course); }
+.auj-seance { background: color-mix(in srgb, var(--a) 16%, var(--carte)); border: 2px solid var(--a); border-radius: 12px; }
+.auj-seance b { color: color-mix(in srgb, var(--a) 75%, var(--texte)); font-size: 17px; }
+.auj-seance .auj-go { color: var(--a); font-size: 26px; font-weight: 400; }
+.auj-seance:active { transform: scale(.98); }
+.hier { background: color-mix(in srgb, var(--a) 12%, var(--carte)); border-left-color: var(--a) !important; }
+/* Filtres actifs toujours visibles (étiquettes ✕) */
+.filtres-actifs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 8px; }
+.etiquette-filtre { min-height: 30px; padding: 3px 10px; border-radius: 15px; font-size: 13px; background: color-mix(in srgb, var(--ocre) 18%, var(--carte)); border: 1px solid var(--ocre); color: var(--texte); }
+/* En bref : toute la largeur */
+.batons { justify-content: space-between; gap: 3px; overflow-x: visible; }
+.baton { flex: 1 1 0; min-width: 0; padding: 2px 1px; }
+.baton-barre { width: min(26px, 80%); }
+.baton-niv, .baton-n { font-size: 12px; }
+/* Bibliothèque en couleurs : une teinte par famille de catégories */
+.cat-bloc .pli-tete { border-left: 5px solid var(--cat); padding-left: 10px; }
+.cat-bloc .pli-titre::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--cat); margin-right: 8px; vertical-align: 0; }
+.item-cat { border-left: 4px solid var(--cat); }
+.cat-chip { display: inline-block; padding: 1px 8px; border-radius: 10px; background: color-mix(in srgb, var(--cat) 18%, var(--carte)); color: color-mix(in srgb, var(--cat) 80%, var(--texte)); font-size: 12px; }
+.etoile-fav { color: var(--ocre); }
+.ligne-reg select.liste { width: auto; min-width: 130px; margin: 0; }
+/* Plus : chaque tuile a sa pastille de couleur, pour trouver tout de suite où aller */
+.tuile { --t: var(--ocre); border-top: 4px solid var(--t); }
+.tuile .ico { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--t) 20%, var(--carte)); }
+.tuile[data-vue="sauvegarde"] { --t: #2E9E6B; } .tuile[data-vue="salles"] { --t: var(--bloc); } .tuile[data-vue="calendrier"] { --t: var(--voie); }
+.tuile[data-vue="biblio"] { --t: #7A5BB5; } .tuile[data-vue="reglages"] { --t: #6B7A8A; } .tuile[data-vue="aide"] { --t: var(--ocre); }
+/* Progrès : une pastille de couleur par section, comme la Bibliothèque */
+.pli-tete[data-cle^="pg-"] .pli-titre::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; background: var(--s, var(--ocre)); }
+.pli-tete[data-cle="pg-projets"] { --s: var(--bloc); } .pli-tete[data-cle="pg-feux"] { --s: #2E9E6B; } .pli-tete[data-cle="pg-niveau"] { --s: var(--voie); }
+.pli-tete[data-cle="pg-travailler"] { --s: #E08A2E; } .pli-tete[data-cle="pg-charge"] { --s: #7A5BB5; } .pli-tete[data-cle="pg-meilleures"] { --s: var(--ocre); }
+.pli-tete[data-cle="pg-douleurs"] { --s: var(--rouge); } .pli-tete[data-cle="pg-mesures"] { --s: #1AA3A3; } .pli-tete[data-cle="pg-niveau-detail"], .pli-tete[data-cle="pg-signalements"] { --s: var(--gris); }

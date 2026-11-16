@@ -43,7 +43,7 @@ function carteAujourdhui(ctx, auj) {
   const l = du.length ? du : P.filter(s => s.date > auj && etatSeance(s, ctx.saisie(s.id), auj) !== "sautee").slice(0, 1);
   if (!l.length) return h`<div class="carte carte-auj"><p class="petit">Plus de séance prévue au programme.</p></div>`;
   return h`<div class="carte carte-auj"><p class="petit">${du.length ? "Aujourd'hui" : "Prochaine séance"}</p>${l.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), et = etapesSeance(s, sa);
-    return h`<button class="auj-seance" data-act="ouvrirSeance" data-id="${s.id}"><span><b>${activiteAffichee(s, sa)}</b><br><span class="petit">${du.length ? "" : court(s.date) + " · "}≈ ${hm(dureeSeance(s, et, ctx.data, ctx.doc.reglages))}${e === "faite" || e === "abilan" ? " · ✓ faite" : e === "encours" ? " · en cours" : ""}</span></span><span class="auj-go">${e === "encours" ? "Reprendre" : e === "faite" || e === "abilan" ? "Voir" : "Ouvrir"} ›</span></button>`; })}</div>`;
+    return h`<button class="auj-seance" data-act="ouvrirSeance" data-id="${s.id}" data-activite="${activiteAffichee(s, sa)}"><span><b>${activiteAffichee(s, sa)}</b><br><span class="petit">${du.length ? "" : court(s.date) + " · "}≈ ${hm(dureeSeance(s, et, ctx.data, ctx.doc.reglages))}${e === "faite" || e === "abilan" ? " · ✓ faite" : e === "encours" ? " · en cours" : ""}</span></span><span class="auj-go" aria-hidden="true">›</span></button>`; })}</div>`;
 }
 
 function semaineDetail(ctx, w, sem, auj) {

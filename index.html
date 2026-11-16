@@ -34,6 +34,12 @@
 <div id="toast" style="display:none"></div>
 <div id="fond-modal" style="display:none"><div id="modal" role="dialog"></div></div>
 <noscript>Cette app a besoin de JavaScript.</noscript>
+<script>
+// Thème choisi dans l'app (automatique, clair, sombre), appliqué avant l'affichage pour éviter un flash
+(function () { var m = window.matchMedia("(prefers-color-scheme: dark)"), f = function () { var t = "auto"; try { t = localStorage.getItem("grimpe-theme") || "auto"; } catch (e) {}
+  document.documentElement.classList.toggle("sombre", t === "sombre" || (t === "auto" && m.matches)); };
+  window.appliquerTheme = f; f(); if (m.addEventListener) m.addEventListener("change", f); })();
+</script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

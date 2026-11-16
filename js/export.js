@@ -5,7 +5,8 @@ export function construireExport({ data, doc, programme, bilan }) {
   return { format: "grimpe-export", formatVersion: 1, exporteLe: new Date().toISOString(), programmeId: data.programmeId, docVersion: doc.version,
            doc, programme: programme.map(s => ({ id: s.id, semaine: s.semaine, jour: s.jour, date: s.date, activite: s.activite, phase: s.phase, contenu: s.contenu, libre: s.libre, modifie: s.modifie })), bilan };
 }
-export const nomFichier = (aujourdhui) => `grimpe-${aujourdhui}.json`;
+// Nom lisible : Grimpe-sauvegarde-2026-11-16-14h30.json
+export const nomFichier = (aujourdhui) => { const d = new Date(); return `Grimpe-sauvegarde-${aujourdhui}-${String(d.getHours()).padStart(2, "0")}h${String(d.getMinutes()).padStart(2, "0")}.json`; };
 
 export const texteExport = contenu => JSON.stringify(contenu, null, 1);
 export const tailleKo = contenu => Math.max(1, Math.round(new Blob([texteExport(contenu)]).size / 1024));

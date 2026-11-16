@@ -39,7 +39,7 @@ export const secteurDe = (salle, v) => (salle && salle.secteurs.find(x => x.id =
 export function cotApp(salle, disc, cotSalle, couleur) {
   const c = cotationDe(salle, disc);
   if (c.mode === "standard") return cotSalle || "";
-  if (c.mode === "liste") return (c.liste.find(x => x.salle === cotSalle) || {}).app || "";
+  if (c.mode === "liste") return (c.liste.find(x => String(x.salle) === String(cotSalle ?? "")) || {}).app || "";
   if (c.mode === "couleurs") return (c.liste.find(x => x.salle === couleur) || {}).app || "";
   return "";
 }

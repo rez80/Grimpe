@@ -31,8 +31,10 @@ export function selecteurCot(ctx, disc, actuel, champ = "cot") {
 // Cotation selon la façon de coter de la salle
 function cotationSalle(ctx, salle, disc, M) {
   const c = cotationDe(salle, disc);
-  if (c.mode === "standard") return h`<label class="champ">Cotation</label>${selecteurCot(ctx, disc, M.cotSalle, "cotSalle")}`;
-  if (c.mode === "liste") return h`<label class="champ">Niveau (${salle.nom})</label>${choix("mChamp", c.liste.map(x => [x.salle, x.salle + (x.app ? ` (${x.app})` : "")]), M.cotSalle, { data: { champ: "cotSalle" }, classe: "compact" })}`;
+  // « Niveau inconnu » partout : la voie s'enregistre quand même (« ? »), on complète plus tard depuis sa fiche
+  const inconnu = h`<button class="lien ${!M.cotSalle ? "choisi-lien" : ""}" data-act="mCot" data-valeur="" data-champ="cotSalle">${!M.cotSalle ? "✓ " : ""}Niveau inconnu</button>`;
+  if (c.mode === "standard") return h`<label class="champ">Cotation</label>${selecteurCot(ctx, disc, M.cotSalle, "cotSalle")}${inconnu}`;
+  if (c.mode === "liste") return h`<label class="champ">Niveau (${salle.nom})</label>${choix("mChamp", c.liste.map(x => [x.salle, x.salle + (x.app ? ` (${x.app})` : "")]), M.cotSalle, { data: { champ: "cotSalle" }, classe: "compact" })}${inconnu}`;
   if (c.mode === "couleurs") return h`<p class="petit">Dans cette salle, la couleur donne le niveau${M.couleur ? ` : ${M.couleur} ${cotApp(salle, disc, "", M.couleur) ? "≈ " + cotApp(salle, disc, "", M.couleur) : "(équivalent inconnu)"}` : ""}.</p>`;
   return h`<p class="petit">Salle sans cotation.</p>`;
 }
@@ -65,14 +67,17 @@ const champsTentative = (m, ctx) => {
   return { aisance: m.aisance || undefined, style, essaisAvant, premierEssai: essaisAvant && !["1", "inconnu"].includes(essaisAvant) ? m.premierEssai || undefined : undefined }; };
 
 const reussiT = t => t.res === "ok";
+// Champs toujours en texte, même s'ils ressemblent à un nombre (niveaux de salle, cotations, identifiants)
+const TEXTE = new Set(["cotSalle", "cot", "salle", "salleCible", "nom", "zone", "raison", "cause", "style", "essaisAvant", "comment", "fond", "typeSalle", "disc", "res"]);
 // Séance de grimpe en cours de cette discipline (pour « Noter un passage maintenant » depuis la fiche d'une voie)
 const seanceEnCoursPour = (ctx, disc) => ctx.programme.find(s => { const sa = ctx.doc.seances[s.id]; return sa && sa.debut && !sa.fin && discipline(s, sa) === disc; });
 
 // Niveaux proposés pour l'inventaire : ceux de la salle (liste, couleurs), sinon les cotations de base de l'app de 4a à 7a (voie) ou de 3 à 7A (bloc)
 function niveauxSalle(sl, disc) { const c = cotationDe(sl, disc);
-  if (c.mode === "liste" || c.mode === "couleurs") return c.liste.map(x => x.salle);
+  if (c.mode === "couleurs") return c.liste.map(x => x.salle);
+  if (c.mode === "liste") return [...c.liste.map(x => x.salle), ""];                 // "" : niveau inconnu
   if (c.mode === "aucune") return [""];
-  return disc === "Voie" ? ["4a", "4b", "4c", "5a", "5b", "5c", "6a", "6b", "6c", "7a"] : ["3", "4", "5", "6A", "6B", "6C", "7A"]; }
+  return [...(disc === "Voie" ? ["4a", "4b", "4c", "5a", "5b", "5c", "6a", "6b", "6c", "7a"] : ["3", "4", "5", "6A", "6B", "6C", "7A"]), ""]; }
 
 // --- Plusieurs secteurs d'un coup : un nombre, puis un nom par secteur (1, 2, 3… par défaut, à adapter) ---
 const champsSecteurs = (M, min = 1) => h`<div class="ligne-reg"><span>Nombre de secteurs</span><span class="compteur"><button data-act="mNbSecteurs" data-pas="-1" ${M.noms.length <= min ? "disabled" : ""}>−</button><span>${M.noms.length}</span><button data-act="mNbSecteurs" data-pas="1">+</button></span></div>
@@ -126,7 +131,7 @@ export function rendre(ctx) {
         <div class="actions"><button data-act="mFermer">Fermer</button></div>`; }
 
     case "nouvelleVoie": { const salle = salleDe(doc, M.salleId), c = cotationDe(salle, M.disc);
-      const apercu = { disc: M.disc, couleur: M.couleur, cotSalle: M.cotSalle, cot: cotApp(salle, M.disc, M.cotSalle, M.couleur), nom: M.nom }, existe = voieExistante(salle, apercu), pret = M.couleur || M.cotSalle || M.nom;
+      const apercu = { disc: M.disc, couleur: M.couleur, cotSalle: M.cotSalle, cot: cotApp(salle, M.disc, M.cotSalle, M.couleur), nom: M.nom }, existe = voieExistante(salle, apercu), pret = true;            // même sans niveau ni couleur : elle s'affiche « ? »
       return h`<h2>${M.disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"} · ${salle.nom}</h2>
       <label class="champ">Couleur des prises</label>${pastilles(ctx, "mCouleur", M.couleur, salle)}
       ${cotationSalle(ctx, salle, M.disc, M)}
@@ -242,7 +247,7 @@ export function rendre(ctx) {
       return h`<h2>Inventaire rapide · ${sl.nom}</h2><p class="petit">Combien de ${M.disc === "Bloc" ? "blocs" : "voies"} à chaque niveau ? Elles sont créées d'un coup ; les couleurs et les noms se complètent ensuite, voie par voie.</p>
       ${si(sl.type === "Bloc et voie", () => choix("mInvDisc", [["Voie", "Voies"], ["Bloc", "Blocs"]], M.disc, { classe: "compact" }))}
       ${si(sl.secteurs.length, () => liste("secteurId", sl.secteurs.map(x => [x.id, x.nom]), M.secteurId, { label: "Dans le secteur", vide: "Sans secteur", act: "mSecteurListe" }))}
-      <div class="inventaire">${niv.map(n => h`<div class="ligne-reg"><span>${c.mode === "couleurs" ? h`<span class="pastille" style="background:${hexDe(doc, n, sl)}"></span> ${n.toLowerCase()}` : h`<b>${n || "Sans niveau"}</b>`}${c.mode === "couleurs" && cotApp(sl, M.disc, "", n) ? h` <span class="petit">≈ ${cotApp(sl, M.disc, "", n)}</span>` : ""}</span>
+      <div class="inventaire">${niv.map(n => h`<div class="ligne-reg"><span>${c.mode === "couleurs" ? h`<span class="pastille" style="background:${hexDe(doc, n, sl)}"></span> ${n.toLowerCase()}` : h`<b>${n || (c.mode === "aucune" ? "Sans niveau" : "Niveau inconnu")}</b>`}${c.mode === "couleurs" && cotApp(sl, M.disc, "", n) ? h` <span class="petit">≈ ${cotApp(sl, M.disc, "", n)}</span>` : ""}</span>
         <span class="compteur"><button data-act="mInv" data-k="${n}" data-pas="-1" ${M.comptes[n] ? "" : "disabled"}>−</button><span>${M.comptes[n] || 0}</span><button data-act="mInv" data-k="${n}" data-pas="1">+</button></span></div>`)}</div>
       ${si(c.mode !== "couleurs", () => h`<label class="champ">Couleur de prises <span class="petit">(facultatif, pour toutes)</span></label>${pastilles(ctx, "mCouleur", M.couleur, sl)}`)}
       <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="inventaireOk" ${total ? "" : "disabled"}>Créer ${total} ${M.disc === "Bloc" ? (total > 1 ? "blocs" : "bloc") : (total > 1 ? "voies" : "voie")}</button></div>`; }
@@ -362,7 +367,7 @@ export const actions = {
   noterDepuisFiche: ctx => { const m = M(ctx), s = seanceEnCoursPour(ctx, m.disc); if (!s) return; ctx.ouvrirModal({ type: "voieRapide", seanceId: s.id, salleId: m.salleId, voieId: m.id, disc: m.disc, res: "", sec: 1, cause: "" }); },
   mBool: (ctx, d) => { const m = M(ctx); m[d.k] = !m[d.k]; ctx.rendre(); },
   mBascVal: (ctx, d) => { const m = M(ctx); m[d.champ] = m[d.champ] === d.valeur ? "" : d.valeur; if (m.type === "apresReussite") enregistrerApresReussite(ctx, m); ctx.rendre(); },
-  mChamp: (ctx, d) => { const m = M(ctx); m[d.champ] = isNaN(d.valeur) || d.valeur === "" ? d.valeur : +d.valeur; m.section = "";
+  mChamp: (ctx, d) => { const m = M(ctx); m[d.champ] = TEXTE.has(d.champ) || isNaN(d.valeur) || d.valeur === "" ? d.valeur : +d.valeur; m.section = "";      // un niveau « 6 » reste du texte
     if (d.champ === "disc") { m.cot = ""; m.cotSalle = ""; m.chiffre = ""; if (m.res === "sec" && d.valeur === "Bloc") m.res = ""; }   // autre échelle : on repart de zéro
     ctx.rendre(); },
   mBasculeEtoile: ctx => { const m = M(ctx); m.etoile = m.etoile ? "" : ctx.aujourdhui(); ctx.rendre(); },

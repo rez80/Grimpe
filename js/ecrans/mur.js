@@ -1,11 +1,14 @@
 // ecrans/mur.js — le mur d'une salle : les voies par secteur, en tuiles, rangées au doigt (glisser-déposer).
-import { h, si, pictoProfil, ouvert, pli, liste as listeDeroulante, forcerOuvert } from "../html.js";
+import { h, si, brut, pictoProfil, ouvert, pli, liste as listeDeroulante, forcerOuvert } from "../html.js";
 import { salleDe, hexDe, texteSur, ranger, cotationDe, profilHabituel, inclinaisonSecteur, passagesDe, supprimerVoies, couleursDe } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, reussi, rang } from "../analyse.js";
 import { court } from "../dates.js";
 
 export function rendre(ctx) {
   const { doc, state } = ctx, s = salleDe(doc, state.salleId); if (!s) return { html: h`<p class="carte">Salle introuvable.</p>`, titre: "Salle" };
+  // Filtres propres à chaque salle : en changeant de salle, on repart de zéro ; une salle d'un seul type n'a pas de filtre Voies/Blocs
+  if (state.filtre.salleDesFiltres !== s.id) { Object.assign(state.filtre, { salleDesFiltres: s.id, mur: "", carac: "", demontees: false, cotMur: null }); }
+  if (s.type !== "Bloc et voie") state.filtre.mur = "";
   const filtre = state.filtre.mur || "", demontees = !!state.filtre.demontees, voies = parVoie(toutesTentatives(ctx.programme, doc));
   const fCot = state.filtre.cotMur && state.filtre.cotMur.salle === s.id ? state.filtre.cotMur : null, fCarac = state.filtre.carac || "", caracsPresentes = [...new Set(s.voies.flatMap(v => v.carac || []))].sort();
   const liste = s.voies.filter(v => (demontees ? v.statut === "demontee" : v.statut !== "demontee") && (!filtre || v.disc === filtre) && (!fCarac || (v.carac || []).includes(fCarac)) && (!fCot || niveauDe(s, v) === fCot.cot && v.disc === fCot.disc)).sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
@@ -41,7 +44,8 @@ export function rendre(ctx) {
       ${si(!demontees && !ranger, h`<button class="petit-btn principal" data-act="voieNouvelle" data-secteur="${s.secteurs.some(x => x.id === state.dernierSecteur) ? state.dernierSecteur : ""}" data-disc="${discDefaut}">+ ${discDefaut === "Bloc" ? "Bloc" : "Voie"}</button>`)}
       ${si(!demontees, h`<button class="petit-btn" data-act="secteurNouveau">+ Secteur</button>`)}<button class="petit-btn" data-act="classerDebut">Sélectionner</button>
       ${si(caracsPresentes.length && !ranger, () => listeDeroulante("carac", caracsPresentes, fCarac, { act: "filtreCarac", vide: "Toutes caractéristiques" }))}</div>
-    ${si(demontees, h`<p class="bandeau-info">Voies démontées · <button class="lien" data-act="filtreDemontees">revenir aux voies en place</button></p>`)}
+    ${(() => { const f = [filtre && [filtre === "Bloc" ? "Blocs" : "Voies", "filtreMur", { valeur: "" }], fCot && [`Niv ${fCot.cot}`, "filtreCotMur", { disc: fCot.disc, valeur: fCot.cot }], fCarac && [fCarac, "filtreCaracRetirer", {}], demontees && ["Démontées", "filtreDemontees", {}]].filter(Boolean);
+      return f.length ? h`<div class="filtres-actifs"><span class="petit">Filtre :</span>${f.map(([l, act, d]) => h`<button class="etiquette-filtre" data-act="${act}" ${brutData(d)}>${l} ✕</button>`)}</div>` : ""; })()}
     ${groupes.filter(g => g.voies.length || g.id || s.secteurs.length).map(g => { const cle = `sec-${s.id}-${g.id}`, o = tout || ouvert(cle, false);
       return h`<div class="secteur ${o ? "ouvert" : "replie"}" data-secteur="${g.id}"><div class="secteur-tete">
         <button class="secteur-plier" data-act="replier" data-cle="${cle}" data-defaut="" aria-expanded="${o ? "true" : "false"}"><span class="pli-fleche">${o ? "▾" : "▸"}</span><span><b>${g.nom}</b>${g.profil ? h` <span class="petit">${g.profil.toLowerCase()}</span>` : ""}<br>${resume(g)}</span></button>
@@ -55,8 +59,9 @@ export function rendre(ctx) {
   return { html, titre: h`<b>${s.nom}</b>`, infos: `${cotationDe(s, "Voie").mode !== "standard" || cotationDe(s, "Bloc").mode !== "standard" ? "cotation propre à la salle" : ""}` };
 }
 
+const brutData = d => brut(Object.entries(d).map(([k, v]) => `data-${k}="${String(v).replace(/"/g, "&quot;")}"`).join(" "));
 // Niveau d'une voie tel que la salle l'affiche (la couleur, pour une salle qui cote par couleurs) et son rang
-const niveauDe = (s, v) => cotationDe(s, v.disc).mode === "couleurs" ? v.couleur || "?" : v.cotSalle || v.cot || "?";
+const niveauDe = (s, v) => String(cotationDe(s, v.disc).mode === "couleurs" ? v.couleur || "?" : v.cotSalle || v.cot || "?");
 function ordreNiveau(ctx, s, disc, k) { const c = cotationDe(s, disc);
   if (c.mode === "liste" || c.mode === "couleurs") { const i = c.liste.findIndex(x => x.salle === k); return i < 0 ? 999 : i; }
   const r = rang(ctx.data.echelles, disc, k); return r < 0 ? 999 : r; }
@@ -124,6 +129,7 @@ export const actions = {
     if (f.cotMur) setTimeout(() => { const t = document.querySelector("#ecran .tuile-voie"); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 140, behavior: "smooth" }); }, 50); },
   inventaireOuvrir: ctx => { const s = salleDe(ctx.doc, ctx.state.salleId), disc = ctx.state.filtre.mur || (s.type === "Bloc" ? "Bloc" : "Voie");
     ctx.ouvrirModal({ type: "inventaire", salleId: s.id, disc, secteurId: s.secteurs.some(x => x.id === ctx.state.dernierSecteur) ? ctx.state.dernierSecteur : "", comptes: {}, couleur: "" }); },
+  filtreCaracRetirer: ctx => { ctx.state.filtre.carac = ""; ctx.rendre(); },
   filtreMur: (ctx, d) => { ctx.state.filtre.mur = d.valeur; ctx.rendre(); },
   filtreCarac: (ctx, d, el) => { ctx.state.filtre.carac = el.value; if (el.value) for (const sec of [...(ctx.doc.salles.find(x => x.id === ctx.state.salleId) || { secteurs: [] }).secteurs.map(x => x.id), ""]) forcerOuvert(`sec-${ctx.state.salleId}-${sec}`); ctx.rendre(); },
   secteurNouveau: ctx => { const n = salleDe(ctx.doc, ctx.state.salleId).secteurs.length; ctx.ouvrirModal({ type: "secteurs", salleId: ctx.state.salleId, noms: [String(n + 1)], departNom: n + 1 }); },

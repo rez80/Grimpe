@@ -224,7 +224,7 @@ export function carteHier(ctx) {
   const doc = ctx.doc, auj = ctx.aujourdhui(), hier = seanceARegler(ctx.programme, doc, auj); if (!hier) return "";
   if (plusTard() === `${hier.id}|${auj}`) return h`<button class="hier-mini" data-act="hierRouvrir"><span>${court(hier.date)} · ${activiteAffichee(hier, ctx.saisie(hier.id))} : bilan ?</span><span>›</span></button>`;
   const eh = etatSeance(hier, ctx.saisie(hier.id), auj);
-  return h`<div class="carte hier"><div><b>${court(hier.date)} · ${activiteAffichee(hier, ctx.saisie(hier.id))}</b><br><span class="petit">${eh === "abilan" ? "Séance terminée, il manque le bilan (effort, douleur)." : eh === "encours" ? "Séance restée ouverte." : "Faite ? Sautée ? Dis-le en un appui, ou laisse."}</span></div>
+  return h`<div class="carte hier" data-activite="${activiteAffichee(hier, ctx.saisie(hier.id))}"><div><b>${court(hier.date)} · ${activiteAffichee(hier, ctx.saisie(hier.id))}</b><br><span class="petit">${eh === "abilan" ? "Séance terminée, il manque le bilan (effort, douleur)." : eh === "encours" ? "Séance restée ouverte." : "Faite ? Sautée ? Dis-le en un appui, ou laisse."}</span></div>
     <div class="hier-btns"><button class="principal" data-act="hierBilan" data-id="${hier.id}">${eh === "passee" ? "Faite → bilan" : "Bilan"}</button>${si(eh === "passee", h`<button data-act="hierSautee" data-id="${hier.id}">Sautée</button>`)}<button data-act="hierPlusTard" data-id="${hier.id}">Plus tard</button></div></div>`;
 }
 

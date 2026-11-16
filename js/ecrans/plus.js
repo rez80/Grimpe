@@ -1,5 +1,7 @@
 // ecrans/plus.js — l'onglet Plus et ses sous-écrans : sauvegarde (fichier et GitHub), salles, passages hors séance, calendrier, bibliothèque, réglages, aide.
-import { h, si, lier, pli, brut, forcerOuvert } from "../html.js";
+import { h, si, lier, pli, brut, forcerOuvert, liste } from "../html.js";
+const DUREES_REPOS = [0, 30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 420, 480, 600];
+const themeActuel = () => { try { return localStorage.getItem("grimpe-theme") || "auto"; } catch { return "auto"; } };
 import { construireExport, nomFichier, partager, lireFichier, verifierImport, copierTexte, lireTexte, tailleKo } from "../export.js";
 import { reussi, tentatives as toutesTentatives } from "../analyse.js";
 import { lireJeton, ecrireJeton, configValide, creerSync } from "../sync.js";
@@ -47,7 +49,7 @@ function sauvegarde(ctx) {
     ${pli("sv-fichier", false, "Fichier", () => h`<p class="petit">Le même document en JSON : ${n} séance${n > 1 ? "s" : ""}, réglages, salles, bilan calculé. Sauvegarde et entrée de l'outil PC (<code>grimpe.py rapport fichier.json</code>).</p>
       <button class="gros principal" data-act="exporter">⬆ Exporter le fichier</button>
       <button class="gros contour" data-act="copierDonnees">⧉ Copier les données <span class="petit">(à coller dans Notes ou un mail)</span></button>
-      <p class="petit">Taille de la sauvegarde : ${tailleKo(construireExport({ data: ctx.data, doc, programme: ctx.programme, bilan: ctx.bilan }))} ko. Dans Mail, vérifie que la pièce jointe « grimpe-….json » est bien là avant d'envoyer.</p>
+      <p class="petit">Taille de la sauvegarde : ${tailleKo(construireExport({ data: ctx.data, doc, programme: ctx.programme, bilan: ctx.bilan }))} ko. Dans Mail, vérifie que la pièce jointe « Grimpe-sauvegarde-….json » est bien là avant d'envoyer.</p>
       <p class="petit">${doc.dernierExport ? `Dernier export : ${new Date(doc.dernierExport).toLocaleString("fr-BE")}` : "Jamais exporté."}</p>
       <label class="gros contour fichier">Restaurer depuis un fichier…<input type="file" accept=".json,.txt,application/json,text/plain" data-act="importFichier"></label>
       <button class="gros contour" data-act="collerOuvrir">Restaurer en collant le texte…</button>`, { classe: "carte", resume: doc.dernierExport ? "export " + new Date(doc.dernierExport).toLocaleDateString("fr-BE") : "" })}
@@ -62,13 +64,19 @@ function biblio(ctx) {
     <h2 class="section">Routines</h2>${routines.map(n => pli(`routine-${n}`, false, n, () => h`<ol class="routine">${data.routines.filter(x => x.routine === n).map(x => h`<li><b>${x.etape}</b>${x.duree ? h` <span class="petit">${mmss(x.duree)}</span>` : ""}<div class="petit">${lier(x.quoi, data.exercices)}</div></li>`)}</ol>`, { resume: mmss(data.routines.filter(x => x.routine === n).reduce((t, x) => t + x.duree, 0)) }))}` };
 }
 const sansAccent = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+// Couleurs de la Bibliothèque, par famille : technique (bleu), méthode et apprentissage (violet), endurance et course (orange),
+// renfort et mobilité (vert), soin et prévention (rose) ; une catégorie inconnue prend une teinte stable selon son nom
+const FAMILLES = [["#2F80C0", ["Pieds", "Corps et équilibre", "Prises et positions", "Dévers", "Dynamique"]], ["#7A5BB5", ["Apprendre", "Méthode", "Méthodes de séance", "Tests", "En tête et falaise"]],
+  ["#E08A2E", ["Endurance", "Jeux et endurance", "Allure et technique"]], ["#5E8F2E", ["Gainage", "Haut du corps", "Hanches", "Épaules et dos"]], ["#C2457A", ["Prévention", "Récupération", "Peau"]]];
+const TEINTES = ["#2F80C0", "#7A5BB5", "#E08A2E", "#5E8F2E", "#C2457A", "#1AA3A3"];
+export const couleurCategorie = c => (FAMILLES.find(([, l]) => l.includes(c)) || [TEINTES[[...String(c)].reduce((a, x) => a + x.charCodeAt(0), 0) % TEINTES.length]])[0];
 function listeBiblio(ctx, recherche) {
   const { data, doc } = ctx, q = sansAccent(recherche).trim(), tous = data.exercices.map((x, k) => ({ ...x, k }));
-  const item = x => h`<button class="item" data-act="ficheExo" data-k="${x.k}"><span>${doc.favoris.includes(x.nom) ? "★ " : ""}${x.nom}</span><span class="petit">${q ? x.categorie : ""}${x.niveau ? (q ? " · " : "") + x.niveau : ""}</span></button>`;
+  const item = x => h`<button class="item item-cat" style="--cat:${couleurCategorie(x.categorie)}" data-act="ficheExo" data-k="${x.k}"><span>${doc.favoris.includes(x.nom) ? h`<span class="etoile-fav">★</span> ` : ""}${x.nom}</span><span class="petit">${q ? h`<span class="cat-chip">${x.categorie}</span>` : ""}${x.niveau ? " " + x.niveau : ""}</span></button>`;
   if (q) { const l = tous.filter(x => sansAccent([x.nom, x.categorie, x.description, x.consignes].join(" ")).includes(q)); return l.length ? h`<div class="liste">${l.map(item)}</div>` : h`<p class="petit">Aucun exercice pour « ${recherche} ».</p>`; }
   const favs = tous.filter(x => doc.favoris.includes(x.nom)), cats = [...new Set(tous.map(x => x.categorie))];
   return h`${si(favs.length, () => pli("biblio-favoris", true, "★ Favoris", () => h`<div class="liste">${favs.map(item)}</div>`, { resume: String(favs.length) }))}
-    ${cats.map(c => { const l = tous.filter(x => x.categorie === c); return pli(`biblio-${c}`, false, c, () => h`<div class="liste">${l.map(item)}</div>`, { resume: String(l.length) }); })}`;
+    ${cats.map(c => { const l = tous.filter(x => x.categorie === c); return h`<div class="cat-bloc" style="--cat:${couleurCategorie(c)}">${pli(`biblio-${c}`, false, c, () => h`<div class="liste">${l.map(item)}</div>`, { resume: String(l.length) })}</div>`; })}`;
 }
 
 function salles(ctx) {
@@ -100,9 +108,9 @@ function calendrier(ctx) {
 function reglages(ctx) {
   const { doc, data } = ctx, r = doc.reglages, acts = data.listes.Activités || ["Voie", "Bloc", "Maison", "Course"];
   const bascule = (cle, label, aide) => h`<div class="ligne-reg"><span>${label}${aide ? h`<br><span class="petit">${aide}</span>` : ""}</span><button class="bascule ${r[cle] ? "on" : ""}" data-act="reglageBool" data-cle="${cle}" aria-label="${label}"></button></div>`;
-  return { titre: h`<b>Réglages</b>`, html: h`${pli("reg-affichage", false, "Affichage", () => h`${bascule("grand", "Grand affichage", "texte et boutons plus grands")}${bascule("ecranAllume", "Écran allumé pendant la séance", "le minuteur le garde allumé de toute façon")}`, { classe: "carte", resume: r.grand ? "grand affichage" : "" })}
+  return { titre: h`<b>Réglages</b>`, html: h`${pli("reg-affichage", false, "Affichage", () => h`${liste("theme", [["auto", "Automatique (comme l'iPhone)"], ["clair", "Clair"], ["sombre", "Sombre"]], themeActuel(), { act: "reglageTheme", vide: null, label: "Thème" })}${bascule("grand", "Grand affichage", "texte et boutons plus grands")}${bascule("ecranAllume", "Écran allumé pendant la séance", "le minuteur le garde allumé de toute façon")}`, { classe: "carte", resume: r.grand ? "grand affichage" : "" })}
     ${pli("reg-repos", false, "Repos par défaut", () => h`<p class="petit">Utilisé quand la ligne n'indique pas de repos.</p>
-    ${acts.filter(a => a !== "Repos").map(a => h`<div class="ligne-reg"><span>${a}</span><span class="compteur"><button data-act="reglageRepos" data-a="${a}" data-pas="-30">−</button><span>${mmss((r.repos || {})[a] ?? 0)}</span><button data-act="reglageRepos" data-a="${a}" data-pas="30">+</button></span></div>`)}
+    ${acts.filter(a => a !== "Repos").map(a => h`<div class="ligne-reg"><span>${a}</span>${liste(`repos-${a}`, DUREES_REPOS.map(x => [x, x ? mmss(x) : "Pas de repos"]), String((r.repos || {})[a] ?? 0), { act: "reglageReposListe", vide: null, data: { a } })}</div>`)}
     ${bascule("reposAuto", "Repos automatique", "lance le repos dès qu'un passage est noté")}`, { classe: "carte" })}
     ${pli("reg-minuteur", false, "Minuteur", () => h`${bascule("son", "Sons", "quand l'app est à l'écran ; écran verrouillé, une app web ne sonne pas")}
       <label class="champ">Minuteur natif de l'iPhone via un Raccourci <span class="petit">(facultatif)</span></label><input type="text" value="${r.raccourciRepos || ""}" placeholder="Nom du raccourci, ex. Repos" data-act="reglageRaccourci">
@@ -129,6 +137,7 @@ function textesAide(ctx) {
     salles: h`<p><b>Une salle</b> garde ses voies par secteur, leur couleur, leur niveau et ton historique sur chacune. Façon de coter : comme l'app, ses propres niveaux, par couleurs, ou aucune.</p>
       <p><b>Le mur.</b> En haut, toujours visible : Tout / Voies / Blocs, + Voie, Sélectionner. Les secteurs sont repliés avec un résumé (nombre, couleurs, cotations) ; touche-les pour les ouvrir, l'app s'en souvient. Touche une voie pour sa fiche. + Secteur est dans la barre : il demande combien de secteurs et les crée d'un coup (1, 2, 3… à renommer). L'inclinaison d'un secteur se calcule d'après ses voies. « Inventaire rapide » (⋯) crée d'un coup les voies d'une salle, niveau par niveau. Pour déplacer une voie : ⋮⋮ puis lâche-la sur une voie, un secteur ouvert ou le nom d'un secteur replié. ⋯ : plusieurs voies d'un coup, démontées, modifier la salle. Un secteur rééquipé : ✎ › Renouveler.</p>
       <p><b>Couleurs.</b> 12 couleurs de base ; appui long sur une couleur pour ses nuances.</p>
+      <p><b>Niveau inconnu.</b> Une voie peut toujours être enregistrée sans son niveau : elle s'affiche « ? » (et dans « En bref » sous un bâton « ? »). Complète-la depuis sa fiche.</p>
       <p><b>Inclinaison et caractéristiques.</b> L'inclinaison (dalle, vertical, léger dévers, dévers, surplomb, fort dévers, toit) est un seul choix ; les caractéristiques (arête, traversée, dièdre, fissure, volumes, réglettes, bacs, pinces, plats, dynamique, compression) se cumulent, dans la fiche de la voie. Le mur se filtre par caractéristique ; Progrès › À travailler dit laquelle tu réussis le moins.</p>
       <p><b>Historique d'une voie.</b> Ouvert dans sa fiche : chaque passage avec ✕ pour le supprimer tout de suite. « + Ajouter » : une réussite (date, aisance, essais), ou des échecs sur plusieurs dates d'un coup (une date par essai, « Date inconnue » possible). Sans date, un passage compte dans les niveaux, les projets et les feux verts, pas dans la charge.</p>`,
     principe: h`<p>Le programme est écrit dans <b>Programme.xlsx</b> et transformé en <code>data.js</code> par <code>outil/grimpe.py app</code>. L'app sert à faire les séances : elle ne demande rien pendant, et calcule tout après (feux verts, forme, niveaux, projets). Sur PC, <code>grimpe.py rapport</code> met ce bilan en page dans <b>Suivi.xlsx</b> et reporte dans Programme.xlsx les séances modifiées ici.</p>
@@ -183,6 +192,8 @@ export const actions = {
   copierDonnees: async ctx => { const ex = construireExport({ data: ctx.data, doc: ctx.doc, programme: ctx.programme, bilan: ctx.bilan });
     if (await copierTexte(ex)) { ctx.modifier("export", d => { d.dernierExport = new Date().toISOString(); }, { annulable: false }); ctx.toast(`Données copiées (${tailleKo(ex)} ko) : colle-les dans Notes ou un mail`); }
     else ctx.toast("La copie n'a pas marché : utilise « Exporter le fichier »"); ctx.rendre(); },
+  reglageReposListe: (ctx, d, el) => { ctx.modifier("repos par défaut", x => { x.reglages.repos = { ...(x.reglages.repos || {}), [d.a]: +el.value }; }); ctx.rendre(); },
+  reglageTheme: (ctx, d, el) => { try { localStorage.setItem("grimpe-theme", el.value); } catch { /* ignore */ } if (window.appliquerTheme) window.appliquerTheme(); ctx.rendre(); },
   copierOuExporter: ctx => { forcerOuvert("sv-fichier"); ctx.ouvrir("sauvegarde"); },
   collerOuvrir: ctx => ctx.ouvrirModal({ type: "coller", texte: "" }),
   importFichier: async (ctx, d, el) => { const f = el.files && el.files[0]; if (!f) return;

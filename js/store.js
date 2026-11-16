@@ -12,7 +12,7 @@
 //   store.remplacer(doc)                               import d'une sauvegarde (migrée au passage)
 //   store.abonner(fn)                                  fn(doc, libellé) après chaque changement
 
-export const VERSION_DOC = 2;
+export const VERSION_DOC = 3;
 
 export const documentVide = () => ({
   version: VERSION_DOC,
@@ -42,6 +42,19 @@ export const MIGRATIONS = {
     for (const s of doc.salles || []) { s.cotation = s.cotation || { Voie: { mode: "standard", liste: [] }, Bloc: { mode: "standard", liste: [] } }; s.secteurs = s.secteurs || [];
       (s.voies || []).forEach((v, i) => { v.secteurId = v.secteurId || null; v.ordre = v.ordre ?? i; if (v.secteur && !v.secteurId) { let sec = s.secteurs.find(x => x.nom === v.secteur); if (!sec) { sec = { id: "sec-" + i, nom: v.secteur, profil: "" }; s.secteurs.push(sec); } v.secteurId = sec.id; } delete v.secteur; }); }
     doc.feuxVus = doc.feuxVus || {};
+  },
+  // 2 → 3 : les niveaux d'une salle sont du texte (« 6 », pas 6) ; on retrouve l'équivalent perdu dans la cotation de l'app
+  2: doc => {
+    const txt = x => x === null || x === undefined ? "" : String(x), parId = {};
+    for (const s of doc.salles || []) {
+      for (const disc of ["Voie", "Bloc"]) { const c = (s.cotation || {})[disc]; if (c && c.liste) c.liste.forEach(x => { x.salle = txt(x.salle); x.app = txt(x.app); }); }
+      for (const v of s.voies || []) { v.cotSalle = txt(v.cotSalle);
+        const c = (s.cotation || {})[v.disc] || { mode: "standard", liste: [] };
+        if (!v.cot) v.cot = c.mode === "standard" ? v.cotSalle : c.mode === "liste" ? ((c.liste.find(x => x.salle === v.cotSalle) || {}).app || "") : c.mode === "couleurs" ? ((c.liste.find(x => x.salle === v.couleur) || {}).app || "") : "";
+        parId[v.id] = v; } }
+    const reparer = t => { if (t.cotSalle !== undefined) t.cotSalle = txt(t.cotSalle); const v = t.voieId && parId[t.voieId]; if (v && !t.cot && v.cot) t.cot = v.cot; };
+    for (const sa of Object.values(doc.seances || {})) (sa.tentatives || []).forEach(reparer);
+    (doc.passagesAnciens || []).forEach(reparer);
   },
 };
 export function migrer(doc) {
