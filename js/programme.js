@@ -136,3 +136,6 @@ export function opsCopieSemaine(programme, doc, w, dests) {
   }
   return { ops, refusees };
 }
+
+// Activité affichée : une séance de voie faite en variante bloc s'affiche « Bloc » (programme, bandeau, cartes)
+export const activiteAffichee = (s, saisie) => s.activite === "Voie" && discipline(s, saisie || {}) === "Bloc" ? "Bloc" : s.activite;

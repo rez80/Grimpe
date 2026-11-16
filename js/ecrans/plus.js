@@ -1,7 +1,7 @@
-// ecrans/plus.js — l'onglet Plus et ses sous-écrans : sauvegarde (fichier et GitHub), salles, historique hors app, calendrier, bibliothèque, réglages, aide.
-import { h, si, lier } from "../html.js";
+// ecrans/plus.js — l'onglet Plus et ses sous-écrans : sauvegarde (fichier et GitHub), salles, passages hors séance, calendrier, bibliothèque, réglages, aide.
+import { h, si, lier, pli } from "../html.js";
 import { construireExport, nomFichier, partager, lireFichier, verifierImport } from "../export.js";
-import { reussi } from "../analyse.js";
+import { reussi, tentatives as toutesTentatives } from "../analyse.js";
 import { lireJeton, ecrireJeton, configValide, creerSync } from "../sync.js";
 import { hexDe } from "../salles.js";
 import { court, mmss } from "../dates.js";
@@ -27,13 +27,11 @@ function menu(ctx) {
   return { titre: h`<b>Plus</b>`, html: h`<div class="menu-plus">
     <button class="tuile ${alerte ? "attention" : ""}" data-act="ouvrirVue" data-vue="sauvegarde"><span class="ico">⬆</span><span><b>Sauvegarde</b><br><span class="petit">${etatSauvegarde}</span></span></button>
     <button class="tuile" data-act="ouvrirVue" data-vue="salles"><span class="ico">🧗</span><span><b>Salles</b><br><span class="petit">${doc.salles.length} salle${doc.salles.length > 1 ? "s" : ""} · ${doc.salles.reduce((n, s) => n + s.voies.filter(v => v.statut !== "demontee").length, 0)} voies en place</span></span></button>
-    <button class="tuile" data-act="ouvrirVue" data-vue="historique"><span class="ico">🕓</span><span><b>Hors app</b><br><span class="petit">${doc.passagesAnciens.length} passage${doc.passagesAnciens.length > 1 ? "s" : ""} ajouté${doc.passagesAnciens.length > 1 ? "s" : ""} à la main</span></span></button>
     <button class="tuile" data-act="ouvrirVue" data-vue="calendrier"><span class="ico">📅</span><span><b>Calendrier</b><br><span class="petit">le programme dans l'iPhone</span></span></button>
     <button class="tuile" data-act="ouvrirVue" data-vue="biblio"><span class="ico">📖</span><span><b>Bibliothèque</b><br><span class="petit">${data.exercices.length} exercices · ${new Set(data.routines.map(r => r.routine)).size} routines</span></span></button>
     <button class="tuile" data-act="ouvrirVue" data-vue="reglages"><span class="ico">⚙</span><span><b>Réglages</b><br><span class="petit">repos, affichage, minuteur</span></span></button>
     <button class="tuile" data-act="ouvrirVue" data-vue="aide"><span class="ico">?</span><span><b>Aide</b><br><span class="petit">principe, syntaxe, données</span></span></button>
-    ${si(ctx.store.annulable, h`<button class="tuile" data-act="annuler"><span class="ico">↶</span><span><b>Annuler</b><br><span class="petit">${ctx.store.annulable}</span></span></button>`)}
-    </div><p class="petit centre">Grimpe ${ctx.APP_VERSION} · programme du ${data.dateDebut} généré le ${data.genereLe} · document v${doc.version}</p>` };
+    </div><p class="petit centre">Annuler le dernier geste : ⋯ en haut, sur chaque écran.</p><p class="petit centre">Grimpe ${ctx.APP_VERSION} · programme du ${data.dateDebut} généré le ${data.genereLe} · document v${doc.version}</p>` };
 }
 
 function sauvegarde(ctx) {
@@ -54,28 +52,39 @@ function sauvegarde(ctx) {
 }
 
 function biblio(ctx) {
-  const { data, doc, state } = ctx, cats = [...new Set(data.exercices.map(x => x.categorie))], f = state.filtre.cat || "";
-  const liste = data.exercices.map((x, k) => ({ ...x, k })).filter(x => !f || x.categorie === f || (f === "★" && doc.favoris.includes(x.nom)));
-  const routines = [...new Set(data.routines.map(r => r.routine))];
-  return { titre: h`<b>Bibliothèque</b>`, html: h`<div class="choix compact filtre"><button data-act="filtreCat" data-valeur="" class="${!f ? "choisi" : ""}">Tout</button><button data-act="filtreCat" data-valeur="★" class="${f === "★" ? "choisi" : ""}">★ Favoris</button>${cats.map(c => h`<button data-act="filtreCat" data-valeur="${c}" class="${f === c ? "choisi" : ""}">${c}</button>`)}</div>
-    <div class="liste">${liste.map(x => h`<button class="item" data-act="ficheExo" data-k="${x.k}"><span>${doc.favoris.includes(x.nom) ? "★ " : ""}${x.nom}</span><span class="petit">${x.categorie}${x.niveau ? " · " + x.niveau : ""}</span></button>`)}</div>
-    <h2 class="section">Routines</h2>${routines.map(r => h`<div class="carte compacte"><button class="pli" data-act="plier" data-k="r${r}">${state.ouverts.has("r" + r) ? "▾" : "▸"} ${r} <span class="petit">${mmss(data.routines.filter(x => x.routine === r).reduce((t, x) => t + x.duree, 0))}</span></button>
-      ${si(state.ouverts.has("r" + r), h`<ol class="routine">${data.routines.filter(x => x.routine === r).map(x => h`<li><b>${x.etape}</b>${x.duree ? h` <span class="petit">${mmss(x.duree)}</span>` : ""}<div class="petit">${lier(x.quoi, data.exercices)}</div></li>`)}</ol>`)}</div>`)}` };
+  const { data, state } = ctx, r = state.filtre.biblio || "";
+  const routines = [...new Set(data.routines.map(x => x.routine))];
+  return { titre: h`<b>Bibliothèque</b>`, html: h`<input type="search" class="recherche" placeholder="Rechercher un exercice…" value="${r}" data-frappe="biblioRecherche" aria-label="Rechercher">
+    <div id="biblio-liste">${listeBiblio(ctx, r)}</div>
+    <h2 class="section">Routines</h2>${routines.map(n => pli(`routine-${n}`, false, n, () => h`<ol class="routine">${data.routines.filter(x => x.routine === n).map(x => h`<li><b>${x.etape}</b>${x.duree ? h` <span class="petit">${mmss(x.duree)}</span>` : ""}<div class="petit">${lier(x.quoi, data.exercices)}</div></li>`)}</ol>`, { resume: mmss(data.routines.filter(x => x.routine === n).reduce((t, x) => t + x.duree, 0)) }))}` };
+}
+const sansAccent = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function listeBiblio(ctx, recherche) {
+  const { data, doc } = ctx, q = sansAccent(recherche).trim(), tous = data.exercices.map((x, k) => ({ ...x, k }));
+  const item = x => h`<button class="item" data-act="ficheExo" data-k="${x.k}"><span>${doc.favoris.includes(x.nom) ? "★ " : ""}${x.nom}</span><span class="petit">${q ? x.categorie : ""}${x.niveau ? (q ? " · " : "") + x.niveau : ""}</span></button>`;
+  if (q) { const l = tous.filter(x => sansAccent([x.nom, x.categorie, x.description, x.consignes].join(" ")).includes(q)); return l.length ? h`<div class="liste">${l.map(item)}</div>` : h`<p class="petit">Aucun exercice pour « ${recherche} ».</p>`; }
+  const favs = tous.filter(x => doc.favoris.includes(x.nom)), cats = [...new Set(tous.map(x => x.categorie))];
+  return h`${si(favs.length, () => pli("biblio-favoris", true, "★ Favoris", () => h`<div class="liste">${favs.map(item)}</div>`, { resume: String(favs.length) }))}
+    ${cats.map(c => { const l = tous.filter(x => x.categorie === c); return pli(`biblio-${c}`, false, c, () => h`<div class="liste">${l.map(item)}</div>`, { resume: String(l.length) }); })}`;
 }
 
 function salles(ctx) {
-  const { doc } = ctx;
-  return { titre: h`<b>Salles</b>`, html: h`<div class="liste">${doc.salles.map(s => { const v = s.voies.filter(x => x.statut !== "demontee");
-      return h`<div class="item-double"><button class="item" data-act="salleOuvrir" data-id="${s.id}"><span><b>${s.nom}</b> <span class="petit">${s.type} · ${s.secteurs.length} secteur${s.secteurs.length > 1 ? "s" : ""}</span></span><span class="petit">${v.filter(x => x.disc === "Voie").length} voies · ${v.filter(x => x.disc === "Bloc").length} blocs ›</span></button><button class="item-edit" data-act="salleEditer" data-id="${s.id}" aria-label="Modifier la salle">✎</button></div>`; })}</div>
+  const { doc } = ctx, ts = toutesTentatives(ctx.programme, doc);
+  return { titre: h`<b>Salles</b>`, html: h`<div class="cartes-salles">${doc.salles.map(s => { const v = s.voies.filter(x => x.statut !== "demontee"), cs = [...new Set(v.map(x => x.couleur).filter(Boolean))];
+      const derniere = ts.filter(t => t.salle === s.id && t.date).map(t => t.date).sort().pop(), nv = v.filter(x => x.disc === "Voie").length, nb = v.filter(x => x.disc === "Bloc").length;
+      return h`<div class="carte-salle"><button class="cs-corps" data-act="salleOuvrir" data-id="${s.id}"><b>${s.nom}</b><span class="petit">${s.type}${s.secteurs.length ? ` · ${s.secteurs.length} secteur${s.secteurs.length > 1 ? "s" : ""}` : ""}</span>
+        <span class="points">${cs.slice(0, 12).map(c => h`<i style="background:${hexDe(doc, c, s)}"></i>`)}</span>
+        <span class="petit">${[s.type !== "Bloc" ? `${nv} voie${nv > 1 ? "s" : ""}` : "", s.type !== "Voie" ? `${nb} bloc${nb > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ")}${derniere ? ` · dernière séance ${court(derniere)}` : ""}</span></button>
+        <button class="item-edit" data-act="salleEditer" data-id="${s.id}" aria-label="Modifier la salle">✎</button></div>`; })}</div>
     ${si(!doc.salles.length, h`<p class="petit">Une salle, c'est ta mémoire des voies : couleur, niveau, secteur, et ton historique sur chacune. Pendant une séance, tu touches la voie au lieu de remplir une fiche.</p>`)}
     <button class="gros contour" data-act="salleNouvelle">+ Nouvelle salle</button>` };
 }
 
 function historique(ctx) {
-  const { doc } = ctx, l = [...doc.passagesAnciens].sort((a, b) => a.date < b.date ? 1 : -1), dates = [...new Set(l.map(p => p.date))];
-  return { titre: h`<b>Passages hors app</b>`, html: h`<p class="petit">Ce que tu as grimpé sans l'app (avant le programme, ou un jour sans téléphone). Compte dans les niveaux, les feux verts et les projets.</p>
-    <button class="gros contour" data-act="passageAncienOuvrir">+ Ajouter des passages</button>
-    ${dates.map(d => h`<div class="carte compacte"><b>${court(d)}</b>${l.filter(p => p.date === d).map(p => h`<div class="ligne-res"><span><span class="pastille" style="background:${hexDe(doc, p.couleur)}"></span> ${p.disc} ${p.cot || "?"}${p.nom ? " · " + p.nom : ""} <span class="petit">${(p.profil || "").toLowerCase()}</span></span><span><span class="res res-${p.res}">${RES_LABEL[p.res]}</span> <button class="lien" data-act="passageAncienSuppr" data-id="${p.id}">✕</button></span></div>`)}</div>`)}` };
+  const { doc } = ctx, l = [...doc.passagesAnciens].sort((a, b) => (a.date || "0") < (b.date || "0") ? 1 : -1), dates = [...new Set(l.map(p => p.date || ""))];
+  return { titre: h`<b>Passages hors séance</b>`, html: h`<p class="petit">Ce que tu as grimpé sans l'app (avant le programme, un jour sans téléphone, une voie réussie un autre jour). Compte dans les niveaux, les feux verts et les projets ; sans date, il ne compte ni dans la charge ni dans le bilan de la semaine.</p>
+    <button class="gros contour" data-act="passageAncienOuvrir">+ Passage hors séance</button>
+    ${dates.map(d => h`<div class="carte compacte"><b>${d ? court(d) : "Date inconnue"}</b>${l.filter(p => (p.date || "") === d).map(p => h`<div class="ligne-res"><span><span class="pastille" style="background:${hexDe(doc, p.couleur)}"></span> ${p.disc} ${p.cot || "?"}${p.nom ? " · " + p.nom : ""} <span class="petit">${(p.profil || "").toLowerCase()}</span></span><span><span class="res res-${p.res}">${RES_LABEL[p.res]}</span> <button class="lien" data-act="passageAncienSuppr" data-id="${p.id}">✕</button></span></div>`)}</div>`)}` };
 }
 
 function calendrier(ctx) {
@@ -104,17 +113,21 @@ function aide(ctx) {
   const S = {
     seance: h`<p><b>Commencer.</b> ▸ Commencer lance la séance : pas de questionnaire. Choisis d'abord la variante si la séance en a (Voie / Remplacement bloc…).</p>
       <p><b>Pendant.</b> La carte « Maintenant » montre l'étape en cours, ses minuteurs, et <b>✓ Fait · suivant</b>, qui coche l'étape et passe à la suivante. Dans le plan, chaque étape a sa case ✓ ; une étape répétée (3× gainage) a des ronds : un rond = un passage. Rien n'est obligatoire : l'app avance d'elle-même vers la prochaine étape pas encore faite. « J'en suis là » (dans une étape dépliée) déplace le repère.</p>
-      <p><b>Voies.</b> Touche la tuile d'une voie : ✓, sec ou ✗ (puis la cause). ★ = à essayer, mise en tête de liste à la prochaine séance. Sans salle, une rangée par cotation : un appui = un passage.</p>
+      <p><b>Voies et blocs.</b> « Salle : … › » choisit la salle du jour (ou « Salle inconnue »). Les cotations de la séance sont toujours là : un appui = un passage. Dessous, les voies de la salle, rangées par groupes repliables (★ à essayer, projets, cotation du jour, autres). Touche une voie : ✓, sec ou ✗ (puis la cause). Après ✓, tu peux préciser l'aisance (facile, correct, arraché), le nombre d'essais et la date du premier essai, ou simplement fermer.</p>
+      <p><b>Maintenant.</b> « Consignes › » et « Détail de l'étape › » sont toujours sous la carte.</p>
       <p><b>Fin.</b> ■ Fin de séance : effort, douleur après, et, si tu n'as rien noté, « en gros » ce que tu as grimpé. Les heures se corrigent sous « Heures, notes ».</p>
       <p><b>Naviguer.</b> Glisse vers la gauche ou la droite pour passer à la séance suivante ou précédente (pas pendant une séance en cours). Ouverte depuis le programme, la flèche « ‹ Programme » t'y ramène.</p>`,
-    programme: h`<p>Les semaines par bloc ; touche une semaine pour ses jours et ses séances. La semaine en cours montre un encadré <b>À faire</b> (séances à régler, mesures du week-end) et, dès qu'une séance est faite, son bilan.</p>
+    programme: h`<p><b>Aujourd'hui.</b> L'app s'ouvre ici ; la carte du haut ouvre la séance du jour en un appui (ou la prochaine). Une séance en cours s'ouvre directement.</p>
+      <p>Les semaines par bloc ; touche une semaine pour ses jours et ses séances. La semaine en cours montre un encadré <b>À faire</b> (séances à régler, mesures du week-end) et, dès qu'une séance est faite, son bilan.</p>
       <p><b>Outils d'une semaine.</b> 📏 Mesures · ⏸ Pause avant (les séances déjà commencées ou faites ne bougent pas) · Copier · répéter (une semaine commencée n'est jamais écrasée).</p>
-      <p><b>Une séance.</b> ⋯ dans l'en-tête : bilan, modifier le plan (les saisies suivent leur ligne), déplacer, copier vers une autre date, sautée, annuler.</p>`,
+      <p><b>Une séance.</b> ⋯ à droite de chaque séance (ou dans l'en-tête d'une séance ouverte) : bilan, modifier le plan (les saisies suivent leur ligne), déplacer, copier vers une autre date, sautée ; une séance que tu as créée ou copiée peut être supprimée.</p>
+      <p><b>+ Passage hors séance.</b> Ce que tu as grimpé sans séance dans l'app.</p>`,
     progres: h`<p>En haut, quelques phrases : la semaine, le niveau acquis, le point faible, le prochain cap. « À ce rythme… » n'apparaît qu'après 4 semaines de programme, quand il y a de quoi estimer.</p>
-      <p>Dessous : les projets (voies tentées, pas encore réussies), les feux verts, le niveau consolidé, la charge, les douleurs et les mesures.</p>`,
+      <p>Dessous, en sections repliables (l'app retient ce que tu as ouvert) : les projets, les feux verts, le niveau consolidé, à travailler, la charge, les douleurs, les mesures et les passages hors séance.</p>`,
     salles: h`<p><b>Une salle</b> garde ses voies par secteur, leur couleur, leur niveau et ton historique sur chacune. Façon de coter : comme l'app, ses propres niveaux, par couleurs, ou aucune.</p>
-      <p><b>Le mur.</b> Touche une voie pour sa fiche. + Plusieurs voies : une série d'un coup (4 jaunes en 5b). Classer : sélectionne plusieurs voies puis envoie-les dans un secteur ou démonte-les. Ranger : fais glisser les voies (ou prends une voie par ⋮⋮ à tout moment). Un secteur rééquipé : ✎ › Renouveler.</p>
-      <p><b>Hors app</b> (Plus) : ce que tu as grimpé sans l'app compte aussi.</p>`,
+      <p><b>Le mur.</b> En haut, toujours visible : Tout / Voies / Blocs, + Voie, Sélectionner. Les secteurs sont repliés avec un résumé (nombre, couleurs, cotations) ; touche-les pour les ouvrir, l'app s'en souvient. Touche une voie pour sa fiche. Le reste est dans ⋯ : plusieurs voies d'un coup, + Secteur, Ranger (glisser-déposer), voies démontées, modifier la salle. Un secteur rééquipé : ✎ › Renouveler.</p>
+      <p><b>Couleurs.</b> 12 couleurs de base ; appui long sur une couleur pour ses nuances.</p>
+      <p><b>Passage hors séance</b> (Programme, ou Progrès › Passages hors séance ; « + Passage d'un autre jour » dans la fiche d'une voie) : ce que tu as grimpé sans séance dans l'app compte aussi. Date inconnue : compte dans les niveaux, les projets et les feux verts, pas dans la charge.</p>`,
     principe: h`<p>Le programme est écrit dans <b>Programme.xlsx</b> et transformé en <code>data.js</code> par <code>outil/grimpe.py app</code>. L'app sert à faire les séances : elle ne demande rien pendant, et calcule tout après (feux verts, forme, niveaux, projets). Sur PC, <code>grimpe.py rapport</code> met ce bilan en page dans <b>Suivi.xlsx</b> et reporte dans Programme.xlsx les séances modifiées ici.</p>
       <p><b>Une séance.</b> Voir l'onglet « Séance » de cette aide.</p>
       <p><b>Couleurs.</b> <span class="genre-txt echauffement">échauffement</span> · <span class="genre-txt securite">sécurité</span> · <span class="genre-txt facile">facile</span> · <span class="genre-txt effort">effort</span> · <span class="genre-txt recup">récupération</span>.</p>
@@ -132,7 +145,7 @@ Planche (s) {mesure planche}</pre>
     donnees: h`<p><b>Où sont mes données ?</b> Sur ce téléphone, dans un seul document. Avec la sauvegarde GitHub activée, une copie part dans ton dépôt privé après chaque séance ; sinon, exporte de temps en temps. Si tu supprimes l'app sans copie, tout est perdu.</p>
       <p><b>Salles.</b> Une salle garde ses voies par secteur, leur couleur, leur niveau (dans son système à elle : comme l'app, ses propres niveaux, par couleurs, ou aucun) et ton historique dessus. Quand la salle rouvre un secteur, « Renouveler » passe ses voies en démontées sans rien effacer.</p>
       <p><b>Modifier le programme.</b> ⋯ › Modifier le plan, Déplacer, ou + Séance dans Programme. Chaque modification est une opération datée ; l'outil PC la reporte dans Programme.xlsx au prochain rapport.</p>
-      <p><b>Annuler.</b> Chaque geste (Plus › Annuler, ou ⋯ de la séance) : les 30 derniers.</p>`,
+      <p><b>Annuler.</b> ⋯ en haut, sur chaque écran : les 30 derniers gestes. Une suppression propose aussi « Annuler » quelques secondes.</p>`,
   };
   const onglets = [["seance", "Séance"], ["programme", "Programme"], ["progres", "Progrès"], ["salles", "Salles"], ["principe", "Principe"], ["syntaxe", "Syntaxe"], ["donnees", "Données"]];
   return { titre: h`<b>Aide</b>`, html: h`<div class="choix compact filtre">${onglets.map(([c, l]) => h`<button data-act="ouvrirAide" data-k="${c}" class="${k === c ? "choisi" : ""}">${l}</button>`)}</div><div class="carte aide">${S[k] || S.principe}</div>` };
@@ -162,12 +175,14 @@ export const actions = {
   syncRecuperer: async ctx => { relireChamps(ctx); const manque = manqueSync(ctx); if (manque) { ctx.toast(manque); return; } try { const s = creerSync({ config: ctx.doc.reglages.sync, jeton: lireJeton() }), lu = await s.lire(); if (!lu) return ctx.toast("Rien sur GitHub pour l'instant.");
       const v = verifierImport(lu.contenu, ctx.data); ctx.ouvrirModal({ type: "import", ...v, source: "GitHub" }); } catch (e) { alert(e.message); } },
   filtreCat: (ctx, d) => { ctx.state.filtre.cat = d.valeur; ctx.rendre(); },
+  // Recherche : seule la liste est redessinée, le champ garde le clavier
+  biblioRecherche: (ctx, d, el) => { ctx.state.filtre.biblio = el.value; const z = document.getElementById("biblio-liste"); if (z) z.innerHTML = String(listeBiblio(ctx, el.value)); },
   filtreDemontees: ctx => { ctx.state.filtre.demontees = !ctx.state.filtre.demontees; ctx.rendre(); },
   salleOuvrir: (ctx, d) => ctx.ouvrir("salle", { salleId: d.id }),
   salleNouvelle: ctx => ctx.ouvrirModal({ type: "salle", nom: "", typeSalle: "Bloc et voie", cotation: cotationVide() }),
   salleEditer: (ctx, d) => { const s = ctx.doc.salles.find(x => x.id === ((d && d.id) || ctx.state.salleId)); ctx.ouvrirModal({ type: "salle", id: s.id, nom: s.nom, typeSalle: s.type, cotation: JSON.parse(JSON.stringify(s.cotation || cotationVide())) }); },
-  passageAncienOuvrir: ctx => ctx.ouvrirModal({ type: "passageAncien", date: ctx.aujourdhui(), disc: "Voie", cot: "", chiffre: "", profil: "Vertical", res: "", n: 1, couleur: "", nom: "", salle: "" }),
-  passageAncienSuppr: (ctx, d) => { ctx.modifier("passage hors app supprimé", x => { x.passagesAnciens = x.passagesAnciens.filter(p => p.id !== d.id); }); ctx.rendre(); },
+  passageAncienOuvrir: ctx => ctx.ouvrirModal({ type: "passageAncien", date: ctx.aujourdhui(), dateInconnue: false, disc: "Voie", cot: "", chiffre: "", profil: "Vertical", res: "", n: 1, couleur: "", nom: "", salle: "" }),
+  passageAncienSuppr: (ctx, d) => { ctx.modifier("passage hors séance supprimé", x => { x.passagesAnciens = x.passagesAnciens.filter(p => p.id !== d.id); }); ctx.toast("Passage supprimé", () => ctx.store.annuler()); ctx.rendre(); },
   reglageBool: (ctx, d) => { ctx.modifier("réglage", x => { x.reglages[d.cle] = !x.reglages[d.cle]; }, { annulable: false }); if (d.cle === "son") ctx.minuteur.configurer({ son: ctx.doc.reglages.son }); if (d.cle === "grand") document.documentElement.classList.toggle("grand", ctx.doc.reglages.grand); ctx.rendre(); },
   reglageRepos: (ctx, d) => { ctx.modifier("réglage", x => { x.reglages.repos = x.reglages.repos || {}; x.reglages.repos[d.a] = Math.max(0, (x.reglages.repos[d.a] ?? 0) + +d.pas); }, { annulable: false }); ctx.rendre(); },
   reglageRaccourci: (ctx, d, el) => { ctx.modifier("réglage", x => { x.reglages.raccourciRepos = el.value.trim(); }, { annulable: false }); },

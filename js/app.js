@@ -6,7 +6,8 @@ import { bilanComplet as calculerBilan } from "./analyse.js";
 import { construireExport } from "./export.js";
 import { creerSync, lireJeton, configValide } from "./sync.js";
 import { aujourdhui as dateDuJour, semaineDe } from "./dates.js";
-import { $, h } from "./html.js";
+import { $, h, basculer } from "./html.js";
+import { PALETTE } from "./salles.js";
 import * as minuteur from "./minuteur.js";
 import * as seance from "./ecrans/seance.js";
 import * as programme from "./ecrans/programme.js";
@@ -15,9 +16,9 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.3";
+export const APP_VERSION = "8.4";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
-const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "plus", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
+const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "progres", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
 
 const state = { vue: "seance", seanceId: null, semaineVue: null, ouverts: new Set(), modal: null, scroll: {}, pile: [], salleId: null, toast: null, filtre: {}, dernierSecteur: "",
@@ -40,6 +41,7 @@ const ctx = {
   rendre, ouvrir, ouvrirModal: m => { state.modal = m; rendre(false); }, fermerModal: () => { state.modal = null; rendre(false); },
   toast: (texte, annuler) => { state.toast = { texte, annuler, t: Date.now() }; rendreToast(); },
   minuteur,
+  agir: (act, data = {}) => { const f = ACTIONS[act]; if (f) f(ctx, data); else console.warn("action inconnue", act); },
   // Sauvegarde GitHub : silencieuse en automatique, bavarde à la demande
   async synchroniser(motif, bavard = false) {
     const cfg = store.doc.reglages.sync || {}, jeton = lireJeton();
@@ -61,7 +63,7 @@ function ouvrir(vue, params = {}) {
   rendre(true);
 }
 // Aide à la bonne section selon l'écran affiché
-const SECTION_AIDE = { seance: "seance", programme: "programme", progres: "progres", salle: "salles", salles: "salles", historique: "salles", sauvegarde: "donnees", reglages: "seance" };
+const SECTION_AIDE = { seance: "seance", programme: "programme", progres: "progres", salle: "salles", salles: "salles", historique: "progres", sauvegarde: "donnees", reglages: "seance" };
 function retour() { const pile = state.pile, v = pile.pop() || ONGLET_DE[state.vue] || "seance"; state.pile = []; ouvrir(v); state.pile = pile; }
 
 function rendre(enHaut = false) {
@@ -82,7 +84,7 @@ function rendre(enHaut = false) {
   document.body.classList.toggle("mode-ranger", state.vue === "salle" && !!state.ranger);
   glisserActif = !!r.glisser && !state.modal;
   $("suiv").style.visibility = r.fleches ? "visible" : "hidden";
-  $("btn-menu").style.visibility = r.menu ? "visible" : "hidden";
+  $("btn-menu").style.visibility = state.vue === "aide" ? "hidden" : "visible";                       // ⋯ partout : les actions de l'écran, et Annuler
   document.body.dataset.activite = r.activite || "";
   $("fond-modal").style.display = state.modal ? "flex" : "none";
   $("modal").innerHTML = state.modal ? String(fenetres.rendre(ctx)) : "";
@@ -103,6 +105,11 @@ const ACTIONS = {
   retour: () => retour(),
   retourProgramme: () => { const s = ctx.seance(state.seanceId); if (s) state.semaineVue = s.semaine; state.origine = null; ouvrir("programme"); },
   aideContexte: () => { state.filtre.aide = SECTION_AIDE[state.vue] || "principe"; ouvrir("aide"); },
+  replier: (c, d) => { basculer(d.cle, d.defaut === "1"); rendre(false); },                            // blocs repliables : l'état est retenu
+  menuEcran: () => { const ecran = ECRANS[state.vue] || plus;
+    if (state.vue === "seance" && ctx.seance(state.seanceId)) return seance.actions.menu(ctx);
+    const r = ecran.menuEcran ? ecran.menuEcran(ctx) : null;
+    ctx.ouvrirModal({ type: "menuEcran", titre: (r && r.titre) || "Actions", items: (r && r.items) || [] }); },
   plier: (c, d) => { state.ouverts.has(d.k) ? state.ouverts.delete(d.k) : state.ouverts.add(d.k); rendre(false); },
   toastAnnuler: () => { if (state.toast && state.toast.annuler) state.toast.annuler(); state.toast = null; rendreToast(); rendre(false); },
   annuler: () => { const l = store.annulable; if (store.annuler()) ctx.toast(`Annulé : ${l}`); rendre(false); },
@@ -121,6 +128,24 @@ document.addEventListener("click", e => {
 document.addEventListener("input", e => { const el = e.target; if (el.dataset.champ && state.modal) state.modal[el.dataset.champ] = el.type === "number" ? (el.value === "" ? "" : +el.value) : el.value;
   if (el.dataset.frappe && ACTIONS[el.dataset.frappe]) ACTIONS[el.dataset.frappe](ctx, el.dataset, el); });                       // « data-frappe » : enregistré à chaque frappe, sans redessiner
 document.addEventListener("change", e => { const el = e.target; if (el.dataset.act && ACTIONS[el.dataset.act]) ACTIONS[el.dataset.act](ctx, el.dataset, el); });
+
+// --- Nuancier : appui long sur une couleur de base → ses nuances, qui se comportent comme la pastille (même action, mêmes données) ---
+let appui = null, ignorerClic = false;
+const fermerNuancier = () => { const n = document.getElementById("nuancier"); if (n) n.remove(); };
+document.addEventListener("pointerdown", e => { const p = e.target.closest(".pastille[data-base]"); if (!p) return;
+  const base = PALETTE.find(b => b.nom === p.dataset.base); if (!base || base.nuances.length < 2) return;
+  appui = setTimeout(() => { appui = null; ignorerClic = true; fermerNuancier(); if (navigator.vibrate) navigator.vibrate(15);
+    const r = p.getBoundingClientRect(), n = document.createElement("div"); n.id = "nuancier"; n.setAttribute("role", "dialog");
+    n.innerHTML = `<p class="petit">${base.nom} · nuances</p><div class="nuances">${base.nuances.map(([nom, hex]) => `<button class="pastille" style="background:${hex}" title="${nom}" aria-label="${nom}" data-nom="${nom}"></button>`).join("")}</div>`;
+    n.querySelectorAll("button").forEach(b => { for (const [k, v] of Object.entries(p.dataset)) if (k !== "base" && k !== "valeur") b.dataset[k] = v; b.dataset.valeur = b.dataset.nom; });
+    document.body.appendChild(n); const l = n.getBoundingClientRect();
+    n.style.left = Math.max(8, Math.min(window.innerWidth - l.width - 8, r.left + r.width / 2 - l.width / 2)) + "px"; n.style.top = Math.max(8, r.top - l.height - 8) + "px"; }, 450); });
+const annulerAppui = () => { if (appui) { clearTimeout(appui); appui = null; } };
+document.addEventListener("pointerup", annulerAppui); document.addEventListener("pointercancel", annulerAppui); document.addEventListener("pointermove", e => { if (appui && (Math.abs(e.movementX) > 6 || Math.abs(e.movementY) > 6)) annulerAppui(); });
+document.addEventListener("contextmenu", e => { if (e.target.closest(".pastille[data-base]")) e.preventDefault(); });
+document.addEventListener("click", e => { if (ignorerClic) { ignorerClic = false; e.stopImmediatePropagation(); e.preventDefault(); return; }
+  if (document.getElementById("nuancier") && !e.target.closest("#nuancier")) { fermerNuancier(); e.stopImmediatePropagation(); e.preventDefault(); }
+  else if (e.target.closest("#nuancier [data-act]")) setTimeout(fermerNuancier, 0); }, true);
 
 // --- Glisser d'une séance à l'autre (comme en 6.x) ; jamais pendant une séance en cours ---
 let glisserActif = false, depart = null;
@@ -160,6 +185,9 @@ const majEcranAllume = () => ecranAllume(!!store.doc.reglages.ecranAllume && sea
   minuteur.configurer({ son: store.doc.reglages.son, quandFini: fini => { if (fini.type === "repos") ctx.toast("Repos terminé"); rendre(false); } });
   minuteur.restaurer();
   state.semaineVue = Math.max(1, semaineDe(store.doc.reglages.dateDebut || DATA.dateDebut, ctx.aujourdhui()));
+  // Ouverture : sur la séance en cours s'il y en a une, sinon sur le programme (sa carte « Aujourd'hui » mène à la séance du jour en un appui)
+  { const enCours = ctx.programme.find(s => { const sa = store.doc.seances[s.id]; return sa && sa.debut && !sa.fin; });
+    if (enCours) { state.vue = "seance"; state.seanceId = enCours.id; state.origine = "programme"; } else state.vue = "programme"; }
   rendre(true); majEcranAllume();
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     const proposer = () => { if (navigator.serviceWorker.controller) $("bandeau").style.display = "block"; };

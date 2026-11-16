@@ -1,7 +1,7 @@
 // ecrans/mur.js — le mur d'une salle : les voies par secteur, en tuiles, rangées au doigt (glisser-déposer).
-import { h, si, pictoProfil } from "../html.js";
+import { h, si, pictoProfil, ouvert } from "../html.js";
 import { salleDe, hexDe, texteSur, ranger, cotationDe, profilHabituel, passagesDe, supprimerVoies } from "../salles.js";
-import { parVoie, tentatives as toutesTentatives, reussi } from "../analyse.js";
+import { parVoie, tentatives as toutesTentatives, reussi, rang } from "../analyse.js";
 import { court } from "../dates.js";
 
 export function rendre(ctx) {
@@ -18,15 +18,23 @@ export function rendre(ctx) {
       ${groupes.filter(g => g.voies.length).map(g => h`<div class="secteur"><div class="secteur-tete"><b>${g.nom}</b><span class="ed-outils"><button data-act="selectionSecteurTout" data-secteur="${g.id}">Tout</button></span></div><div class="tuiles">${g.voies.map(tuile)}</div></div>`)}
       <div class="barre-classer"><div class="barre-haut"><span><b>${n}</b> sélectionnée${n > 1 ? "s" : ""}</span><button class="principal" data-act="classerFin">Terminé</button></div>
         <div class="barre-actions"><button data-act="classerSecteur" ${dis}>Secteur</button><button data-act="selectionProfil" ${dis}>Profil</button>${si(cotable, h`<button data-act="selectionCot" ${dis}>Cotation</button>`)}<button data-act="classerDemonter" ${dis}>${demontees ? "Remonter" : "Démonter"}</button><button class="danger" data-act="selectionSupprimer" ${dis}>Supprimer</button></div></div>` }; }
-  const html = h`<div class="barre-prog"><button class="petit-btn" data-act="salleEditer">✎ Salle</button><button class="petit-btn" data-act="secteurNouveau">+ Secteur</button>
-      ${si(!demontees, h`<button class="petit-btn" data-act="ajoutRapideOuvrir">+ Plusieurs voies</button>`)}<button class="petit-btn" data-act="classerDebut">Sélectionner</button>${si(!demontees, h`<button class="petit-btn ${ranger ? "choisi" : ""}" data-act="rangerBascule">${ranger ? "Ranger : fini" : "Ranger"}</button>`)}
-      ${si(s.type === "Bloc et voie", h`<div class="choix compact" style="margin:0">${[["", "Tout"], ["Voie", "Voies"], ["Bloc", "Blocs"]].map(([v, l]) => h`<button data-act="filtreMur" data-valeur="${v}" class="${filtre === v ? "choisi" : ""}">${l}</button>`)}</div>`)}
-      <button class="petit-btn ${demontees ? "choisi" : ""}" data-act="filtreDemontees">${demontees ? "En place" : "Démontées"}</button></div>
-    <p class="petit">${ranger ? "Mode Ranger : fais glisser les voies où tu veux, puis « Ranger : fini »." : "Touche une voie pour sa fiche. Prends-la par ⋮⋮ (ou passe en mode Ranger) pour la déplacer."}</p>
-    ${groupes.filter(g => g.voies.length || g.id || s.secteurs.length).map(g => h`<div class="secteur" data-secteur="${g.id}"><div class="secteur-tete">${g.id ? h`<button class="secteur-nom" data-act="secteurEditer" data-id="${g.id}"><b>${g.nom}</b> <span class="petit">${g.profil ? g.profil.toLowerCase() + " · " : ""}${g.voies.length} voie${g.voies.length > 1 ? "s" : ""}</span> <span class="crayon">✎</span></button>` : h`<span class="secteur-nom"><b>${g.nom}</b> <span class="petit">${g.voies.length} voie${g.voies.length > 1 ? "s" : ""}</span></span>`}
-        <span class="ed-outils">${si(!demontees, h`<button data-act="voieNouvelle" data-secteur="${g.id}" data-disc="${filtre || (s.type === "Bloc" ? "Bloc" : "Voie")}">+ voie</button>`)}</span></div>
-        <div class="tuiles zone-depot" data-secteur="${g.id}">${g.voies.map(tuile)}${si(!g.voies.length, h`<span class="petit depot-vide">déposer ici</span>`)}</div></div>`)}
-    ${si(!s.voies.length, h`<p class="petit">Aucune voie. Ajoute-les ici, ou directement pendant une séance avec « + Nouvelle voie ».</p>`)}`;
+  const discDefaut = filtre || (s.type === "Bloc" ? "Bloc" : "Voie"), tout = ranger;           // en mode Ranger, tous les secteurs sont ouverts (on dépose partout)
+  // Résumé d'un secteur replié : nombre, couleurs présentes, étendue des cotations
+  const resume = g => { const cs = [...new Set(g.voies.map(v => v.couleur).filter(Boolean))], tri = g.voies.filter(v => v.cot).sort((a, b) => rang(ctx.data.echelles, a.disc, a.cot) - rang(ctx.data.echelles, b.disc, b.cot));
+    const lo = tri[0], hi = tri[tri.length - 1], et = !lo ? "" : (lo.cotSalle || lo.cot) === (hi.cotSalle || hi.cot) ? (lo.cotSalle || lo.cot) : `${lo.cotSalle || lo.cot} → ${hi.cotSalle || hi.cot}`;
+    return h`<span class="petit">${g.voies.length} ${g.voies.length > 1 ? "voies" : "voie"}${et ? " · " + et : ""}</span> <span class="points">${cs.slice(0, 8).map(c => h`<i style="background:${hexDe(doc, c, s)}"></i>`)}</span>`; };
+  const html = h`<div class="barre-mur">${si(s.type === "Bloc et voie", h`<div class="choix compact segmente">${[["", "Tout"], ["Voie", "Voies"], ["Bloc", "Blocs"]].map(([v, l]) => h`<button data-act="filtreMur" data-valeur="${v}" class="${filtre === v ? "choisi" : ""}">${l}</button>`)}</div>`)}
+      ${si(!demontees && !ranger, h`<button class="petit-btn principal" data-act="voieNouvelle" data-secteur="${s.secteurs.some(x => x.id === state.dernierSecteur) ? state.dernierSecteur : ""}" data-disc="${discDefaut}">+ ${discDefaut === "Bloc" ? "Bloc" : "Voie"}</button>`)}
+      ${ranger ? h`<button class="petit-btn choisi" data-act="rangerBascule">Ranger : fini</button>` : h`<button class="petit-btn" data-act="classerDebut">Sélectionner</button>`}</div>
+    ${si(demontees, h`<p class="bandeau-info">Voies démontées · <button class="lien" data-act="filtreDemontees">revenir aux voies en place</button></p>`)}
+    ${si(ranger, h`<p class="petit">Mode Ranger : fais glisser les voies où tu veux, puis « Ranger : fini ».</p>`)}
+    ${groupes.filter(g => g.voies.length || g.id || s.secteurs.length).map(g => { const cle = `sec-${s.id}-${g.id}`, o = tout || ouvert(cle, false);
+      return h`<div class="secteur ${o ? "ouvert" : "replie"}" data-secteur="${g.id}"><div class="secteur-tete">
+        <button class="secteur-plier" data-act="replier" data-cle="${cle}" data-defaut="" aria-expanded="${o ? "true" : "false"}"><span class="pli-fleche">${o ? "▾" : "▸"}</span><span><b>${g.nom}</b>${g.profil ? h` <span class="petit">${g.profil.toLowerCase()}</span>` : ""}<br>${resume(g)}</span></button>
+        <span class="ed-outils">${si(g.id, h`<button data-act="secteurEditer" data-id="${g.id}" aria-label="Modifier le secteur">✎</button>`)}${si(!demontees, h`<button data-act="voieNouvelle" data-secteur="${g.id}" data-disc="${discDefaut}" aria-label="Ajouter dans ${g.nom}">+</button>`)}</span></div>
+        ${si(o, () => h`<div class="tuiles zone-depot" data-secteur="${g.id}">${g.voies.map(tuile)}${si(!g.voies.length, h`<span class="petit depot-vide">${ranger ? "déposer ici" : "aucune voie"}</span>`)}</div>`)}</div>`; })}
+    ${si(!s.voies.length, h`<p class="petit">Aucune voie. Ajoute-les avec « + ${discDefaut === "Bloc" ? "Bloc" : "Voie"} », ou directement pendant une séance.</p>`)}
+    ${si(!ranger, h`<p class="petit">Touche une voie pour sa fiche ; prends-la par ⋮⋮ pour la déplacer. Le reste (secteurs, plusieurs voies, ranger, démontées, salle) : ⋯ en haut.</p>`)}`;
   document.body.classList.toggle("mode-ranger", !!ranger);
   return { html, titre: h`<b>${s.nom}</b>`, infos: `${cotationDe(s, "Voie").mode !== "standard" || cotationDe(s, "Bloc").mode !== "standard" ? "cotation propre à la salle" : ""}` };
 }
@@ -53,6 +61,13 @@ export function apresRendu(ctx) {
   // Un glissement ne doit pas ouvrir la fiche
   racine.addEventListener("click", e => { if (ctx.state.vue === "salle" && (e.target.closest(".poignee") || (ctx.state.ranger && e.target.closest(".tuile-voie.glissable")))) { e.stopPropagation(); e.preventDefault(); } }, true);
 }
+
+// ⋯ de l'en-tête sur le mur
+export function menuEcran(ctx) { const s = salleDe(ctx.doc, ctx.state.salleId); if (!s) return null; const dem = !!ctx.state.filtre.demontees;
+  return { titre: s.nom, items: [
+    ...(dem ? [] : [{ label: "+ Plusieurs voies d'un coup", act: "ajoutRapideOuvrir" }]), { label: "+ Secteur", act: "secteurNouveau" },
+    ...(dem ? [] : [{ label: ctx.state.ranger ? "Ranger : fini" : "Ranger les voies (glisser-déposer)", act: "rangerBascule" }]), { label: "Sélectionner plusieurs voies", act: "classerDebut" },
+    { label: dem ? "Voir les voies en place" : "Voir les voies démontées", act: "filtreDemontees" }, { label: "✎ Modifier la salle", act: "salleEditer" }] }; }
 
 export const actions = {
   rangerBascule: ctx => { ctx.state.ranger = !ctx.state.ranger; ctx.rendre(); },

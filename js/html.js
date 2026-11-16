@@ -39,3 +39,24 @@ export const ico = nom => brut(`<svg class="ico-svg" viewBox="0 0 24 24" aria-hi
 // Inclinaison d'un profil (pour les tuiles et les choix)
 const PROFIL_TRAIT = { "Dalle": "M8 18 L13 2", "Vertical": "M11 18 L11 2", "Léger dévers": "M13 18 L9 2", "Dévers": "M15 18 L6 2", "Fort dévers": "M16 18 L3 5", "Toit": "M16 18 L16 8 L2 8" };
 export const pictoProfil = (p, classe = "picto") => PROFIL_TRAIT[p] ? brut(`<svg viewBox="0 0 18 20" class="${classe}" aria-label="${esc(p)}"><path d="M1 19 H17" class="sol"/><path d="${PROFIL_TRAIT[p]}"/></svg>`) : "";
+
+// =====================================================================
+// Repliables mémorisés : une seule façon de replier/déplier, partout ; l'état est gardé d'une ouverture à l'autre
+// =====================================================================
+const CLE_REPLIS = "grimpe-replis";
+let replis = null;
+const lireReplis = () => { if (!replis) { try { replis = JSON.parse(localStorage.getItem(CLE_REPLIS) || "{}"); } catch { replis = {}; } } return replis; };
+export const ouvert = (cle, defaut = false) => { const r = lireReplis(); return cle in r ? r[cle] : defaut; };
+export function basculer(cle, defaut = false) { const r = lireReplis(); r[cle] = !ouvert(cle, defaut); try { localStorage.setItem(CLE_REPLIS, JSON.stringify(r)); } catch { /* ignore */ } }
+export function forcerOuvert(cle) { const r = lireReplis(); r[cle] = true; try { localStorage.setItem(CLE_REPLIS, JSON.stringify(r)); } catch { /* ignore */ } }
+// pli(clé, ouvert par défaut ?, titre, contenu (fonction), { resume, classe, toujours })  — « toujours » : ouvert de force (mode Ranger, recherche…)
+export function pli(cle, defaut, titre, contenu, { resume = "", classe = "", toujours = false } = {}) {
+  const o = toujours || ouvert(cle, defaut);
+  return h`<section class="pli-bloc ${classe} ${o ? "ouvert" : ""}"><button class="pli-tete" data-act="replier" data-cle="${cle}" data-defaut="${defaut ? "1" : ""}" aria-expanded="${o ? "true" : "false"}"><span class="pli-fleche">${o ? "▾" : "▸"}</span><span class="pli-titre">${titre}</span>${resume ? h`<span class="pli-resume">${resume}</span>` : ""}</button>${o ? h`<div class="pli-corps">${contenu()}</div>` : ""}</section>`;
+}
+
+// =====================================================================
+// Ligne de choix (dans une fenêtre) : « Libellé : valeur › » ; un toucher ouvre les options, choisir referme
+//   M.section porte la ligne ouverte ; les actions de choix (mChamp, mProfil, mSecteur, mCot…) referment
+// =====================================================================
+export const ligneChoix = (M, cle, label, valeur, contenu) => h`<button class="fiche-ligne" data-act="mSection" data-k="${cle}"><span>${label}</span><span class="val">${valeur || "—"} ${M.section === cle ? "▾" : "›"}</span></button>${M.section === cle ? h`<div class="fiche-contenu">${contenu()}</div>` : ""}`;

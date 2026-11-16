@@ -9,7 +9,23 @@
 
 import { nouvelId } from "./programme.js";
 
-export const COULEURS = [["Rouge", "#D93636"], ["Rose", "#F48FB1"], ["Orange", "#F28C28"], ["Jaune", "#F2D34B"], ["Vert clair", "#9CCC65"], ["Vert", "#3FA066"], ["Vert foncé", "#1B5E20"], ["Turquoise", "#26A69A"], ["Bleu clair", "#4FC3F7"], ["Bleu", "#2E6FB7"], ["Bleu foncé", "#0D2B6B"], ["Violet", "#7B5EA7"], ["Mauve", "#C3A6E0"], ["Marron", "#8B5A2B"], ["Beige", "#E8D5B5"], ["Gris", "#9AA5AD"], ["Noir", "#222222"], ["Blanc", "#F5F5F5"]];
+// Palette : 12 couleurs de base, chacune avec ses nuances (appui long sur une pastille). Les noms des versions précédentes sont tous conservés.
+export const PALETTE = [
+  { nom: "Rouge", hex: "#D93636", nuances: [["Rouge", "#D93636"], ["Corail", "#F26B5B"], ["Framboise", "#C2185B"], ["Bordeaux", "#7B1E2B"]] },
+  { nom: "Rose", hex: "#F48FB1", nuances: [["Rose", "#F48FB1"], ["Rose pâle", "#F8C8D8"], ["Fuchsia", "#E040A0"]] },
+  { nom: "Orange", hex: "#F28C28", nuances: [["Orange", "#F28C28"], ["Abricot", "#F9B872"], ["Saumon", "#F4A08A"], ["Orange foncé", "#D2601A"]] },
+  { nom: "Jaune", hex: "#F2D34B", nuances: [["Jaune", "#F2D34B"], ["Jaune pâle", "#F7E98E"], ["Jaune fluo", "#E6F23B"], ["Moutarde", "#C9A227"]] },
+  { nom: "Vert", hex: "#3FA066", nuances: [["Vert", "#3FA066"], ["Vert clair", "#9CCC65"], ["Vert pomme", "#7CD63A"], ["Vert foncé", "#1B5E20"], ["Kaki", "#7A7A3A"]] },
+  { nom: "Turquoise", hex: "#26A69A", nuances: [["Turquoise", "#26A69A"], ["Menthe", "#8FD9C4"], ["Pétrole", "#0E5A63"]] },
+  { nom: "Bleu", hex: "#2E6FB7", nuances: [["Bleu", "#2E6FB7"], ["Bleu clair", "#4FC3F7"], ["Bleu ciel", "#A9D8F5"], ["Bleu roi", "#1F3FBF"], ["Bleu foncé", "#0D2B6B"]] },
+  { nom: "Violet", hex: "#7B5EA7", nuances: [["Violet", "#7B5EA7"], ["Mauve", "#C3A6E0"], ["Lilas", "#B79CD9"], ["Prune", "#5B2A5E"]] },
+  { nom: "Marron", hex: "#8B5A2B", nuances: [["Marron", "#8B5A2B"], ["Caramel", "#B8783A"], ["Chocolat", "#4E2E1A"], ["Beige", "#E8D5B5"]] },
+  { nom: "Gris", hex: "#9AA5AD", nuances: [["Gris", "#9AA5AD"], ["Gris clair", "#CFD6DA"], ["Anthracite", "#4A5257"]] },
+  { nom: "Noir", hex: "#222222", nuances: [["Noir", "#222222"]] },
+  { nom: "Blanc", hex: "#F5F5F5", nuances: [["Blanc", "#F5F5F5"], ["Crème", "#F3EAD3"]] },
+];
+export const COULEURS = PALETTE.flatMap(b => b.nuances);                       // toutes les teintes, à plat : [nom, hex]
+export const baseDe = nom => PALETTE.find(b => b.nuances.some(n => n[0] === nom)) || null;
 export const couleursDe = salle => [...COULEURS.map(([nom, hex]) => ({ nom, hex })), ...((salle && salle.couleurs) || [])];
 export const hexDe = (doc, nom, salle) => (couleursDe(salle).find(c => c.nom === nom) || doc.salles.flatMap(s => s.couleurs || []).find(c => c.nom === nom) || {}).hex || "transparent";
 export const texteSur = hex => { const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || ""); if (!m) return "#fff"; const [r, g, b] = [1, 2, 3].map(i => parseInt(m[i], 16)); return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#1d2a2f" : "#fff"; };

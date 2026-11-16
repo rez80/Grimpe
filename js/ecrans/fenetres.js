@@ -1,10 +1,10 @@
 // ecrans/fenetres.js — les fenêtres du bas. L'état de la fenêtre est ctx.state.modal (M) ; les champs « data-champ » l'écrivent à la frappe.
-import { h, si, choix, echelle, brut, pictoProfil as dessinProfil } from "../html.js";
-import { discipline, etapesSeance, nouvelId, idsAPauser, opsCopieSeance, opsCopieSemaine } from "../programme.js";
+import { h, si, choix, echelle, brut, pictoProfil as dessinProfil, ligneChoix, forcerOuvert } from "../html.js";
+import { discipline, etapesSeance, nouvelId, idsAPauser, opsCopieSeance, opsCopieSemaine, activiteAffichee } from "../programme.js";
 import { RES_LABEL, ajouterTentative, cleRattachement, actions as ACTIONS_SEANCE } from "./seance.js";
 import { court, semaineDe, nomJour, ajouterJours } from "../dates.js";
-import { salleDe, couleursDe, hexDe, texteSur, cotationDe, cotApp, nouvelleVoie, voieExistante, tentativeDe, libelleVoie, secteurDe, renouveler, profilHabituel, ranger, passagesDe, supprimerVoies, dupliquerVoie, deplacerVoieSalle, deplacerSecteur, supprimerSecteur, supprimerSalle, renommerCouleur, supprimerCouleur, voiesDeCouleur } from "../salles.js";
-import { parVoie, tentatives as toutesTentatives, causePrincipale } from "../analyse.js";
+import { salleDe, couleursDe, hexDe, texteSur, cotationDe, cotApp, nouvelleVoie, voieExistante, tentativeDe, libelleVoie, secteurDe, renouveler, profilHabituel, ranger, PALETTE, sallesPour, passagesDe, supprimerVoies, dupliquerVoie, deplacerVoieSalle, deplacerSecteur, supprimerSecteur, supprimerSalle, renommerCouleur, supprimerCouleur, voiesDeCouleur } from "../salles.js";
+import { parVoie, tentatives as toutesTentatives, causePrincipale, essaisPrecedents, essaisAvantReussite, AISANCES } from "../analyse.js";
 import * as editeur from "./editeur.js";
 
 export const PROFILS = ["Dalle", "Vertical", "Léger dévers", "Dévers", "Fort dévers", "Toit"];
@@ -12,7 +12,12 @@ const STYLES = ["À vue", "Flash", "Après travail"];
 const CAUSES = ["Lecture", "Pieds", "Placement ou gainage", "Force", "Endurance", "Peur"];
 const MESURES = [["planche", "Planche (s)"], ["course", "Course continue (min)"], ["tractions", "Tractions"], ["genou", "Genou contre le mur (cm)"], ["squat", "Squat profond (s)"], ["notes", "Notes"]];
 export const choixProfil = (act, actuel) => h`<div class="choix profils">${PROFILS.map(p => h`<button data-act="${act}" data-valeur="${p}" class="${actuel === p ? "choisi" : ""}">${dessinProfil(p)}${p}</button>`)}</div>`;
-export const pastilles = (ctx, act, actuel, salle) => h`<div class="pastilles">${couleursDe(salle).map(c => h`<button data-act="${act}" data-valeur="${c.nom}" class="pastille ${actuel === c.nom ? "choisi" : ""}" style="background:${c.hex}" aria-label="${c.nom}" title="${c.nom}"></button>`)}</div>`;
+// Palette : 12 couleurs de base (+ couleurs propres de la salle) ; appui long sur une base → ses nuances (voir app.js, « nuancier »)
+export const pastilles = (ctx, act, actuel, salle, data = {}) => { const attrs = brut(Object.entries(data).map(([k, v]) => `data-${k}="${String(v).replace(/"/g, "&quot;")}"`).join(" "));
+  return h`<div class="pastilles">${PALETTE.map(b => { const n = b.nuances.find(x => x[0] === actuel), hex = n ? n[1] : b.hex;
+      return h`<button data-act="${act}" data-valeur="${n ? n[0] : b.nom}" ${attrs} data-base="${b.nom}" class="pastille ${n ? "choisi" : ""} ${b.nuances.length > 1 ? "a-nuances" : ""}" style="background:${hex}" aria-label="${n ? n[0] : b.nom}" title="${n ? n[0] : b.nom}"></button>`; })}
+    ${((salle && salle.couleurs) || []).map(c => h`<button data-act="${act}" data-valeur="${c.nom}" ${attrs} class="pastille ${actuel === c.nom ? "choisi" : ""}" style="background:${c.hex}" aria-label="${c.nom}" title="${c.nom}"></button>`)}</div>
+    ${actuel ? h`<p class="petit nom-couleur">${actuel}</p>` : h`<p class="petit nom-couleur">Appui long sur une couleur : ses nuances.</p>`}`; };
 const actionsBas = (ok = "Enregistrer", actOk = "mOk", desactive = false) => h`<div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="${actOk}" ${desactive ? "disabled" : ""}>${ok}</button></div>`;
 // Sélecteur de cotation : chiffre puis lettre ; un deuxième appui efface
 export function selecteurCot(ctx, disc, actuel, champ = "cot") {
@@ -30,6 +35,17 @@ function cotationSalle(ctx, salle, disc, M) {
   return h`<p class="petit">Salle sans cotation.</p>`;
 }
 
+// Aisance, essais avant réussite et premier essai : facultatifs, un appui chacun. Si les essais sont connus par l'historique, l'app les calcule.
+function champsReussite(ctx, M) {
+  const calc = M.voieId ? essaisPrecedents(toutesTentatives(ctx.programme, ctx.doc), M.voieId, M.refTentative) : 0;
+  const essais = M.essaisAvant || (calc && !M.corrigerEssais ? null : "");
+  return h`<label class="champ">Aisance</label>${choix("mBascVal", Object.entries(AISANCES), M.aisance || "", { data: { champ: "aisance" } })}
+    ${calc && !M.corrigerEssais && !M.essaisAvant ? h`<p class="petit">Réussie au <b>${calc + 1}ᵉ essai</b> d'après tes passages. <button class="lien" data-act="mBool" data-k="corrigerEssais">corriger</button></p>`
+      : h`<label class="champ">Essais avant réussite</label>${choix("mBascVal", [["1", "1 (flash)"], ["2", "2"], ["3", "3"], ["4", "4"], ["5+", "5+"], ["inconnu", "Inconnu"]], String(M.essaisAvant || ""), { data: { champ: "essaisAvant" }, classe: "compact" })}
+        ${si(M.essaisAvant && M.essaisAvant !== "1", () => ligneChoix(M, "premier", "Premier essai le", M.premierEssai === "inconnue" ? "date inconnue" : M.premierEssai ? court(M.premierEssai) : "facultatif", () => h`<div class="ed-rangee"><input type="date" data-champ="premierEssai" value="${M.premierEssai && M.premierEssai !== "inconnue" ? M.premierEssai : ""}"><button data-act="mBascVal" data-champ="premierEssai" data-valeur="inconnue" class="${M.premierEssai === "inconnue" ? "choisi" : ""}">Date inconnue</button></div>`))}`}`;
+}
+const champsTentative = m => ({ aisance: m.aisance || undefined, essaisAvant: m.essaisAvant || undefined, premierEssai: m.essaisAvant && m.essaisAvant !== "1" ? m.premierEssai || undefined : undefined });
+
 export function rendre(ctx) {
   const M = ctx.state.modal, { data, doc } = ctx; if (!M) return "";
   const s = M.seanceId ? ctx.seance(M.seanceId) : null, sa = s ? ctx.saisie(s.id) : {};
@@ -37,7 +53,7 @@ export function rendre(ctx) {
     case "pasTop": return h`<h2>Qu'est-ce qui ne va pas ?</h2><p class="petit">Plusieurs réponses possibles.</p>
       <div class="choix">${[["doigts", "Doigts"], ["coudes", "Coudes"], ["epaules", "Épaules"], ["energie", "Énergie"], ["motivation", "Motivation"]].map(([k, l]) => h`<button data-act="mBascule" data-k="${k}" class="${M.quoi.includes(k) ? "choisi" : ""}">${l}</button>`)}</div>
       <label class="champ">Une douleur maintenant ? (0 = non)</label>${echelle("mChamp", 10, M.niveau, { de: 0, data: { champ: "niveau" } })}
-      ${si(M.niveau > 0, h`${choix("mChamp", data.zones.filter(z => z !== "Aucune"), M.zone, { data: { champ: "zone" }, classe: "compact" })}`)}
+      ${si(M.niveau > 0, () => ligneChoix(M, "zone", "Zone", M.zone, () => choix("mChamp", data.zones.filter(z => z !== "Aucune"), M.zone, { data: { champ: "zone" }, classe: "compact" })))}
       ${actionsBas("C'est noté", "pasTopOk")}`;
 
     case "voieRapide": { const salle = salleDe(doc, M.salleId), v = salle.voies.find(x => x.id === M.voieId), hv = parVoie(toutesTentatives(ctx.programme, doc)).find(x => x.voieId === v.id), hex = hexDe(doc, v.couleur, salle);
@@ -47,43 +63,50 @@ export function rendre(ctx) {
         : h`<label class="champ">Pourquoi ? <span class="petit">(un appui enregistre)</span></label><div class="choix">${CAUSES.map(c => h`<button data-act="voieRapideOk" data-cause="${c}">${c}</button>`)}<button data-act="voieRapideOk" data-cause="">Sans dire</button></div>`}
       <div class="actions"><button data-act="mFermer">Annuler</button><button data-act="etoileFenetre" data-id="${v.id}" data-salle="${salle.id}">${v.etoile ? "★ À essayer" : "☆ À essayer"}</button><button data-act="voieEditerDepuis" data-id="${v.id}">Modifier la voie</button></div>`; }
 
+    case "apresReussite": return h`<h2>✓ ${M.libelle}</h2><p class="petit">C'est noté. Tu peux préciser, ou fermer.</p>${champsReussite(ctx, M)}
+      <div class="actions"><button class="principal" data-act="apresReussiteOk">Fermer</button></div>`;
+
+    case "choixSalle": { const l = sallesPour(doc, M.disc), actuelle = (ctx.saisie(M.seanceId).salle ?? (doc.reglages.salleParDefaut || {})[M.disc]) || "";
+      return h`<h2>Salle du jour</h2><div class="menu">${l.map(x => h`<button class="${actuelle === x.id ? "choisi" : ""}" data-act="salleDuJour" data-id="${x.id}">${x.nom} <span class="petit">· ${x.voies.filter(v => v.statut !== "demontee" && v.disc === M.disc).length} ${M.disc === "Bloc" ? "blocs" : "voies"}</span></button>`)}
+        <button class="${!actuelle ? "choisi" : ""}" data-act="salleDuJour" data-id="">Salle inconnue <span class="petit">· on note par cotation</span></button><button data-act="salleDuJourNouvelle">+ Nouvelle salle…</button></div>
+        <div class="actions"><button data-act="mFermer">Fermer</button></div>`; }
+
     case "nouvelleVoie": { const salle = salleDe(doc, M.salleId), c = cotationDe(salle, M.disc);
       const apercu = { disc: M.disc, couleur: M.couleur, cotSalle: M.cotSalle, cot: cotApp(salle, M.disc, M.cotSalle, M.couleur), nom: M.nom }, existe = voieExistante(salle, apercu), pret = M.couleur || M.cotSalle || M.nom;
       return h`<h2>Nouvelle ${M.disc === "Bloc" ? "bloc" : "voie"} · ${salle.nom}</h2>
       <label class="champ">Couleur des prises</label>${pastilles(ctx, "mCouleur", M.couleur, salle)}
       ${cotationSalle(ctx, salle, M.disc, M)}
-      ${si(salle.secteurs.length, h`<label class="champ">Secteur</label>${choix("mSecteur", [["", "—"], ...salle.secteurs.map(x => [x.id, x.nom])], M.secteurId, { classe: "compact" })}`)}
-      <button class="pli" data-act="mPlier" data-k="plus">${M.plus ? "▾" : "▸"} Profil, nom</button>
-      ${si(M.plus, h`<label class="champ">Profil</label>${choixProfil("mProfil", M.profil || profilHabituel(salle, M.secteurId))}<label class="champ">Nom ou repère</label><input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`)}
+      ${si(salle.secteurs.length, () => ligneChoix(M, "secteur", "Secteur", (salle.secteurs.find(x => x.id === M.secteurId) || {}).nom || "sans secteur", () => choix("mSecteur", [["", "Sans secteur"], ...salle.secteurs.map(x => [x.id, x.nom])], M.secteurId, { classe: "compact" })))}
+      ${ligneChoix(M, "profil", "Profil", M.profil || profilHabituel(salle, M.secteurId), () => choixProfil("mProfil", M.profil || profilHabituel(salle, M.secteurId)))}
+      ${ligneChoix(M, "nom", "Nom ou repère", M.nom || "facultatif", () => h`<input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`)}
       ${si(existe, () => h`<p class="avert">Une voie identique existe déjà (${libelleVoie(existe)}) : elle sera utilisée.</p>`)}
       <div class="actions"><button data-act="mFermer">Annuler</button><button data-act="nouvelleVoieOk" data-res="" ${pret ? "" : "disabled"}>Créer</button><button class="principal" data-act="nouvelleVoieOk" data-res="ok" ${pret ? "" : "disabled"}>Créer et ✓</button><button class="principal" data-act="nouvelleVoieOk" data-res="ko" ${pret ? "" : "disabled"}>Créer et ✗</button></div>`; }
 
     case "resultat": { const disc = M.disc;
       const deSalle = M.voieId && salleDe(doc, M.salle);
-      return h`<h2>${M.edit !== undefined ? "Corriger" : "Noter"} ${disc === "Bloc" ? "un bloc" : "une voie"}</h2>
-      ${deSalle ? h`<p><span class="pastille" style="background:${hexDe(doc, M.couleur, deSalle)}"></span> <b>${libelleVoie(M)}</b> <span class="petit">· ${deSalle.nom} (pour changer la voie elle-même : sa fiche dans Salles)</span></p>`
+      return h`<h2>${M.edit !== undefined ? "Corriger le passage" : "Noter un passage"}</h2>
+      ${deSalle ? h`<p><span class="pastille" style="background:${hexDe(doc, M.couleur, deSalle)}"></span> <b>${libelleVoie(M)}</b> <span class="petit">· ${deSalle.nom} (pour changer la voie elle-même : « Modifier la voie »)</span></p>`
         : h`<label class="champ">Cotation <span class="petit">(facultatif)</span></label>${selecteurCot(ctx, disc, M.cot)}${si(M.cot, h`<p class="petit">Cotation : <b>${M.cot}</b> · <button class="lien" data-act="mCot" data-valeur="" data-champ="cot">sans cotation</button></p>`)}
-      <label class="champ">Profil</label>${choixProfil("mProfil", M.profil)}`}
+      ${ligneChoix(M, "profil", "Profil", M.profil, () => choixProfil("mProfil", M.profil))}`}
       <label class="champ">Résultat</label>${choix("mChamp", disc === "Bloc" ? [["ok", "✓ Réussi"], ["ko", "✗ Pas réussi"]] : [["ok", "✓ Enchaînée"], ["sec", "Avec sec"], ["ko", "✗ Pas réussie"]], M.res, { data: { champ: "res" } })}
-      ${si(M.res === "sec", h`<label class="champ">Nombre de « sec »</label>${echelle("mChamp", 6, M.sec, { data: { champ: "sec" } })}`)}
-      ${si(M.res === "ko", h`<label class="champ">Cause</label>${choix("mChamp", CAUSES, M.cause, { data: { champ: "cause" }, classe: "compact" })}`)}
-      ${si(M.res === "ok", h`<label class="champ">Style</label>${choix("mChamp", STYLES, M.style, { data: { champ: "style" } })}`)}
-      ${si(!deSalle, () => h`<button class="pli" data-act="mPlier" data-k="plus">${M.plus ? "▾" : "▸"} Couleur, nom</button>
-      ${si(M.plus, () => h`<label class="champ">Couleur</label>${pastilles(ctx, "mCouleur", M.couleur, salleDe(doc, M.salle))}<label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`)}`)}
+      ${si(M.res === "sec", () => h`<label class="champ">Nombre de « sec »</label>${echelle("mChamp", 6, M.sec, { data: { champ: "sec" } })}`)}
+      ${si(M.res === "ko", () => ligneChoix(M, "cause", "Cause", M.cause || "facultative", () => choix("mChamp", CAUSES, M.cause, { data: { champ: "cause" }, classe: "compact" })))}
+      ${si(M.res === "ok", () => h`${ligneChoix(M, "style", "Style", M.style, () => choix("mChamp", STYLES, M.style, { data: { champ: "style" } }))}${champsReussite(ctx, M)}`)}
+      ${si(!deSalle, () => ligneChoix(M, "plus", "Couleur, nom", [M.couleur, M.nom].filter(Boolean).join(" · ") || "facultatif", () => h`${pastilles(ctx, "mCouleur", M.couleur, salleDe(doc, M.salle))}<label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`))}
       <div class="actions">${M.edit !== undefined ? h`<button class="danger" data-act="resultatSupprimer">Supprimer</button>` : h`<button data-act="mFermer">Annuler</button>`}<button class="principal" data-act="resultatOk" ${M.res ? "" : "disabled"}>Enregistrer</button></div>`; }
 
-    case "douleur": return h`<h2>Douleur pendant la séance</h2><label class="champ">Zone</label>${choix("mChamp", data.zones.filter(z => z !== "Aucune"), M.zone, { data: { champ: "zone" }, classe: "compact" })}
+    case "douleur": return h`<h2>Douleur pendant la séance</h2>${ligneChoix(M, "zone", "Zone", M.zone, () => choix("mChamp", data.zones.filter(z => z !== "Aucune"), M.zone, { data: { champ: "zone" }, classe: "compact" }))}
       <label class="champ">Niveau</label>${echelle("mChamp", 10, M.niveau, { data: { champ: "niveau" } })}
       <p class="petit">≥ 4 : allège la fin de séance. ≥ 6 : arrête de grimper aujourd'hui.</p>${actionsBas("Noter", "douleurOk", !M.zone)}`;
 
-    case "sauter": return h`<h2>Séance sautée</h2>${choix("mChamp", ["Fatigue", "Douleur", "Pas de partenaire", "Pas le temps", "Autre"], M.raison, { data: { champ: "raison" }, classe: "compact" })}${actionsBas("Marquer sautée", "sauterOk")}`;
+    case "sauter": return h`<h2>Séance sautée</h2>${ligneChoix(M, "raison", "Raison", M.raison || "facultative", () => choix("mChamp", ["Fatigue", "Douleur", "Pas de partenaire", "Pas le temps", "Autre"], M.raison, { data: { champ: "raison" }, classe: "compact" }))}${actionsBas("Marquer sautée", "sauterOk")}`;
 
     case "bilan": { const disc = M.disc, estGrimpe = ["Voie", "Bloc"].includes(disc), cots = data.echelles[disc] || [], precises = (sa.tentatives || []).filter(t => !t.approx).length;
       const presentes = [...new Set([...etapesSeance(s, sa).filter(e => e.grimpe && e.grimpe.cot).map(e => e.grimpe.cot), ...Object.keys(M.grille).map(k => k.split("|")[0])])].filter(Boolean).sort((a, b) => cots.indexOf(a) - cots.indexOf(b));
       return h`<h2>Bilan · ${court(s.date)} ${s.activite}</h2>
       <label class="champ">Effort (1 = très facile, 10 = maximal)</label>${echelle("mChamp", 10, M.effort, { data: { champ: "effort" } })}
       <label class="champ">Douleur après (0 = aucune)</label>${echelle("mChamp", 10, M.apres, { de: 0, data: { champ: "apres" } })}
-      ${si(M.apres > 0, h`<label class="champ">Zone</label>${choix("mChamp", data.zones.filter(z => z !== "Aucune"), M.zone, { data: { champ: "zone" }, classe: "compact" })}`)}
+      ${si(M.apres > 0, () => ligneChoix(M, "zone", "Zone", M.zone, () => choix("mChamp", data.zones.filter(z => z !== "Aucune"), M.zone, { data: { champ: "zone" }, classe: "compact" })))}
       ${si(estGrimpe, h`<label class="champ">En gros, ce que tu as grimpé <span class="petit">${precises ? `en plus des ${precises} passages déjà notés` : "(approximatif)"}</span></label>
         <div class="grille">${presentes.map(c => h`<div class="grille-ligne"><b>${c}</b>${["ok", "ko"].map(r => h`<span class="compteur"><button data-act="mGrille" data-k="${c}|${r}" data-pas="-1">−</button><span>${M.grille[c + "|" + r] || 0} ${r === "ok" ? "✓" : "✗"}</span><button data-act="mGrille" data-k="${c}|${r}" data-pas="1">+</button></span>`)}</div>`)}
         <button class="pli" data-act="mPlier" data-k="autresCots">${M.autresCots ? "▾" : "▸"} Une autre cotation</button>
@@ -92,10 +115,13 @@ export function rendre(ctx) {
       ${si(M.details, () => h`<div class="ed-rangee"><label class="champ">Début</label><input type="time" data-champ="hDebut" value="${M.hDebut}"><label class="champ">Fin</label><input type="time" data-champ="hFin" value="${M.hFin}"></div><label class="champ">Notes</label><textarea data-champ="notes" rows="3">${M.notes}</textarea>`)}
       ${actionsBas(sa.fin ? "Enregistrer" : "Terminer la séance", "bilanOk", M.effort === "")}`; }
 
-    case "menu": return h`<h2>${court(s.date)} · ${s.activite}</h2><div class="menu">
+    case "menu": return h`<h2>${court(s.date)} · ${activiteAffichee(s, sa)}</h2><div class="menu">
       <button data-act="menuBilan">Bilan / terminer</button><button data-act="menuEditer">✎ Modifier le plan</button><button data-act="menuDeplacer">📅 Déplacer</button><button data-act="menuCopier">⧉ Copier vers une autre date</button>
       <button data-act="menuSauter">Séance sautée</button>${si(ctx.store.annulable, h`<button data-act="annuler">↶ Annuler : ${ctx.store.annulable}</button>`)}
-      <button class="danger" data-act="menuReinit">Effacer les saisies de cette séance</button></div><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
+      <button class="danger" data-act="menuReinit">Effacer les saisies de cette séance</button>${si(s.libre || s.copie, h`<button class="danger" data-act="menuSupprimerSeance">Supprimer cette séance</button>`)}</div><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
+
+    case "menuEcran": return h`<h2>${M.titre}</h2><div class="menu">${M.items.map((x, i) => h`<button class="${x.danger ? "danger" : ""}" data-act="menuItem" data-i="${i}">${x.label}</button>`)}
+      ${si(ctx.store.annulable, h`<button data-act="annuler">↶ Annuler : ${ctx.store.annulable}</button>`)}</div><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
 
     case "copierSeance": return h`<h2>Copier la séance</h2><p class="petit">${s.activite} du ${court(s.date)} : une nouvelle séance identique, à la date choisie. L'originale ne bouge pas.</p>
       <input type="date" data-champ="date" value="${M.date}">${actionsBas("Copier", "copierSeanceOk")}`;
@@ -130,7 +156,7 @@ export function rendre(ctx) {
           <datalist id="echelle-${disc}">${data.echelles[disc].map(c => h`<option value="${c}">`)}</datalist></div>`)}`;
       const resumeCot = ["Voie", "Bloc"].filter(d => M.typeSalle === "Bloc et voie" || M.typeSalle === d).map(d => `${d === "Voie" ? "voies" : "blocs"} : ${{ standard: "comme l'app", liste: "ses niveaux", couleurs: "par couleurs", aucune: "aucune" }[M.cotation[d].mode]}`).join(" · ");
       return h`<h2>${M.id ? "Modifier la salle" : "Nouvelle salle"}</h2><label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom}" placeholder="Nom de la salle">
-      <label class="champ">Type</label>${choix("mChamp", ["Bloc", "Voie", "Bloc et voie"], M.typeSalle, { data: { champ: "typeSalle" } })}
+      ${ligneChoix(M, "type", "Type", M.typeSalle, () => choix("mChamp", ["Bloc", "Voie", "Bloc et voie"], M.typeSalle, { data: { champ: "typeSalle" } }))}
       <button class="fiche-ligne" data-act="mSection" data-k="cot"><span>Façon de coter</span><span class="val">${resumeCot} ${M.section === "cot" ? "▾" : "›"}</span></button>
       ${si(M.section === "cot", () => h`<div class="fiche-contenu">${si(M.typeSalle !== "Bloc", () => modeDisc("Voie"))}${si(M.typeSalle !== "Voie", () => modeDisc("Bloc"))}</div>`)}
       ${si(M.id, () => h`<button class="fiche-ligne" data-act="mSection" data-k="coul"><span>Couleurs propres à la salle</span><span class="val">${(sl.couleurs || []).length || "aucune"} ${M.section === "coul" ? "▾" : "›"}</span></button>
@@ -140,7 +166,7 @@ export function rendre(ctx) {
       ${si(M.id, () => h`<div class="zone-danger"><button class="danger" data-act="salleSupprimer">Supprimer la salle${nb ? ` et ses ${nb} voie${nb > 1 ? "s" : ""}` : ""}</button></div>`)}`; }
 
     case "secteur": { const sl = salleDe(doc, M.salleId), n = M.id ? sl.voies.filter(v => v.secteurId === M.id && v.statut !== "demontee").length : 0, i = M.id ? sl.secteurs.findIndex(x => x.id === M.id) : -1;
-      return h`<h2>${M.id ? "Modifier le secteur" : "Nouveau secteur"}</h2><label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom}" placeholder="Dalle, Toit, Mur du fond…"><label class="champ">Profil habituel</label>${choixProfil("mProfil", M.profil)}
+      return h`<h2>${M.id ? "Modifier le secteur" : "Nouveau secteur"}</h2><label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom}" placeholder="Dalle, Toit, Mur du fond…">${ligneChoix(M, "profil", "Profil habituel", M.profil, () => choixProfil("mProfil", M.profil))}
       ${si(M.id && sl.secteurs.length > 1, () => h`<label class="champ">Place sur le mur</label><div class="ed-rangee"><button data-act="secteurBouger" data-pas="-1" ${i === 0 ? "disabled" : ""}>↑ Monter</button><button data-act="secteurBouger" data-pas="1" ${i === sl.secteurs.length - 1 ? "disabled" : ""}>↓ Descendre</button><span class="petit">${i + 1} sur ${sl.secteurs.length}</span></div>`)}
       <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="secteurOk" ${M.nom ? "" : "disabled"}>Enregistrer</button></div>
       ${si(M.id, () => h`<div class="zone-danger"><button data-act="secteurRenouveler" ${n ? "" : "disabled"}>⟳ Renouveler : ${n} voie${n > 1 ? "s" : ""} démontée${n > 1 ? "s" : ""}</button><button class="danger" data-act="secteurSupprimer">Supprimer le secteur</button></div>`)}`; }
@@ -149,12 +175,12 @@ export function rendre(ctx) {
       const sec = sl.secteurs.find(x => x.id === M.secteurId), cot = cotationDe(sl, M.disc), autresSalles = doc.salles.filter(x => x.id !== sl.id && (x.type === "Bloc et voie" || x.type === M.disc));
       const libCot = cot.mode === "couleurs" ? (cotApp(sl, M.disc, "", M.couleur) || "selon la couleur") : M.cotSalle || "—";
       // En création : tout est ouvert. En modification : une ligne par réglage, on n'ouvre que ce qu'on change.
-      const ligne = (k, label, valeur, contenu) => M.id ? h`<button class="fiche-ligne" data-act="mSection" data-k="${k}"><span>${label}</span><span class="val">${valeur} ${M.section === k ? "▾" : "›"}</span></button>${si(M.section === k, () => h`<div class="fiche-contenu">${contenu()}</div>`)}` : h`<label class="champ">${label}</label>${contenu()}`;
+      const ligne = (k, label, valeur, contenu) => M.id ? h`<button class="fiche-ligne" data-act="mSection" data-k="${k}"><span>${label}</span><span class="val">${valeur} ${M.section === k ? "▾" : "›"}</span></button>${si(M.section === k, () => h`<div class="fiche-contenu">${contenu()}</div>`)}` : k === "cot" ? contenu() : h`<label class="champ">${label}</label>${contenu()}`;     // le sélecteur de cotation porte déjà son libellé
       return h`${M.id ? h`<div class="fiche-tete"><span class="tuile-voie apercu" style="background:${hexDe(doc, M.couleur, sl)};color:${texteSur(hexDe(doc, M.couleur, sl))}"><b>${M.etoile ? "★ " : ""}${libelleVoie({ cotSalle: M.cotSalle, cot: cotApp(sl, M.disc, M.cotSalle, M.couleur) })}</b>${dessinProfil(M.profil, "picto-tuile")}</span>
           <div><h2>${M.disc === "Bloc" ? "Bloc" : "Voie"}${M.nom ? " · " + M.nom : ""}</h2><p class="petit">${sl.nom}${sec ? " · " + sec.nom : ""}${M.statut === "demontee" ? " · démontée" : ""}</p>
           <p class="petit">${hv ? `${hv.essais} essai${hv.essais > 1 ? "s" : ""}, ${hv.reussies} réussi${hv.reussies > 1 ? "s" : ""}` : "jamais tentée"}</p></div></div>
           ${si(M.statut === "demontee", h`<button class="gros principal" data-act="voieDemonter">Remonter cette voie</button>`)}`
-        : h`<h2>Nouvelle ${M.disc === "Bloc" ? "bloc" : "voie"} · ${sl.nom}</h2>`}
+        : h`<h2>${M.disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"} · ${sl.nom}</h2>`}
       ${si(sl.type === "Bloc et voie", () => ligne("disc", "Discipline", M.disc, () => choix("mChamp", ["Voie", "Bloc"], M.disc, { data: { champ: "disc" } })))}
       ${ligne("couleur", "Couleur", M.couleur || "—", () => pastilles(ctx, "mCouleur", M.couleur, sl))}
       ${ligne("cot", "Cotation", libCot, () => cotationSalle(ctx, sl, M.disc, M))}
@@ -162,7 +188,8 @@ export function rendre(ctx) {
       ${si(sl.secteurs.length, () => ligne("secteur", "Secteur", sec ? sec.nom : "sans secteur", () => choix("mSecteur", [["", "Sans secteur"], ...sl.secteurs.map(x => [x.id, x.nom])], M.secteurId || "", { classe: "compact" })))}
       ${ligne("nom", "Nom ou repère", M.nom || "—", () => h`<input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`)}
       ${si(M.id && autresSalles.length, () => ligne("salle", "Salle", sl.nom, () => h`<p class="petit">Voie notée dans la mauvaise salle ? Déplace-la : ses passages la suivent.</p>${choix("mChamp", [[sl.id, sl.nom + " (actuelle)"], ...autresSalles.map(x => [x.id, x.nom])], M.salleCible || sl.id, { data: { champ: "salleCible" }, classe: "compact" })}`))}
-      ${si(hv, () => ligne("histo", "Historique", `${ts.length} dernier${ts.length > 1 ? "s" : ""}`, () => h`<div class="petit">${ts.map(t => h`<div>${court(t.date)} · ${RES_LABEL[t.res]}${t.cause ? " · " + t.cause : ""}</div>`)}</div>`))}
+      ${si(M.id, () => ligne("histo", "Historique", hv ? `${ts.length} dernier${ts.length > 1 ? "s" : ""}` : "aucun passage", () => h`<div class="petit">${ts.map(t => h`<div>${t.date ? court(t.date) : "Date inconnue"} · ${RES_LABEL[t.res]}${t.aisance ? " · " + AISANCES[t.aisance] : ""}${t.essaisAvant ? ` · ${t.essaisAvant === "inconnu" ? "essais inconnus" : t.essaisAvant === "1" ? "flash" : t.essaisAvant + " essais"}` : ""}${t.cause ? " · " + t.cause : ""}</div>`)}</div>
+        <button class="lien" data-act="passageAutreJour">+ Passage d'un autre jour</button>`))}
       <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="voieOk">Enregistrer</button></div>
       ${si(M.id, () => h`<div class="fiche-actions"><button data-act="mBasculeEtoile">${M.etoile ? "★ À essayer" : "☆ À essayer"}</button><button data-act="voieDupliquer">⧉ Dupliquer</button>${si(M.statut !== "demontee", h`<button data-act="voieDemonter">Démontée</button>`)}</div>
         <div class="zone-danger"><button class="danger" data-act="voieSupprimer">Supprimer la voie</button></div>`)}`; }
@@ -175,11 +202,11 @@ export function rendre(ctx) {
 
     case "ajoutRapide": { const sl = salleDe(doc, M.salleId), pret = M.couleur || M.cotSalle;
       return h`<h2>Ajouter plusieurs voies · ${sl.nom}</h2><p class="petit">Par exemple : 4 jaunes en 5b dans le même secteur. Elles s'ajoutent d'un coup ; la fenêtre reste ouverte pour la série suivante.</p>
-      ${si(sl.type === "Bloc et voie", h`${choix("mChamp", ["Voie", "Bloc"], M.disc, { data: { champ: "disc" } })}`)}
+      ${si(sl.type === "Bloc et voie", () => ligneChoix(M, "disc", "Discipline", M.disc, () => choix("mChamp", ["Voie", "Bloc"], M.disc, { data: { champ: "disc" } })))}
       <label class="champ">Couleur</label>${pastilles(ctx, "mCouleur", M.couleur, sl)}${cotationSalle(ctx, sl, M.disc, M)}
       <label class="champ">Combien ?</label>${echelle("mChamp", 8, M.nb, { data: { champ: "nb" } })}
-      ${si(sl.secteurs.length, h`<label class="champ">Secteur</label>${choix("mSecteur", [["", "—"], ...sl.secteurs.map(x => [x.id, x.nom])], M.secteurId, { classe: "compact" })}`)}
-      <button class="pli" data-act="mPlier" data-k="plus">${M.plus ? "▾" : "▸"} Profil</button>${si(M.plus, () => choixProfil("mProfil", M.profil || profilHabituel(sl, M.secteurId)))}
+      ${si(sl.secteurs.length, () => ligneChoix(M, "secteur", "Secteur", (sl.secteurs.find(x => x.id === M.secteurId) || {}).nom || "sans secteur", () => choix("mSecteur", [["", "Sans secteur"], ...sl.secteurs.map(x => [x.id, x.nom])], M.secteurId, { classe: "compact" })))}
+      ${ligneChoix(M, "profil", "Profil", M.profil || profilHabituel(sl, M.secteurId), () => choixProfil("mProfil", M.profil || profilHabituel(sl, M.secteurId)))}
       ${si(M.total, h`<p class="petit">✓ ${M.total} voie${M.total > 1 ? "s" : ""} ajoutée${M.total > 1 ? "s" : ""} depuis l'ouverture.</p>`)}
       <div class="actions"><button data-act="mFermer">Terminé</button><button class="principal" data-act="ajoutRapideOk" ${pret ? "" : "disabled"}>Ajouter ${M.nb || 1}</button></div>`; }
 
@@ -187,16 +214,22 @@ export function rendre(ctx) {
       return h`<h2>Déplacer ${ctx.state.classer.size} voie${ctx.state.classer.size > 1 ? "s" : ""} vers…</h2><div class="menu">${sl.secteurs.map(x => h`<button data-act="classerSecteurOk" data-id="${x.id}">${x.nom}</button>`)}<button data-act="classerSecteurOk" data-id="">Sans secteur</button></div>
       ${si(!sl.secteurs.length, h`<p class="petit">Aucun secteur : crée-en un avec « + Secteur ».</p>`)}<div class="actions"><button data-act="mFermer">Annuler</button></div>`; }
 
-    case "passageAncien": return h`<h2>Passage fait sans l'app</h2><label class="champ">Date</label><input type="date" data-champ="date" value="${M.date}">
-      ${choix("mChamp", ["Voie", "Bloc"], M.disc, { data: { champ: "disc" } })}<label class="champ">Cotation</label>${selecteurCot(ctx, M.disc, M.cot)}
-      <label class="champ">Profil</label>${choixProfil("mProfil", M.profil)}<label class="champ">Résultat</label>${choix("mChamp", M.disc === "Bloc" ? [["ok", "✓ Réussi"], ["ko", "✗ Pas réussi"]] : [["ok", "✓ Enchaînée"], ["sec", "Avec sec"], ["ko", "✗ Pas réussie"]], M.res, { data: { champ: "res" } })}
-      <label class="champ">Combien de fois ?</label>${echelle("mChamp", 8, M.n, { data: { champ: "n" } })}
-      <button class="pli" data-act="mPlier" data-k="plus">${M.plus ? "▾" : "▸"} Couleur, nom, salle</button>
-      ${si(M.plus, h`${pastilles(ctx, "mCouleur", M.couleur)}<input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="Nom (facultatif)">${si(doc.salles.length, choix("mChamp", [["", "—"], ...doc.salles.map(x => [x.id, x.nom])], M.salle, { data: { champ: "salle" }, classe: "compact" }))}`)}
-      ${actionsBas("Ajouter", "passageAncienOk", !M.res || !M.date)}`;
+    case "passageAncien": { const sl = M.salle ? salleDe(doc, M.salle) : null, v = M.voieId && sl ? sl.voies.find(x => x.id === M.voieId) : null;
+      return h`<h2>${v ? "Passage d'un autre jour" : "Passage hors séance"}</h2>
+      ${v ? h`<p><span class="pastille" style="background:${hexDe(doc, v.couleur, sl)}"></span> <b>${libelleVoie(v)}</b> <span class="petit">· ${sl.nom}</span></p>` : ""}
+      ${ligneChoix(M, "date", "Date", M.dateInconnue ? "inconnue" : court(M.date), () => h`<div class="ed-rangee"><input type="date" data-champ="date" value="${M.date}"><button data-act="mBool" data-k="dateInconnue" class="${M.dateInconnue ? "choisi" : ""}">Date inconnue</button></div>`)}
+      ${si(!v, () => h`${ligneChoix(M, "disc", "Discipline", M.disc, () => choix("mChamp", ["Voie", "Bloc"], M.disc, { data: { champ: "disc" } }))}
+        <label class="champ">Cotation</label>${selecteurCot(ctx, M.disc, M.cot)}
+        ${ligneChoix(M, "profil", "Profil", M.profil, () => choixProfil("mProfil", M.profil))}
+        ${ligneChoix(M, "plus", "Couleur, nom", [M.couleur, M.nom].filter(Boolean).join(" · ") || "facultatif", () => h`${pastilles(ctx, "mCouleur", M.couleur)}<input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="Nom (facultatif)">`)}
+        ${si(doc.salles.length, () => ligneChoix(M, "salle", "Salle", (salleDe(doc, M.salle) || {}).nom || "Salle inconnue", () => choix("mChamp", [["", "Salle inconnue"], ...doc.salles.map(x => [x.id, x.nom])], M.salle, { data: { champ: "salle" }, classe: "compact" })))}`)}
+      <label class="champ">Résultat</label>${choix("mChamp", M.disc === "Bloc" ? [["ok", "✓ Réussi"], ["ko", "✗ Pas réussi"]] : [["ok", "✓ Enchaînée"], ["sec", "Avec sec"], ["ko", "✗ Pas réussie"]], M.res, { data: { champ: "res" } })}
+      ${si(M.res === "ok", () => champsReussite(ctx, M))}
+      ${si(!v && M.res !== "ok", () => h`<label class="champ">Combien de fois ?</label>${echelle("mChamp", 8, M.n, { data: { champ: "n" } })}`)}
+      ${actionsBas("Ajouter", "passageAncienOk", !M.res || (!M.date && !M.dateInconnue))}`; }
 
     case "nouveauProgramme": return h`<h2>Nouveau programme</h2><p>Le programme a changé (${data.programmeId}). Les saisies de l'ancien programme ne lui correspondent plus.</p>
-      <p class="petit">Exporte d'abord (sauvegarde complète), puis démarre : les séances de l'ancien programme sont effacées ; réglages, salles, passages hors app et favoris sont gardés.</p>
+      <p class="petit">Exporte d'abord (sauvegarde complète), puis démarre : les séances de l'ancien programme sont effacées ; réglages, salles, passages hors séance et favoris sont gardés.</p>
       <div class="actions"><button data-act="exporter">⬆ Exporter</button><button class="principal danger" data-act="nouveauProgrammeOk">Démarrer le nouveau programme</button></div>`;
 
     case "import": return h`<h2>Restaurer une sauvegarde</h2><p>Sauvegarde du ${(M.exporteLe || "").slice(0, 16).replace("T", " ")}${M.autreProgramme ? h` · <b>d'un autre programme</b>` : ""}${M.source ? ` (${M.source})` : ""}.</p>
@@ -220,7 +253,9 @@ export const actions = {
   ...editeur.actions,
   mFermer: ctx => { const p = ctx.state.modal && ctx.state.modal.precedent; p ? ctx.ouvrirModal(p) : ctx.fermerModal(); },
   ficheExo: (ctx, d) => ctx.ouvrirModal({ type: "ficheExo", k: d.k, precedent: ctx.state.modal }),
-  mChamp: (ctx, d) => { const m = M(ctx); m[d.champ] = isNaN(d.valeur) || d.valeur === "" ? d.valeur : +d.valeur;
+  mBool: (ctx, d) => { const m = M(ctx); m[d.k] = !m[d.k]; ctx.rendre(); },
+  mBascVal: (ctx, d) => { const m = M(ctx); m[d.champ] = m[d.champ] === d.valeur ? "" : d.valeur; if (m.type === "apresReussite") enregistrerApresReussite(ctx, m); ctx.rendre(); },
+  mChamp: (ctx, d) => { const m = M(ctx); m[d.champ] = isNaN(d.valeur) || d.valeur === "" ? d.valeur : +d.valeur; m.section = "";
     if (d.champ === "disc") { m.cot = ""; m.cotSalle = ""; m.chiffre = ""; if (m.res === "sec" && d.valeur === "Bloc") m.res = ""; }   // autre échelle : on repart de zéro
     ctx.rendre(); },
   mBasculeEtoile: ctx => { const m = M(ctx); m.etoile = m.etoile ? "" : ctx.aujourdhui(); ctx.rendre(); },
@@ -228,10 +263,10 @@ export const actions = {
   mBascule: (ctx, d) => { const l = M(ctx).quoi, i = l.indexOf(d.k); i >= 0 ? l.splice(i, 1) : l.push(d.k); ctx.rendre(); },
   mPlier: (ctx, d) => { M(ctx)[d.k] = !M(ctx)[d.k]; ctx.rendre(); },
   mChiffre: (ctx, d) => { M(ctx).chiffre = d.valeur; M(ctx)[d.champ || "cot"] = ""; ctx.rendre(); },
-  mCot: (ctx, d) => { const c = d.champ || "cot"; M(ctx)[c] = d.valeur === M(ctx)[c] ? "" : d.valeur; if (!d.valeur) M(ctx).chiffre = ""; ctx.rendre(); },
-  mProfil: (ctx, d) => { M(ctx).profil = d.valeur; ctx.rendre(); },
-  mSecteur: (ctx, d) => { M(ctx).secteurId = d.valeur; ctx.state.dernierSecteur = d.valeur; ctx.rendre(); },
-  mCouleur: (ctx, d) => { M(ctx).couleur = M(ctx).couleur === d.valeur ? "" : d.valeur; ctx.rendre(); },
+  mCot: (ctx, d) => { const c = d.champ || "cot"; M(ctx)[c] = d.valeur === M(ctx)[c] ? "" : d.valeur; if (!d.valeur) M(ctx).chiffre = ""; if (M(ctx).type === "selection" || M(ctx).type === "voie") M(ctx).section = ""; ctx.rendre(); },
+  mProfil: (ctx, d) => { M(ctx).profil = d.valeur; M(ctx).section = ""; ctx.rendre(); },
+  mSecteur: (ctx, d) => { M(ctx).secteurId = d.valeur; M(ctx).section = ""; ctx.state.dernierSecteur = d.valeur; ctx.rendre(); },
+  mCouleur: (ctx, d) => { M(ctx).couleur = M(ctx).couleur === d.valeur ? "" : d.valeur; if (M(ctx).type === "voie") M(ctx).section = ""; ctx.rendre(); },
   mMode: (ctx, d) => { M(ctx).cotation[d.disc].mode = d.valeur; ctx.rendre(); },
   mEquiv: (ctx, d, el) => { M(ctx).cotation[d.disc].liste[+d.i].app = el.value.trim(); },
   mEquivSuppr: (ctx, d) => { M(ctx).cotation[d.disc].liste.splice(+d.i, 1); ctx.rendre(); },
@@ -243,7 +278,10 @@ export const actions = {
   voieRapideOk: (ctx, d) => { const m = M(ctx), s = ctx.seance(m.seanceId), salle = salleDe(ctx.doc, m.salleId), v = salle.voies.find(x => x.id === m.voieId);
     const dejaTentee = toutesTentatives(ctx.programme, ctx.doc).some(x => x.voieId === v.id);
     const t = tentativeDe(v, salle, nettoyer({ k: cleRattachement(ctx, s, ctx.saisie(s.id), m.disc), res: m.res, sec: m.res === "sec" ? +d.sec : undefined, cause: m.res === "ko" ? d.cause : undefined, style: m.res === "ok" ? (dejaTentee ? "Après travail" : "À vue") : undefined }));
-    ctx.fermerModal(); ajouterTentative(ctx, s, t); ctx.rendre(); },
+    ctx.fermerModal(); ajouterTentative(ctx, s, t);
+    if (m.res === "ok") { const i = ctx.saisie(s.id).tentatives.length - 1; ctx.ouvrirModal({ type: "apresReussite", seanceId: s.id, i, voieId: v.id, libelle: libelleVoie(v), refTentative: ctx.saisie(s.id).tentatives[i] }); }
+    else ctx.rendre(); },
+  apresReussiteOk: ctx => { const m = M(ctx); enregistrerApresReussite(ctx, m); ctx.fermerModal(); },
   voieEditerDepuis: (ctx, d) => { const m = M(ctx), v = salleDe(ctx.doc, m.salleId).voies.find(x => x.id === d.id); ctx.ouvrirModal({ type: "voie", salleId: m.salleId, ...v, chiffre: (v.cotSalle || "")[0] || "", precedent: m }); },
   nouvelleVoieOk: (ctx, d) => { const m = M(ctx), s = ctx.seance(m.seanceId), salle = salleDe(ctx.doc, m.salleId);
     let v = voieExistante(salle, { disc: m.disc, couleur: m.couleur, cotSalle: m.cotSalle, nom: m.nom });
@@ -251,7 +289,7 @@ export const actions = {
     ctx.fermerModal();
     if (d.res) ajouterTentative(ctx, s, tentativeDe(v, salleDe(ctx.doc, m.salleId), nettoyer({ k: cleRattachement(ctx, s, ctx.saisie(s.id), m.disc), res: d.res, style: d.res === "ok" ? "À vue" : undefined })));
     ctx.rendre(); },
-  resultatOk: ctx => { const m = M(ctx), s = ctx.seance(m.seanceId), t = nettoyer({ t: Date.now(), k: m.k, disc: m.disc, cot: m.cot || "", cotSalle: m.cotSalle, profil: m.profil, res: m.res, sec: m.res === "sec" ? m.sec : undefined, style: m.res === "ok" ? m.style : undefined, cause: m.res === "ko" ? m.cause : undefined, couleur: m.couleur, nom: m.nom, salle: m.salle, voieId: m.voieId });
+  resultatOk: ctx => { const m = M(ctx), s = ctx.seance(m.seanceId), t = nettoyer({ t: Date.now(), k: m.k, disc: m.disc, cot: m.cot || "", cotSalle: m.cotSalle, profil: m.profil, res: m.res, sec: m.res === "sec" ? m.sec : undefined, style: m.res === "ok" ? m.style : undefined, cause: m.res === "ko" ? m.cause : undefined, couleur: m.couleur, nom: m.nom, salle: m.salle, voieId: m.voieId, ...(m.res === "ok" ? champsTentative(m) : {}) });
     if (m.edit !== undefined) { ctx.modifierSeance(s.id, "correction", sa => { const anc = sa.tentatives[m.edit]; sa.tentatives[m.edit] = { ...t, t: anc.t, k: anc.k, approx: anc.approx }; }); ctx.fermerModal(); }
     else { ctx.fermerModal(); ajouterTentative(ctx, s, t); } ctx.rendre(); },
   resultatSupprimer: ctx => { const m = M(ctx); ctx.modifierSeance(m.seanceId, "passage supprimé", sa => { sa.tentatives.splice(m.edit, 1); }); ctx.fermerModal(); },
@@ -286,18 +324,19 @@ export const actions = {
     ctx.toast(`${ids.length} séance${ids.length > 1 ? "s" : ""} décalée${ids.length > 1 ? "s" : ""}${gardees ? ` ; ${gardees} déjà commencée${gardees > 1 ? "s" : ""} ou faite${gardees > 1 ? "s" : ""} reste${gardees > 1 ? "nt" : ""} en place` : ""}`, () => ctx.store.annuler()); },
   mesuresOk: ctx => { const m = M(ctx); ctx.modifier("mesures", d => { d.mesures[m.semaine] = Object.fromEntries(MESURES.map(([k]) => [k, m[k]]).filter(([, v]) => v !== "" && v != null)); }); ctx.fermerModal(); },
   favori: (ctx, d) => { ctx.modifier("favori", x => { const i = x.favoris.indexOf(d.nom); i >= 0 ? x.favoris.splice(i, 1) : x.favoris.push(d.nom); }); ctx.rendre(); },
-  ajoutRapideOk: ctx => { const m = M(ctx), n = +m.nb || 1;
+  ajoutRapideOk: ctx => { const m = M(ctx), n = +m.nb || 1; forcerOuvert(`sec-${m.salleId}-${m.secteurId || ""}`);
     ctx.modifier(`${n} voie${n > 1 ? "s" : ""} ajoutée${n > 1 ? "s" : ""}`, d => { const sl = salleDe(d, m.salleId);
       for (let i = 0; i < n; i++) sl.voies.push(nouvelleVoie(sl, { disc: m.disc, couleur: m.couleur, cotSalle: m.cotSalle, profil: m.profil, secteurId: m.secteurId || null }, ctx.aujourdhui())); });
     m.total = (m.total || 0) + n; m.nb = 1; m.couleur = ""; m.cotSalle = ""; m.chiffre = ""; ctx.rendre(); },
-  classerSecteurOk: (ctx, d) => { const ids = [...ctx.state.classer], sid = ctx.state.salleId;
+  classerSecteurOk: (ctx, d) => { const ids = [...ctx.state.classer], sid = ctx.state.salleId; forcerOuvert(`sec-${sid}-${d.id || ""}`);
     ctx.modifier("voies classées", doc => { const sl = salleDe(doc, sid); ids.forEach(id => ranger(sl, id, d.id || null, null)); });
     ctx.state.classer = null; ctx.fermerModal(); ctx.toast(`${ids.length} voie${ids.length > 1 ? "s" : ""} classée${ids.length > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
 
   // ---------- Salles, secteurs, voies : modifier, supprimer (toujours avec « Annuler ») ----------
   mSection: (ctx, d) => { const m = M(ctx); m.section = m.section === d.k ? "" : d.k; ctx.rendre(); },
   salleOk: ctx => { const m = M(ctx); if (!m.nom) return; ctx.modifier("salle", d => { if (m.id) { const sl = salleDe(d, m.id); Object.assign(sl, { nom: m.nom, type: m.typeSalle, cotation: m.cotation });
-      sl.voies.forEach(v => { v.cot = cotApp(sl, v.disc, v.cotSalle, v.couleur); }); propagerVoies(d, sl); } else d.salles.push({ id: nouvelId("s"), nom: m.nom, type: m.typeSalle, couleurs: [], cotation: m.cotation, secteurs: [], voies: [] }); }); ctx.fermerModal(); },
+      sl.voies.forEach(v => { v.cot = cotApp(sl, v.disc, v.cotSalle, v.couleur); }); propagerVoies(d, sl); } else { const id = nouvelId("s"); d.salles.push({ id, nom: m.nom, type: m.typeSalle, couleurs: [], cotation: m.cotation, secteurs: [], voies: [] });
+      if (m.pourSeance) { const sa = d.seances[m.pourSeance] = d.seances[m.pourSeance] || {}; sa.salle = id; d.reglages.salleParDefaut = { ...(d.reglages.salleParDefaut || {}), [m.pourDisc]: id }; } } }); ctx.fermerModal(); },
   salleCouleur: ctx => { const m = M(ctx); if (!m.coulNom) return; ctx.modifier("couleur de salle", d => { salleDe(d, m.id).couleurs.push({ nom: m.coulNom.trim(), hex: m.coulHex || "#888888" }); }); m.coulNom = ""; ctx.rendre(); },
   couleurTeinte: (ctx, d, el) => { const m = M(ctx); ctx.modifier("couleur modifiée", doc => renommerCouleur(doc, salleDe(doc, m.id), d.nom, d.nom, el.value)); ctx.rendre(); },
   couleurNom: (ctx, d, el) => { const m = M(ctx), nom = el.value.trim(); if (!nom || nom === d.nom) return;
@@ -326,7 +365,7 @@ export const actions = {
         ...(p ? [{ label: `Supprimer aussi les voies, garder leurs ${p} passage${s(p)}`, danger: true, faire: () => faire("supprimer", "garder") }, { label: `Supprimer les voies et leurs ${p} passage${s(p)}`, danger: true, faire: () => faire("supprimer", "supprimer") }]
             : [{ label: `Supprimer aussi les ${n} voie${s(n)}`, danger: true, faire: () => faire("supprimer", "garder") }])] }); },
   supprimerChoix: (ctx, d) => { const c = M(ctx).choix[+d.i]; c.faire(); },
-  voieOk: ctx => { const m = M(ctx); ctx.modifier("voie", d => { const sl = salleDe(d, m.salleId), champs = { disc: m.disc, couleur: m.couleur || "", cotSalle: m.cotSalle || "", cot: cotApp(sl, m.disc, m.cotSalle, m.couleur), nom: m.nom || "", profil: m.profil || "Vertical", secteurId: m.secteurId || null };
+  voieOk: ctx => { const m = M(ctx); forcerOuvert(`sec-${m.salleId}-${m.secteurId || ""}`); if (m.secteurId !== undefined) ctx.state.dernierSecteur = m.secteurId || ""; ctx.modifier("voie", d => { const sl = salleDe(d, m.salleId), champs = { disc: m.disc, couleur: m.couleur || "", cotSalle: m.cotSalle || "", cot: cotApp(sl, m.disc, m.cotSalle, m.couleur), nom: m.nom || "", profil: m.profil || "Vertical", secteurId: m.secteurId || null };
       if (m.id) { const v = sl.voies.find(x => x.id === m.id); Object.assign(v, champs); if (m.etoile) v.etoile = m.etoile; else delete v.etoile; propagerVoies(d, sl);
         if (m.salleCible && m.salleCible !== m.salleId) deplacerVoieSalle(d, m.salleId, m.salleCible, m.id); }
       else sl.voies.push(nouvelleVoie(sl, champs, ctx.aujourdhui())); });
@@ -344,7 +383,23 @@ export const actions = {
     ctx.modifier(m.quoi === "profil" ? "profil modifié" : "cotation modifiée", doc => { const sl = salleDe(doc, sid);
       sl.voies.filter(v => ids.includes(v.id) && (m.quoi === "profil" || v.disc === m.disc)).forEach(v => { if (m.quoi === "profil") v.profil = d.valeur; else { v.cotSalle = m.cotSalle || ""; v.cot = cotApp(sl, v.disc, v.cotSalle, v.couleur); } }); propagerVoies(doc, sl); });
     ctx.state.classer = null; ctx.fermerModal(); ctx.toast(`${ids.length} voie${ids.length > 1 ? "s" : ""} modifiée${ids.length > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
-  passageAncienOk: ctx => { const m = M(ctx); ctx.modifier("passages hors app", d => { for (let i = 0; i < (m.n || 1); i++) d.passagesAnciens.push(nettoyer({ id: nouvelId("pa"), date: m.date, disc: m.disc, cot: m.cot, profil: m.profil, res: m.res, couleur: m.couleur, nom: m.nom, salle: m.salle })); }); ctx.fermerModal(); ctx.toast(`${m.n || 1} passage${m.n > 1 ? "s" : ""} ajouté${m.n > 1 ? "s" : ""}`); },
+  passageAncienOk: ctx => { const m = M(ctx), sl = m.salle ? salleDe(ctx.doc, m.salle) : null, v = m.voieId && sl ? sl.voies.find(x => x.id === m.voieId) : null, n = v || m.res === "ok" ? 1 : (m.n || 1);
+    const base = v ? { disc: v.disc, cot: v.cot, cotSalle: v.cotSalle, profil: v.profil, couleur: v.couleur, nom: v.nom, salle: sl.id, voieId: v.id } : { disc: m.disc, cot: m.cot, profil: m.profil, couleur: m.couleur, nom: m.nom, salle: m.salle };
+    ctx.modifier("passage hors séance", d => { for (let i = 0; i < n; i++) d.passagesAnciens.push(nettoyer({ id: nouvelId("pa"), t: Date.now() + i, date: m.dateInconnue ? "" : m.date, dateInconnue: m.dateInconnue || undefined, ...base, res: m.res, sec: m.res === "sec" ? 1 : undefined, ...(m.res === "ok" ? champsTentative(m) : {}) })); });
+    const p = m.precedent; ctx.fermerModal(); if (p) ctx.ouvrirModal(p); ctx.toast(`${n} passage${n > 1 ? "s" : ""} ajouté${n > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
+  passageAutreJour: (ctx, d) => { const m = M(ctx); ctx.ouvrirModal({ type: "passageAncien", salle: m.salleId, voieId: m.id, disc: m.disc, date: ctx.aujourdhui(), dateInconnue: false, res: "", n: 1, precedent: m }); },
+  salleDuJour: (ctx, d) => { const m = M(ctx), s = ctx.seance(m.seanceId);
+    ctx.modifier("salle du jour", doc => { const sa = doc.seances[s.id] = doc.seances[s.id] || {}; sa.salle = d.id; doc.reglages.salleParDefaut = { ...(doc.reglages.salleParDefaut || {}), [m.disc]: d.id }; }, { annulable: false }); ctx.fermerModal(); },
+  salleDuJourNouvelle: ctx => { const m = M(ctx); ctx.ouvrirModal({ type: "salle", nom: "", typeSalle: m.disc, cotation: { Voie: { mode: "standard", liste: [] }, Bloc: { mode: "standard", liste: [] } }, pourSeance: m.seanceId, pourDisc: m.disc }); },
+  menuSupprimerSeance: ctx => { const id = M(ctx).seanceId; ctx.modifier("séance supprimée", d => { d.ops = d.ops.filter(o => o.cible !== id); delete d.seances[id]; }); ctx.state.seanceId = null; ctx.fermerModal(); ctx.toast("Séance supprimée", () => ctx.store.annuler()); },
+  menuItem: (ctx, d) => { const x = M(ctx).items[+d.i]; ctx.fermerModal(); ctx.agir(x.act, x.data || {}); },
   nouveauProgrammeOk: ctx => { ctx.modifier("nouveau programme", d => { d.seances = {}; d.ops = []; d.mesures = {}; d.competences = {}; d.feuxVus = {}; d.programmeId = ctx.data.programmeId; }); ctx.state.seanceId = null; ctx.fermerModal(); },
   importOk: ctx => { const m = M(ctx); ctx.store.remplacer(m.doc); ctx.state.seanceId = null; ctx.state.modal = null; ctx.ouvrir("seance"); ctx.toast("Sauvegarde restaurée"); },
 };
+
+// Après une réussite notée d'un appui : aisance, essais et premier essai s'enregistrent au fil des choix
+function enregistrerApresReussite(ctx, m) {
+  ctx.modifierSeance(m.seanceId, "précisions", sa => { const t = sa.tentatives[m.i]; if (!t) return; const c = champsTentative(m);
+    for (const k of ["aisance", "essaisAvant", "premierEssai"]) { if (c[k]) t[k] = c[k]; else delete t[k]; } }, { annulable: false });
+  m.refTentative = ctx.saisie(m.seanceId).tentatives[m.i];
+}

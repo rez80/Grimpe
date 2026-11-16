@@ -182,7 +182,7 @@ export function bilan({ data, doc, programme, aujourdhui }) {
 }
 export function meilleuresParSemaine(ts, echelles, dateDebut) {
   const W = {};
-  for (const t of ts.filter(reussi)) { const w = semaineDe(dateDebut, t.date), k = `${t.disc}-${groupeProfil(t.profil)}`;
+  for (const t of ts.filter(t => reussi(t) && t.date)) { const w = semaineDe(dateDebut, t.date), k = `${t.disc}-${groupeProfil(t.profil)}`;
     const x = W[w] = W[w] || { semaine: w }; if (rang(echelles, t.disc, t.cot) > rang(echelles, t.disc, x[k] || "")) x[k] = t.cot; }
   return Object.values(W).sort((a, b) => a.semaine - b.semaine);
 }
@@ -197,6 +197,7 @@ export function parVoie(ts) {
   ts.forEach((t, n) => { const id = identite(t, n); const v = V.get(id) || { id, disc: t.disc, cot: t.cot || "", couleur: t.couleur || "", nom: t.nom || "", profil: t.profil || "", salle: t.salle || "", voieId: t.voieId || "", essais: 0, reussies: 0, sec: 0, derniere: "", premiere: "", causes: {}, dernierRes: "" };
     v.essais++; if (t.res === "ok") v.reussies++; if (t.res === "sec") v.sec++; if (t.cause) v.causes[t.cause] = (v.causes[t.cause] || 0) + 1;
     if (!v.premiere || t.date < v.premiere) v.premiere = t.date; if (!v.derniere || t.date >= v.derniere) { v.derniere = t.date; v.dernierRes = t.res; }
+    if (t.res === "ok" && t.aisance && (t.date || "") >= (v.dateAisance || "")) { v.aisance = t.aisance; v.dateAisance = t.date || ""; }
     V.set(id, v); });
   return [...V.values()];
 }
@@ -235,6 +236,7 @@ export function phrases({ bilan: B, ts, programme, doc, aujourdhui, echelles, pr
     if (c.niveau) { const det = c.detail.find(x => x.cot === c.niveau); out.push({ cle: "niveau-" + disc, texte: `En ${disc.toLowerCase()}, le ${c.niveau} en vertical est acquis (${det.essais} essais, ${pct(det.taux)} de réussite)${d.niveau ? `, le ${d.niveau} en dévers aussi` : ""}.` }); }
     else { const max = l.filter(reussi).sort((a, b) => rang(echelles, disc, b.cot) - rang(echelles, disc, a.cot))[0];
       out.push({ cle: "niveau-" + disc, texte: `En ${disc.toLowerCase()}, pas encore de niveau consolidé (il faut ${B.params.consolide_essais ?? 5} essais à ${pct(B.params.consolide_taux ?? 0.7)} sur une cotation)${max && max.cot ? ` ; meilleure réussite : ${max.cot}` : ""}.` }); } }
+  for (const disc of ["Voie", "Bloc"]) { const pa = phraseAisance(ts, disc, echelles); if (pa) out.push({ cle: "aisance-" + disc, texte: pa }); }
   // 2. Le point faible
   const pf = B.pointsFaibles;
   const causeNette = pf.cause && pf.cause.n >= 2;
@@ -255,4 +257,24 @@ export function bilanComplet(args) {
   const projectionFeux = projection(B.feux, feuxAvant), recul = ecartJours(B.dateDebut, aujourdhui) >= 28;     // « à ce rythme » seulement après 4 semaines
   return { ...B, recul, voies: parVoie(ts), projection: projectionFeux, nouveauxFeux: nouveauxFeux(B.feux, doc.feuxVus),
            phrases: phrases({ bilan: B, ts, programme, doc, aujourdhui, echelles: data.echelles, projectionFeux }) };
+}
+
+// --- Aisance et essais ---
+export const AISANCES = { facile: "Facile", correct: "Correct", arrache: "Arraché" };
+const avant = (a, b) => (a.date || "") < (b.date || "") || ((a.date || "") === (b.date || "") && (a.t || 0) < (b.t || 0));
+// Essais déjà faits sur cette voie avant ce passage (notés dans l'app ou hors app)
+export const essaisPrecedents = (ts, voieId, ref) => voieId ? ts.filter(t => t.voieId === voieId && t !== ref && (!ref || avant(t, ref))).length : 0;
+// Nombre d'essais jusqu'à la réussite : celui indiqué, sinon calculé (essais précédents + 1), sinon inconnu
+export function essaisAvantReussite(ts, t) { if (t.essaisAvant) return t.essaisAvant; const n = essaisPrecedents(ts, t.voieId, t); return t.voieId && n ? n + 1 : null; }
+// Phrase d'aisance : sur les 10 dernières réussites de la cotation la plus fréquente, si au moins 5 ont une aisance notée
+export function phraseAisance(ts, disc, echelles) {
+  const r = ts.filter(t => t.disc === disc && reussi(t) && t.aisance && t.cot).sort((a, b) => avant(a, b) ? 1 : -1).slice(0, 10);
+  if (r.length < 5) return null;
+  const parCot = {}; r.forEach(t => { const c = baseCot(t.cot); parCot[c] = (parCot[c] || 0) + 1; });
+  const cot = Object.entries(parCot).sort((a, b) => b[1] - a[1])[0][0], l = r.filter(t => baseCot(t.cot) === cot); if (l.length < 5) return null;
+  const faciles = l.filter(t => t.aisance === "facile").length, arraches = l.filter(t => t.aisance === "arrache").length;
+  const bases = (echelles[disc] || []).filter(c => !c.endsWith("+")), suivante = bases[bases.indexOf(cot) + 1];
+  if (faciles / l.length >= 0.6) return `${faciles} de tes ${l.length} dernières ${disc === "Bloc" ? "réussites en bloc" : "voies"} ${cot} passées facilement${suivante ? ` : le ${suivante} est à portée` : ""}.`;
+  if (arraches / l.length >= 0.5) return `Tes ${disc === "Bloc" ? "blocs" : "voies"} ${cot} passent encore à l'arraché (${arraches} sur ${l.length}) : prends le temps de les rendre faciles.`;
+  return null;
 }
