@@ -1,4 +1,4 @@
-# Grimpe 8.8 — l'app d'escalade
+# Grimpe 8.9 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -11,7 +11,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 
 ## 1. Ce que fait l'app
 
-**Programme.** L'app s'ouvre sur le programme. La carte « Aujourd'hui » ouvre la séance du jour en un appui ; s'il n'y a pas de séance aujourd'hui, elle montre la prochaine. Si une séance est en cours, l'app s'ouvre directement dessus. Les semaines se déplient. Chaque séance a son menu ⋯ :
+**Programme.** L'app s'ouvre sur le programme. La carte « Aujourd'hui » ouvre la séance du jour en un appui ; s'il n'y a pas de séance aujourd'hui, elle montre la prochaine. Si une séance est en cours, l'app s'ouvre directement dessus. Les semaines se déplient. Les pastilles des jours prennent la couleur du plan de la séance, c'est-à-dire le type d'étape qui prend le plus de temps (facile, effort, récup…), avec une légende dessous. Chaque séance a son menu ⋯ :
 - bilan ;
 - modifier le plan ;
 - déplacer ;
@@ -56,14 +56,17 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Salles.**
 - **La liste** est en cartes : couleurs présentes, nombre de voies et de blocs, secteurs, dernière séance, ✎.
 - **Les cartes de salle** affichent le type et le nombre de voies et de blocs, sur une couleur de fond (automatique, à changer dans ✎).
-- **En bref**, en haut d'une salle : un bâtonnet par niveau, dont la hauteur donne le nombre de voies. Sa couleur est celle du niveau dans une salle qui cote par couleurs, sinon la couleur de prises la plus présente. Toucher un bâton filtre le mur (« Niv 5b : 6 voies »).
+- **En bref**, en haut d'une salle : un bâtonnet par niveau, dont la hauteur donne le nombre de voies. Sa couleur est celle du niveau dans une salle qui cote par couleurs, sinon la couleur de prises la plus présente. Toucher un bâton filtre le mur (« Niv 5b : 6 voies ») : les autres filtres sont retirés, et la page descend jusqu'aux voies.
 - **La façon de coter** d'une salle se règle en trois questions :
   1. comment la salle note ses niveaux : cotation française ou Fontainebleau, chiffres, lettres, chiffres et lettres, couleurs, autres, ou pas de niveaux ;
   2. combien de niveaux différents : l'app crée la liste toute seule ;
   3. l'équivalent de chaque niveau dans la cotation de l'app : une liste déroulante, pré-remplie et modifiable.
 - **Dans une salle**, une barre reste en haut : Tout / Voies / Blocs, + Voie, + Secteur, Sélectionner, et un filtre par caractéristique. Le reste est dans ⋯ : plusieurs voies d'un coup, voies démontées, modifier la salle.
 - **Les secteurs** sont repliés avec un résumé (inclinaison, nombre, couleurs, étendue des cotations). L'app retient ceux que tu ouvres.
-- **L'inclinaison d'un secteur** est calculée : c'est la plus fréquente parmi ses voies, en trois catégories (Dalle, Vertical, Dévers). Les nouvelles voies du secteur la prennent par défaut. À la création d'un secteur vide, on la choisit parmi ces trois catégories.
+- **Créer des secteurs** : « + Secteur » demande combien, et les crée tous d'un coup. Ils sont nommés 1, 2, 3… par défaut, et chaque nom se change sur place. Une nouvelle salle peut recevoir ses secteurs dès sa création.
+- **L'inclinaison d'un secteur** n'est pas à choisir : Vertical par défaut, puis la plus fréquente parmi ses voies, en trois catégories (Dalle, Vertical, Dévers). Les nouvelles voies du secteur la prennent par défaut.
+- **Inventaire rapide** (⋯, ou le bouton d'une salle vide) : un compteur par niveau de la salle (« 5a : 4, 5b : 6… »), le secteur, une couleur facultative, et toutes ces voies sont créées d'un coup. Les couleurs et les noms se complètent ensuite.
+- **Nouvelle voie** : la dernière couleur et le dernier niveau utilisés dans la salle sont déjà remplis.
 - **Déplacer une voie** : prends-la par ⋮⋮ et lâche-la sur une autre voie, dans un secteur ouvert, ou sur le nom d'un secteur replié. Il n'y a pas de mode à activer ni à quitter.
 - **Une voie** a :
   - une couleur : 12 de base, et un appui long montre les nuances (42 teintes) ;
