@@ -1,4 +1,4 @@
-# Grimpe 8.12 — l'app d'escalade
+# Grimpe 8.13 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -61,13 +61,13 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
   1. comment la salle note ses niveaux : cotation française ou Fontainebleau, chiffres, lettres, chiffres et lettres, couleurs, autres, ou pas de niveaux ;
   2. combien de niveaux différents : l'app crée la liste toute seule ;
   3. l'équivalent de chaque niveau dans la cotation de l'app : une liste déroulante, pré-remplie et modifiable.
-- **Dans une salle**, une barre reste en haut : Tout / Voies / Blocs, + Voie, + Secteur, Sélectionner, et un filtre par caractéristique. Le reste est dans ⋯ : plusieurs voies d'un coup, voies démontées, modifier la salle.
+- **Dans une salle**, une barre reste en haut : Tout / Voies / Blocs, + Voie, + Secteur, Sélectionner, et un filtre par caractéristique. Le reste est dans Options : plusieurs voies d'un coup, voies démontées, modifier la salle.
 - **Les secteurs** sont repliés avec un résumé (inclinaison, nombre, couleurs, étendue des cotations). L'app retient ceux que tu ouvres.
 - **Créer des secteurs** : « + Secteur » demande combien, et les crée tous d'un coup. Ils sont nommés 1, 2, 3… par défaut, et chaque nom se change sur place. Une nouvelle salle peut recevoir ses secteurs dès sa création.
 - **L'inclinaison d'un secteur** n'est pas à choisir : Vertical par défaut, puis la plus fréquente parmi ses voies, en trois catégories (Dalle, Vertical, Dévers). Les nouvelles voies du secteur la prennent par défaut.
-- **Inventaire rapide** (⋯, ou le bouton d'une salle vide) : un compteur par niveau de la salle (« 5a : 4, 5b : 6… »), le secteur, une couleur facultative, et toutes ces voies sont créées d'un coup. Les couleurs et les noms se complètent ensuite.
+- **Inventaire rapide** (Options, ou le bouton d'une salle vide) : un compteur par niveau de la salle (« 5a : 4, 5b : 6… »), le secteur, une couleur facultative, et toutes ces voies sont créées d'un coup. Les couleurs et les noms se complètent ensuite.
 - **Nouvelle voie** : la dernière couleur et le dernier niveau utilisés dans la salle sont déjà remplis.
-- **Déplacer une voie** : prends-la par ⋮⋮ et lâche-la sur une autre voie, dans un secteur ouvert, ou sur le nom d'un secteur replié. Il n'y a pas de mode à activer ni à quitter.
+- **Déplacer une voie** : garde le doigt dessus ½ seconde, comme pour déplacer une app sur l'iPhone. Elle se soulève et suit le doigt ; lâche-la sur une autre voie, dans un secteur ouvert, ou sur le nom d'un secteur replié. Près du haut ou du bas de l'écran, la page défile toute seule. Un appui court ouvre la fiche, comme avant.
 - **Une voie** a :
   - une couleur : 12 de base, et un appui long montre les nuances (42 teintes) ;
   - une cotation, notée à la façon de la salle : comme l'app, ses propres niveaux, par couleurs, ou aucune. « Niveau inconnu » est toujours possible : la voie s'affiche « ? » et se complète plus tard ;
@@ -80,7 +80,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
   - « Noter un passage maintenant » apparaît si une séance est en cours.
 - **Supprimer** une voie, un secteur ou une salle se fait tout de suite, avec « Annuler ». Quand il y a un vrai choix (garder ou non les passages, les voies d'un secteur), une fenêtre le pose.
 
-**Passages hors séance.** Pour une voie d'une salle, ils se notent dans sa fiche, onglet Historique. Pour un passage sans voie connue (avant le programme, en extérieur…), passe par ⋯ du Programme › « Passages hors séance ». Un passage sans date compte dans les niveaux, les projets et les feux verts, mais pas dans la charge ni dans le bilan de la semaine.
+**Passages hors séance.** Pour une voie d'une salle, ils se notent dans sa fiche, onglet Historique. Pour un passage sans voie connue (avant le programme, en extérieur…), passe par Options du Programme › « Passages hors séance ». Un passage sans date compte dans les niveaux, les projets et les feux verts, mais pas dans la charge ni dans le bilan de la semaine.
 
 **Progrès.** D'abord quelques phrases : la semaine, le niveau acquis, l'aisance, le point faible, le prochain cap avec une projection après quatre semaines. Ensuite, des sections repliables :
 - les projets (touche-en un pour ouvrir sa fiche) ;
@@ -100,14 +100,19 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 - Copier · répéter.
 
 **Partout.**
-- ⋯ en haut de chaque écran regroupe les actions de l'écran et **Annuler** (les 30 derniers gestes).
+- Le bouton **Options ▾** en haut de chaque écran regroupe les actions de l'écran et **Annuler** (les 30 derniers gestes).
 - Les choix de 4 options ou moins sont des boutons. Au-delà, c'est une liste déroulante, c'est-à-dire le sélecteur de l'iPhone.
-- La Bibliothèque, l'Aide, les Réglages et la Sauvegarde ont des sections repliables. La Bibliothèque et l'Aide ont une recherche.
+- Progrès, la Bibliothèque, l'Aide, les Réglages et la Sauvegarde ont le même modèle : des cartes repliables, avec un liseré de couleur à gauche et un résumé dans l'en-tête. La Bibliothèque et l'Aide ont une recherche.
+- Une section qu'on ouvre (une semaine du programme, une section, un secteur) s'affiche en entier : la page défile toute seule.
+- **Gestes de l'iPhone.** Appui long (½ s) : sur une séance du Programme, son menu ; sur une voie pendant une séance, sa fiche ; sur un passage d'aujourd'hui, le corriger ; sur une voie du mur, la déplacer ; sur un secteur, le modifier. Glisser depuis le bord gauche : revenir en arrière, sauf sur une séance, où glisser passe à la séance voisine.
+- Les boutons « + » (voie, secteur, séance, salle, passage) ont tous le même style : contour ocre, fond teinté.
 - Le « ? » d'un écran ouvre l'aide de cet écran.
 - Changer de page arrive en haut de la page ; le retour ‹ ramène où tu étais.
 - **Thème** : Réglages › Affichage › Thème : Automatique (comme l'iPhone), Clair ou Sombre. Le choix est retenu sur le téléphone.
-- **Repos par défaut** : une liste déroulante par activité (Réglages).
-- **Couleurs** : la Bibliothèque a une teinte par famille de catégories (technique, méthode, endurance, renfort, soin) ; les tuiles de Plus et les sections de Progrès ont chacune leur pastille.
+- **Repos par défaut** (Réglages) : une liste pour l'activité, une liste pour sa durée ; la ligne dessous résume toutes les activités.
+- **Éditeur de plan** : repos, chrono, durée et fractions de course se choisissent dans des listes déroulantes ; les nombres (3×, séries) gardent − / +.
+- **Bibliothèque** : filtre par niveau (Débutant, Intermédiaire, Avancé, avec le nombre d'exercices) et « Cette semaine » (les exercices et routines cités dans les séances de la semaine en cours). Les routines sont une catégorie comme les autres : chaque routine a sa fiche (étapes, durées, exercices cliquables, ★ favori) et la recherche les trouve. Le niveau s'affiche en petite étiquette colorée.
+- **Couleurs** : la Bibliothèque a une teinte par famille de catégories (technique, méthode, endurance, renfort, soin) ; dans Progrès, chaque section a son liseré, les barres des feux verts sont ocre (en cours) puis vertes (atteint). Plus présente ses tuiles en deux colonnes compactes, le nom à côté de l'icône.
 - **Filtres actifs** : dans une salle, chaque filtre en cours s'affiche en étiquette « ✕ » sous la barre. Les filtres sont propres à chaque salle.
 
 ---
@@ -189,7 +194,7 @@ python outil/grimpe.py rapport --github proprietaire/depot/chemin/grimpe.json
 **Nouveau programme** : change `date_debut` dans Paramètres, régénère, puis pousse. L'app propose d'exporter, puis de repartir. Les réglages, salles, passages hors séance et favoris sont gardés.
 
 ### La grammaire d'une séance
-Une ligne par étape. Tout ce qui n'est pas entre accolades est du texte. Dans l'app, l'éditeur (⋯ › Modifier le plan, ou + Séance) écrit ces lignes pour toi.
+Une ligne par étape. Tout ce qui n'est pas entre accolades est du texte. Dans l'app, l'éditeur (⋯ d'une séance › Modifier le plan, ou + Séance) écrit ces lignes pour toi.
 
 ```
 ## Voie (avec partenaire)                      variante (les lignes avant le premier ## sont communes)
@@ -249,7 +254,7 @@ Les seuils se règlent dans la feuille Paramètres de Programme.xlsx.
 index.html  style.css  sw.js  manifest.webmanifest  icone*.{svg,png}  apple-touch-icon.png
 data.js  programme.ics          générés par l'outil, ne pas modifier à la main
 js/
-  app.js        démarrage, état d'écran, rendu, routage des actions, menu ⋯, nuancier, mise à jour
+  app.js        démarrage, état d'écran, rendu, routage des actions, menu Options, appui long, glisser pour revenir, nuancier, mise à jour
   store.js      document unique versionné, migrations, IndexedDB, annulation (30 gestes)
   dates.js      dates « AAAA-MM-JJ », semaines du programme
   parseur.js    grammaire d'une séance ↔ étapes structurées
@@ -299,6 +304,6 @@ Pour simuler un jour donné, tape dans la console : `(await import('./js/app.js'
 ## 8. Limites connues
 
 - Une app web ne sonne pas quand l'écran est verrouillé. Le repos est fait pour être regardé : plein écran, heure de fin affichée, écran maintenu allumé. Pour une vraie sonnerie, crée dans Raccourcis un raccourci « Repos » (*Obtenir les nombres dans l'entrée* → *Démarrer le minuteur*) et indique son nom dans Réglages : un bouton 🔔 iPhone apparaît alors à côté du repos.
-- Le glisser-déposer du mur se fait par la poignée ⋮⋮, pour que le reste de la tuile fasse défiler la page.
+- Le glisser-déposer du mur démarre après un appui long immobile (½ s) : un doigt qui bouge plus tôt fait défiler la page normalement.
 - Suivi.xlsx contient les chiffres ; les graphiques au-delà de la charge sont à faire dans le tableur.
 - Les tests tournent dans Chrome ; vérifie sur l'iPhone le partage de fichier, l'abonnement au calendrier et les listes déroulantes multiples.
