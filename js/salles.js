@@ -47,8 +47,10 @@ export const libelleVoie = v => [v.cotSalle || v.cot || "?", v.couleur ? v.coule
 
 export const voiesEnPlace = (salle, disc) => salle ? salle.voies.filter(v => v.statut !== "demontee" && (!disc || v.disc === disc)).sort((a, b) => (a.secteurId || "") < (b.secteurId || "") ? -1 : (a.secteurId || "") > (b.secteurId || "") ? 1 : (a.ordre ?? 0) - (b.ordre ?? 0)) : [];
 
-export function nouvelleVoie(salle, { disc, couleur = "", cotSalle = "", nom = "", profil = "", secteurId = null }, aujourdhui) {
-  return { id: nouvelId("v"), disc, couleur, cotSalle: cotationDe(salle, disc).mode === "couleurs" ? "" : cotSalle, cot: cotApp(salle, disc, cotSalle, couleur), nom, profil: profil || profilHabituel(salle, secteurId),
+// Caractéristiques d'une voie (plusieurs possibles), par famille ; l'inclinaison reste le « profil »
+export const CARACTERISTIQUES = [{ groupe: "Mur et forme", options: ["Arête", "Traversée", "Dièdre", "Fissure", "Volumes"] }, { groupe: "Prises", options: ["Réglettes", "Bacs", "Pinces", "Plats"] }, { groupe: "Mouvement", options: ["Dynamique", "Compression"] }];
+export function nouvelleVoie(salle, { disc, couleur = "", cotSalle = "", nom = "", profil = "", secteurId = null, carac = [] }, aujourdhui) {
+  return { id: nouvelId("v"), disc, couleur, ...(carac && carac.length ? { carac: [...carac] } : {}), cotSalle: cotationDe(salle, disc).mode === "couleurs" ? "" : cotSalle, cot: cotApp(salle, disc, cotSalle, couleur), nom, profil: profil || profilHabituel(salle, secteurId),
            secteurId: secteurId || null, ordre: Math.max(-1, ...salle.voies.filter(v => (v.secteurId || null) === (secteurId || null)).map(v => v.ordre ?? 0)) + 1, statut: "enPlace", ouverte: aujourdhui, demontee: null };
 }
 // Une voie déjà connue ? (même discipline, couleur, cotation salle, nom) — évite les doublons à la création

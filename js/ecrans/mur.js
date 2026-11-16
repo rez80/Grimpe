@@ -1,5 +1,5 @@
 // ecrans/mur.js — le mur d'une salle : les voies par secteur, en tuiles, rangées au doigt (glisser-déposer).
-import { h, si, pictoProfil, ouvert } from "../html.js";
+import { h, si, pictoProfil, ouvert, liste as listeDeroulante, forcerOuvert } from "../html.js";
 import { salleDe, hexDe, texteSur, ranger, cotationDe, profilHabituel, passagesDe, supprimerVoies } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, reussi, rang } from "../analyse.js";
 import { court } from "../dates.js";
@@ -7,7 +7,8 @@ import { court } from "../dates.js";
 export function rendre(ctx) {
   const { doc, state } = ctx, s = salleDe(doc, state.salleId); if (!s) return { html: h`<p class="carte">Salle introuvable.</p>`, titre: "Salle" };
   const filtre = state.filtre.mur || "", demontees = !!state.filtre.demontees, voies = parVoie(toutesTentatives(ctx.programme, doc));
-  const liste = s.voies.filter(v => (demontees ? v.statut === "demontee" : v.statut !== "demontee") && (!filtre || v.disc === filtre)).sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
+  const fCarac = state.filtre.carac || "", caracsPresentes = [...new Set(s.voies.flatMap(v => v.carac || []))].sort();
+  const liste = s.voies.filter(v => (demontees ? v.statut === "demontee" : v.statut !== "demontee") && (!filtre || v.disc === filtre) && (!fCarac || (v.carac || []).includes(fCarac))).sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
   const groupes = [...s.secteurs.map(sec => ({ id: sec.id, nom: sec.nom, profil: sec.profil, voies: liste.filter(v => v.secteurId === sec.id) })), { id: "", nom: "Sans secteur", profil: "", voies: liste.filter(v => !v.secteurId || !s.secteurs.some(x => x.id === v.secteurId)) }];
   const classer = state.classer, ranger = state.ranger;
   const tuile = v => { const hv = voies.find(x => x.voieId === v.id), hex = hexDe(doc, v.couleur, s);
@@ -25,7 +26,8 @@ export function rendre(ctx) {
     return h`<span class="petit">${g.voies.length} ${g.voies.length > 1 ? "voies" : "voie"}${et ? " · " + et : ""}</span> <span class="points">${cs.slice(0, 8).map(c => h`<i style="background:${hexDe(doc, c, s)}"></i>`)}</span>`; };
   const html = h`<div class="barre-mur">${si(s.type === "Bloc et voie", h`<div class="choix compact segmente">${[["", "Tout"], ["Voie", "Voies"], ["Bloc", "Blocs"]].map(([v, l]) => h`<button data-act="filtreMur" data-valeur="${v}" class="${filtre === v ? "choisi" : ""}">${l}</button>`)}</div>`)}
       ${si(!demontees && !ranger, h`<button class="petit-btn principal" data-act="voieNouvelle" data-secteur="${s.secteurs.some(x => x.id === state.dernierSecteur) ? state.dernierSecteur : ""}" data-disc="${discDefaut}">+ ${discDefaut === "Bloc" ? "Bloc" : "Voie"}</button>`)}
-      ${ranger ? h`<button class="petit-btn choisi" data-act="rangerBascule">Ranger : fini</button>` : h`<button class="petit-btn" data-act="classerDebut">Sélectionner</button>`}</div>
+      ${ranger ? h`<button class="petit-btn choisi" data-act="rangerBascule">Ranger : fini</button>` : h`<button class="petit-btn" data-act="classerDebut">Sélectionner</button>`}
+      ${si(caracsPresentes.length && !ranger, () => listeDeroulante("carac", caracsPresentes, fCarac, { act: "filtreCarac", vide: "Toutes caractéristiques" }))}</div>
     ${si(demontees, h`<p class="bandeau-info">Voies démontées · <button class="lien" data-act="filtreDemontees">revenir aux voies en place</button></p>`)}
     ${si(ranger, h`<p class="petit">Mode Ranger : fais glisser les voies où tu veux, puis « Ranger : fini ».</p>`)}
     ${groupes.filter(g => g.voies.length || g.id || s.secteurs.length).map(g => { const cle = `sec-${s.id}-${g.id}`, o = tout || ouvert(cle, false);
@@ -93,6 +95,7 @@ export const actions = {
   ajoutRapideOuvrir: ctx => { const s = salleDe(ctx.doc, ctx.state.salleId), disc = ctx.state.filtre.mur || (s.type === "Bloc" ? "Bloc" : "Voie");
     ctx.ouvrirModal({ type: "ajoutRapide", salleId: s.id, disc, couleur: "", cotSalle: "", chiffre: "", nb: 1, secteurId: ctx.state.dernierSecteur || "", profil: "", total: 0 }); },
   filtreMur: (ctx, d) => { ctx.state.filtre.mur = d.valeur; ctx.rendre(); },
+  filtreCarac: (ctx, d, el) => { ctx.state.filtre.carac = el.value; if (el.value) for (const sec of [...(ctx.doc.salles.find(x => x.id === ctx.state.salleId) || { secteurs: [] }).secteurs.map(x => x.id), ""]) forcerOuvert(`sec-${ctx.state.salleId}-${sec}`); ctx.rendre(); },
   secteurNouveau: ctx => ctx.ouvrirModal({ type: "secteur", salleId: ctx.state.salleId, nom: "", profil: "Vertical" }),
   secteurEditer: (ctx, d) => { const sec = salleDe(ctx.doc, ctx.state.salleId).secteurs.find(x => x.id === d.id); ctx.ouvrirModal({ type: "secteur", salleId: ctx.state.salleId, id: sec.id, nom: sec.nom, profil: sec.profil || "Vertical" }); },
   voieNouvelle: (ctx, d) => { const s = salleDe(ctx.doc, ctx.state.salleId); ctx.ouvrirModal({ type: "voie", salleId: s.id, disc: d.disc, cotSalle: "", chiffre: "", couleur: "", profil: profilHabituel(s, d.secteur || null), nom: "", secteurId: d.secteur || "" }); },

@@ -102,7 +102,7 @@ export function rendre(ctx) {
   if (etat === "sautee") out = h`${out}<p class="petit centre">Séance sautée · <button class="lien" data-act="desauter">annuler</button></p>`;
 
   // Les voies : projets, cotations visées, nouvelles
-  if (estGrimpe && (enCours || sa.fin || (sa.tentatives || []).length || avant)) out = h`${out}${carteVoies(ctx, s, sa, etapes, disc)}`;
+  if (estGrimpe || (sa.tentatives || []).length) out = h`${out}${carteVoies(ctx, s, sa, etapes, disc)}`;
 
   // Le plan : replié pendant une séance de grimpe en cours (la carte Maintenant suffit), ouvert sinon
   const faites = actives(etapes).filter(e => etapeFinie(sa, e)).length, grimpeEnCours = enCours && estGrimpe;
@@ -111,9 +111,6 @@ export function rendre(ctx) {
     ${si(s.libre && !etapes.length, h`<p class="petit">Séance libre : note simplement ce que tu fais.</p>`)}
   </div>`, { resume: sa.debut ? `${faites}/${actives(etapes).length} faites` : `${actives(etapes).length} étapes`, classe: "pli-plan" })}`;
 
-  // Tentatives de la séance
-  if ((sa.tentatives || []).length) out = h`${out}<div class="carte"><h2>Passages de la séance <span class="petit">${(sa.tentatives || []).filter(reussi).length} / ${sa.tentatives.length}</span></h2>
-    ${sa.tentatives.map((v, i) => h`<button class="tentative" data-act="resultatEditer" data-i="${i}"><span class="pastille" style="background:${hexDe(doc, v.couleur)}"></span><span>${libelleVoie(v)}${v.profil ? ` · ${v.profil.toLowerCase()}` : ""}${v.approx ? " · en gros" : ""}${anonyme(v) ? (v.nouvelle ? " · nouvelle voie" : " · voie déjà faite") : ""}</span><span class="res res-${v.res}">${v.res === "sec" ? `${v.sec} sec` : RES_LABEL[v.res]}</span></button>`)}</div>`;
   if (s.libre || s.copie) out = h`${out}<button class="gros contour danger" data-act="supprimerLibre">Supprimer cette séance</button>`;
   return { html: out, titre: h`<b>${court(s.date)}</b> · ${activiteAffichee(s, sa)}`, fleches: true, menu: true, activite: disc === "Bloc" ? "Bloc" : s.activite, infos: "", glisser: !enCours };
 }
@@ -173,31 +170,55 @@ function cotationsRapides(ctx, etapes, disc) {
   const i = niv ? bases.indexOf(niv.replace(/\+$/, "")) : bases.indexOf(disc === "Bloc" ? "4" : "5a");
   return bases.slice(Math.max(0, i - 1), Math.max(0, i - 1) + 4);
 }
-// --- La carte des voies : 1. la salle du jour · 2. cotations de la séance (passage en un appui) · 3. voies de la salle, en groupes repliables ---
+// --- La carte des voies, courte : la salle · « + Noter un passage » · tes cibles · voie déjà faite (cotations, un appui) · aujourd'hui, par voie · le mur ---
+const tuileVoie = (ctx, salle, v, auj, voies) => { const hv = voies.find(x => x.voieId === v.id), t = auj.filter(x => x.voieId === v.id), hex = hexDe(ctx.doc, v.couleur, salle), sec = secteurDe(salle, v);
+  return h`<button class="tuile-voie ${t.length ? (t.some(reussi) ? "ok-auj" : "ko-auj") : ""}" data-act="voieRapide" data-id="${v.id}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (sec ? sec.nom : "") || (v.profil || "").toLowerCase()}</span>
+    <span class="tuile-histo">${hv ? reperes(hv) : "jamais"}${t.length ? ` · auj. ${t.map(x => x.res === "ok" ? "✓" : x.res === "sec" ? "s" : "✗").join("")}` : ""}</span></button>`; };
+// Cibles : ★ à essayer puis projets, encore en place
+function ciblesDe(ctx, salle, disc) {
+  const enPlace = voiesEnPlace(salle, disc), voies = parVoie(toutesTentatives(ctx.programme, ctx.doc));
+  const proj = projets(voies, disc, salle).map(p => enPlace.find(x => x.id === p.voieId)).filter(Boolean);
+  return { enPlace, voies, cibles: [...enPlace.filter(v => v.etoile), ...proj.filter(v => !v.etoile)] };
+}
+// Passages d'aujourd'hui regroupés par voie : « 5b bleu  ✗ ✗ ✓ facile  + encore »
+function groupesDuJour(sa) {
+  const G = new Map();
+  (sa.tentatives || []).forEach((t, i) => { const k = t.voieId || (t.couleur || t.nom ? `${t.disc}|${t.cot}|${t.couleur}|${t.nom}` : `${t.disc}|${t.cot}|${t.nouvelle ? "n" + t.t : "anc"}`);
+    const g = G.get(k) || { t, l: [] }; g.l.push([t, i]); G.set(k, g); });
+  return [...G.values()];
+}
 function carteVoies(ctx, s, sa, etapes, disc) {
-  const { doc } = ctx, salle = salleCourante(ctx, s, sa, disc), nom = disc === "Bloc" ? "Blocs" : "Voies";
-  const cots = cotationsRapides(ctx, etapes, disc);
-  let out = h`<div class="carte voies"><h2>${nom}</h2>
+  const { doc } = ctx, salle = salleCourante(ctx, s, sa, disc), nom = disc === "Bloc" ? "Blocs" : "Voies", cots = cotationsRapides(ctx, etapes, disc), groupes = groupesDuJour(sa);
+  const C = salle ? ciblesDe(ctx, salle, disc) : null, n = (sa.tentatives || []).length, ok = (sa.tentatives || []).filter(reussi).length;
+  return h`<div class="carte voies"><h2>${nom}</h2>
     <button class="fiche-ligne ligne-salle" data-act="choixSalleOuvrir"><span>Salle</span><span class="val">${salle ? salle.nom : "Salle inconnue"} ›</span></button>
-    <h3>Cotations de la séance</h3><div class="cot-rapide">${cots.map(c => h`<div class="cot-ligne"><b>${c}</b><button class="ok" data-act="noterRapide" data-cot="${c}" data-res="ok" aria-label="Réussi en ${c}">✓</button>${si(disc === "Voie", h`<button class="sec" data-act="noterRapide" data-cot="${c}" data-res="sec">sec</button>`)}<button class="ko" data-act="noterRapide" data-cot="${c}" data-res="ko" aria-label="Pas réussi en ${c}">✗</button></div>`)}</div>
-    <p class="petit">Un appui = un passage${salle ? ", sans chercher la voie dans la salle" : ""}. Il compte comme une <b>voie déjà faite</b> ; pour une nouvelle voie, touche « Nouvelle voie » dans le message qui s'affiche. <button class="lien" data-act="resultat">Autre cotation, profil…</button></p>`;
-  if (salle) {
-    const voies = parVoie(toutesTentatives(ctx.programme, doc)), enPlace = voiesEnPlace(salle, disc), auj = sa.tentatives || [];
-    const histo = id => voies.find(v => v.voieId === id), proj = projets(voies, disc, salle).filter(v => v.voieId && enPlace.some(x => x.id === v.voieId));
-    const tuile = v => { const hv = histo(v.id), t = auj.filter(x => x.voieId === v.id), hex = hexDe(doc, v.couleur, salle), sec = secteurDe(salle, v);
-      return h`<button class="tuile-voie ${t.length ? (t.some(reussi) ? "ok-auj" : "ko-auj") : ""}" data-act="voieRapide" data-id="${v.id}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (sec ? sec.nom : "") || (v.profil || "").toLowerCase()}</span>
-        <span class="tuile-histo">${hv ? reperes(hv) : "jamais"}${t.length ? ` · auj. ${t.map(x => x.res === "ok" ? "✓" : x.res === "sec" ? "s" : "✗").join("")}` : ""}</span></button>`; };
-    const etoilees = enPlace.filter(v => v.etoile), dejaVue = v => v.etoile || proj.some(p => p.voieId === v.id);
-    const projVoies = proj.map(v => enPlace.find(x => x.id === v.voieId)).filter(v => !v.etoile);
-    const parCot = c => enPlace.filter(v => (v.cot === c || v.cotSalle === c) && !dejaVue(v)), autres = enPlace.filter(v => !dejaVue(v) && !cots.some(c => v.cot === c || v.cotSalle === c));
-    const groupe = (cle, titre, l, defaut) => l.length ? pli(`sv-${salle.id}-${disc}-${cle}`, defaut, titre, () => h`<div class="tuiles">${l.map(tuile)}</div>`, { resume: `${l.length}` }) : "";
-    out = h`${out}<h3>Voies de ${salle.nom}</h3>
-      ${groupe("etoile", "★ À essayer", etoilees, true)}${groupe("projets", "Projets", projVoies, true)}
-      ${cots.map(c => groupe("c" + c, `En ${c}`, parCot(c), true))}${groupe("autres", "Autres voies", autres, false)}
-      ${si(!enPlace.length, h`<p class="petit">Aucune voie connue dans cette salle : ajoute-les au fil des séances, elles resteront.</p>`)}
-      <button class="gros contour" data-act="nouvelleVoieOuvrir">+ ${disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"} dans ${salle.nom}</button>`;
-  }
-  return h`${out}</div>`;
+    <button class="gros principal" data-act="noterOuvrir">+ Noter un passage</button>
+    ${si(C && C.cibles.length, () => h`<h3>Tes cibles <span class="petit">★ à essayer, projets</span></h3><div class="tuiles cibles">${C.cibles.slice(0, 6).map(v => tuileVoie(ctx, salle, v, sa.tentatives || [], C.voies))}</div>`)}
+    <h3>${disc === "Bloc" ? "Bloc déjà fait" : "Voie déjà faite"}, sans la chercher <span class="petit">un appui = un passage</span></h3>
+    <div class="cot-rapide compacte">${cots.map(c => h`<div class="cot-ligne"><b>${c}</b><button class="ok" data-act="noterRapide" data-cot="${c}" data-res="ok" aria-label="Réussi en ${c}">✓</button>${si(disc === "Voie", h`<button class="sec" data-act="noterRapide" data-cot="${c}" data-res="sec">sec</button>`)}<button class="ko" data-act="noterRapide" data-cot="${c}" data-res="ko" aria-label="Pas réussi en ${c}">✗</button></div>`)}</div>
+    ${si(n, () => h`<h3>Aujourd'hui <span class="petit">${ok} réussi${ok > 1 ? "s" : ""} sur ${n}</span></h3><div class="jour-passages">${groupes.map(g => h`<div class="groupe-passages"><span class="gp-voie"><span class="pastille" style="background:${hexDe(doc, g.t.couleur, salleDe(doc, g.t.salle))}"></span> ${libelleVoie(g.t)}${anonyme(g.t) ? h` <span class="petit">${g.t.nouvelle ? "nouvelle" : "déjà faite"}</span>` : ""}</span>
+        <span class="gp-res">${g.l.map(([t, i]) => h`<button class="tentative res res-${t.res}" data-act="resultatEditer" data-i="${i}" aria-label="Corriger ce passage">${t.res === "sec" ? `${t.sec} sec` : RES_LABEL[t.res]}${t.aisance === "facile" ? " facile" : ""}${t.approx ? " ~" : ""}</button>`)}<button class="encore" data-act="encore" data-i="${g.l[g.l.length - 1][1]}" aria-label="Encore un passage sur cette voie">+ encore</button></span></div>`)}</div><p class="petit">Touche un résultat pour le corriger.</p>`)}
+    ${si(salle, () => h`<button class="lien" data-act="murOuvrir" data-id="${salle.id}">Voir tout le mur de ${salle.nom} ›</button>`)}
+  </div>`;
+}
+// La fenêtre « Noter un passage » : en haut nouvelle voie / sans voie précise ; puis filtres couleur et cotation → 1 à 3 voies ; cibles et voies d'aujourd'hui d'abord
+export function fenetreNoter(ctx, M) {
+  const s = ctx.seance(M.seanceId), sa = ctx.saisie(s.id), disc = M.disc, salle = salleCourante(ctx, s, sa, disc), auj = sa.tentatives || [];
+  const haut = h`<div class="noter-haut">${si(salle, h`<button data-act="nouvelleVoieOuvrir">+ ${disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"}</button>`)}<button data-act="resultat">Sans ${disc === "Bloc" ? "bloc" : "voie"} précis${disc === "Bloc" ? "" : "e"} <span class="petit">(cotation seule)</span></button></div>`;
+  if (!salle) return h`<h2>Noter un passage</h2>${haut}<p class="petit">Salle inconnue : note par cotation, ou choisis la salle du jour pour retrouver ses voies.</p><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
+  const { enPlace, voies, cibles } = ciblesDe(ctx, salle, disc), rangCot = c => (ctx.data.echelles[disc] || []).indexOf(c);
+  const couleurs = [...new Set(enPlace.map(v => v.couleur).filter(Boolean))], cotes = [...new Set(enPlace.map(v => v.cotSalle || v.cot).filter(Boolean))].sort((a, b) => rangCot(a) - rangCot(b) || (a < b ? -1 : 1));
+  const filtrees = enPlace.filter(v => (!M.fCouleur || v.couleur === M.fCouleur) && (!M.fCot || (v.cotSalle || v.cot) === M.fCot));
+  const poids = v => cibles.includes(v) ? 0 : auj.some(t => t.voieId === v.id) ? 1 : 2, l = [...filtrees].sort((a, b) => poids(a) - poids(b)), filtre = M.fCouleur || M.fCot, max = filtre ? 60 : 9;
+  return h`<h2>Noter un passage · ${salle.nom}</h2>${haut}
+    ${enPlace.length ? h`<label class="champ">Quelle ${disc === "Bloc" ? "bloc" : "voie"} ? <span class="petit">filtre par couleur et cotation</span></label>
+      <div class="pastilles filtre-couleurs">${couleurs.map(c => h`<button class="pastille ${M.fCouleur === c ? "choisi" : ""}" style="background:${hexDe(ctx.doc, c, salle)}" data-act="noterFiltre" data-k="fCouleur" data-valeur="${c}" aria-label="${c}" title="${c}"></button>`)}</div>
+      <div class="choix compact">${cotes.map(c => h`<button class="${M.fCot === c ? "choisi" : ""}" data-act="noterFiltre" data-k="fCot" data-valeur="${c}">${c}</button>`)}</div>
+      ${si(filtre, h`<button class="lien" data-act="noterFiltre" data-k="tout">✕ enlever les filtres</button>`)}
+      <div class="tuiles">${l.slice(0, max).map(v => tuileVoie(ctx, salle, v, auj, voies))}</div>
+      ${si(l.length > max, h`<p class="petit">${l.length - max} autres : filtre par couleur ou cotation.</p>`)}${si(!l.length, h`<p class="petit">Aucune voie ne correspond : « + ${disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"} ».</p>`)}`
+      : h`<p class="petit">Aucune voie connue dans ${salle.nom} : ajoute-la avec « + ${disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"} », elle restera.</p>`}
+    <div class="actions"><button data-act="mFermer">Fermer</button></div>`;
 }
 // Repère de réussite d'une voie : ✓ (✓ facile), ✗ n
 export function reperes(hv) { return `${hv.reussies ? (hv.aisance === "facile" ? "✓ facile" : "✓") : ""}${hv.essais - hv.reussies ? `${hv.reussies ? " " : ""}✗${hv.essais - hv.reussies}` : ""}`; }
@@ -264,7 +285,14 @@ export const actions = {
   choixSalleOuvrir: ctx => { const s = courant(ctx); ctx.ouvrirModal({ type: "choixSalle", seanceId: s.id, disc: discipline(s, ctx.saisie(s.id)) }); },
   choisirSalle: (ctx, d) => { const s = courant(ctx), disc = discipline(s, ctx.saisie(s.id));
     ctx.modifier("salle", doc => { const sa = doc.seances[s.id] = doc.seances[s.id] || {}; sa.salle = d.id; doc.reglages.salleParDefaut = { ...(doc.reglages.salleParDefaut || {}), [disc]: d.id }; }, { annulable: false }); ctx.rendre(); },
-  voieRapide: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), salle = salleCourante(ctx, s, sa, disc), v = salle.voies.find(x => x.id === d.id);
+  noterOuvrir: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id); ctx.ouvrirModal({ type: "noter", seanceId: s.id, disc: discipline(s, sa), fCouleur: "", fCot: "" }); },
+  noterFiltre: (ctx, d) => { const m = ctx.state.modal; if (d.k === "tout") { m.fCouleur = ""; m.fCot = ""; } else m[d.k] = m[d.k] === d.valeur ? "" : d.valeur; ctx.rendre(); },
+  murOuvrir: (ctx, d) => ctx.ouvrir("salle", { salleId: d.id }),
+  // « + encore » : même voie (de la salle : sa fenêtre rapide ; sans voie : la fenêtre du passage, pré-remplie)
+  encore: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), t = sa.tentatives[+d.i]; if (!t) return;
+    if (t.voieId && salleDe(ctx.doc, t.salle) && salleDe(ctx.doc, t.salle).voies.some(v => v.id === t.voieId)) return actions.voieRapide(ctx, { id: t.voieId, salle: t.salle });
+    ctx.ouvrirModal({ type: "resultat", seanceId: s.id, k: cleRattachement(ctx, s, sa, t.disc), disc: t.disc, cot: t.cot, cotSalle: t.cotSalle, profil: t.profil || "Vertical", res: "", sec: 1, style: "Après travail", couleur: t.couleur || "", nom: t.nom || "", cause: "", salle: t.salle || "", nouvelle: false }); },
+  voieRapide: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), salle = (d.salle && salleDe(ctx.doc, d.salle)) || salleCourante(ctx, s, sa, disc), v = salle && salle.voies.find(x => x.id === d.id); if (!v) return;
     ctx.ouvrirModal({ type: "voieRapide", seanceId: s.id, salleId: salle.id, voieId: v.id, disc, res: "", sec: 1, cause: "" }); },
   noterRapide: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa);
     const salle = salleCourante(ctx, s, sa, disc);

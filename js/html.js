@@ -37,7 +37,7 @@ const ICONES = {
 };
 export const ico = nom => brut(`<svg class="ico-svg" viewBox="0 0 24 24" aria-hidden="true">${ICONES[nom] || ""}</svg>`);
 // Inclinaison d'un profil (pour les tuiles et les choix)
-const PROFIL_TRAIT = { "Dalle": "M8 18 L13 2", "Vertical": "M11 18 L11 2", "Léger dévers": "M13 18 L9 2", "Dévers": "M15 18 L6 2", "Fort dévers": "M16 18 L3 5", "Toit": "M16 18 L16 8 L2 8" };
+const PROFIL_TRAIT = { "Dalle": "M8 18 L13 2", "Vertical": "M11 18 L11 2", "Léger dévers": "M13 18 L9 2", "Dévers": "M15 18 L6 2", "Surplomb": "M15 18 Q15 6 4 3", "Fort dévers": "M16 18 L3 5", "Toit": "M16 18 L16 8 L2 8" };
 export const pictoProfil = (p, classe = "picto") => PROFIL_TRAIT[p] ? brut(`<svg viewBox="0 0 18 20" class="${classe}" aria-label="${esc(p)}"><path d="M1 19 H17" class="sol"/><path d="${PROFIL_TRAIT[p]}"/></svg>`) : "";
 
 // =====================================================================
@@ -60,6 +60,16 @@ export function pli(cle, defaut, titre, contenu, { resume = "", classe = "", tou
 //   M.section porte la ligne ouverte ; les actions de choix (mChamp, mProfil, mSecteur, mCot…) referment
 // =====================================================================
 export const ligneChoix = (M, cle, label, valeur, contenu) => h`<button class="fiche-ligne" data-act="mSection" data-k="${cle}"><span>${label}</span><span class="val">${valeur || "—"} ${M.section === cle ? "▾" : "›"}</span></button>${M.section === cle ? h`<div class="fiche-contenu">${contenu()}</div>` : ""}`;
+
+// Listes déroulantes : au-delà de 4 options (règle de l'app), un <select> — le sélecteur natif de l'iPhone.
+// options : [valeur, libellé] ou valeur, ou { groupe, options } pour des sous-titres. data-champ met à jour la fenêtre ; data-act (au changement) redessine ou agit.
+const optionsDe = (options, est) => options.map(o => o && o.groupe ? h`<optgroup label="${o.groupe}">${optionsDe(o.options, est)}</optgroup>`
+  : (([v, l]) => h`<option value="${v}" ${est(v) ? "selected" : ""}>${l}</option>`)(Array.isArray(o) ? o : [o, o]));
+export const liste = (champ, options, valeur, { act = "mListe", vide = "—", label = "", data = {} } = {}) =>
+  h`${label ? h`<label class="champ">${label}</label>` : ""}<select class="liste" data-act="${act}" data-champ="${champ}" ${brut(Object.entries(data).map(([k, x]) => `data-${k}="${esc(x)}"`).join(" "))}>${vide !== null ? h`<option value="">${vide}</option>` : ""}${optionsDe(options, v => String(v) === String(valeur ?? ""))}</select>`;
+// Choix multiples (caractéristiques) : <select multiple>, la sélection est lue au changement (action « mListeMulti »)
+export const listeMulti = (champ, options, valeurs = [], { label = "" } = {}) =>
+  h`${label ? h`<label class="champ">${label}</label>` : ""}<select class="liste" multiple data-act="mListeMulti" data-champ-multi="${champ}">${optionsDe(options, v => (valeurs || []).includes(v))}</select>`;
 
 // ⓘ : un lien discret qui ouvre l'explication (textes dans infos.js, fenêtre « info »)
 export const info = (cle, texte = "Comment ça marche") => h`<button class="lien lien-info" data-act="infoOuvrir" data-k="${cle}">ⓘ ${texte}</button>`;

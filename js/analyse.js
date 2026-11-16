@@ -5,7 +5,7 @@
 
 import { ecartJours, semaineDe, ajouterJours, lundiDe } from "./dates.js";
 
-export const DEVERS = ["Léger dévers", "Dévers", "Fort dévers", "Toit"];
+export const DEVERS = ["Léger dévers", "Dévers", "Surplomb", "Fort dévers", "Toit"];
 export const enDevers = p => DEVERS.includes(p);
 export const groupeProfil = p => enDevers(p) ? "Dévers" : "Vertical";
 export const baseCot = c => String(c ?? "").replace(/\+$/, "");       // 5b+ compte comme 5b
@@ -15,12 +15,14 @@ export const rang = (echelles, disc, cot) => (echelles[disc] || []).indexOf(Stri
 const avant = (a, b) => (a.date || "") < (b.date || "") || ((a.date || "") === (b.date || "") && (a.t || 0) < (b.t || 0));
 // --- Toutes les tentatives, à plat, datées ---
 export function tentatives(programme, doc) {
-  const out = [];
+  // Caractéristiques : lues sur la voie de la salle au moment du calcul (ajoutées après coup, elles comptent aussi)
+  const carac = {}; for (const sl of doc.salles || []) for (const v of sl.voies || []) if (v.carac && v.carac.length) carac[v.id] = v.carac;
+  const out = [], avecC = t => t.voieId && carac[t.voieId] ? { ...t, carac: carac[t.voieId] } : t;
   for (const s of programme) {
     const sa = doc.seances[s.id]; if (!sa) continue;
-    for (const t of sa.tentatives || []) out.push({ ...t, date: sa.dateReelle || s.date, seanceId: s.id });
+    for (const t of sa.tentatives || []) out.push(avecC({ ...t, date: sa.dateReelle || s.date, seanceId: s.id }));
   }
-  for (const t of doc.passagesAnciens || []) out.push({ ...t, seanceId: "ancien-" + t.date, approx: true });
+  for (const t of doc.passagesAnciens || []) out.push(avecC({ ...t, seanceId: "ancien-" + t.date, approx: true }));
   return out;
 }
 // Identité d'une voie : celle de la salle, sinon cotation + couleur + nom.
@@ -149,9 +151,12 @@ export function pointsFaibles(ts, conseils, params, aujourdhui) {
   const profils = Object.entries(parProfil).filter(([, x]) => x.length >= min).map(([p, x]) => ({ profil: p, taux: taux(x), essais: x.length })).sort((a, b) => a.taux - b.taux);
   const causes = {}; l.filter(t => !reussi(t) && t.cause).forEach(t => causes[t.cause] = (causes[t.cause] || 0) + 1);
   const cause = Object.entries(causes).sort((a, b) => b[1] - a[1])[0];
+  const parCarac = {}; l.forEach(t => (t.carac || []).forEach(c => (parCarac[c] = parCarac[c] || []).push(t)));
+  const caracs = Object.entries(parCarac).filter(([, x]) => x.length >= min).map(([c, x]) => ({ carac: c, taux: taux(x), essais: x.length })).sort((a, b) => a.taux - b.taux);
   const conseil = (type, valeur) => conseils.find(c => c.type === type && c.valeur === valeur);
   return { profil: profils[0] ? { ...profils[0], conseil: conseil("Profil", profils[0].profil) } : null,
-           cause: cause ? { cause: cause[0], n: cause[1], conseil: conseil("Cause", cause[0]) } : null };
+           cause: cause ? { cause: cause[0], n: cause[1], conseil: conseil("Cause", cause[0]) } : null,
+           carac: caracs[0] ? { ...caracs[0], conseil: conseil("Caractéristique", caracs[0].carac) } : null, caracs };
 }
 
 // --- Vigilance : la liste des signaux du moment ---

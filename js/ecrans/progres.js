@@ -30,8 +30,10 @@ export function rendre(ctx) {
     ${pli("pg-niveau-detail", false, "Détail par cotation", () => Object.values(B.consolides).filter(c => c.detail.length).map(c => h`<p class="petit"><b>${c.disc} · ${c.groupe}</b></p>${c.detail.map(d => h`<div class="crit"><span>${d.cot}</span>${barre(d.taux, 1, d.taux >= B.params.consolide_taux ? "ok" : "")}<b>${Math.round(d.taux * 100)} % · ${d.essais}</b></div>`)}`))}`, { resume: Object.values(B.consolides).map(c => c.niveau).filter(Boolean).join(" · "), classe: "carte" })}`;
 
   const pf = B.pointsFaibles;
-  if (pf.profil || pf.cause) out = h`${out}${pli("pg-travailler", false, "À travailler", () => h`<p class="petit">${B.params.faible_semaines ?? 8} dernières semaines.</p>
+  if (pf.profil || pf.cause || pf.carac) out = h`${out}${pli("pg-travailler", false, "À travailler", () => h`<p class="petit">${B.params.faible_semaines ?? 8} dernières semaines.</p>
     ${si(pf.profil, h`<p><b>${pf.profil && pf.profil.profil}</b> : ${pf.profil && Math.round(pf.profil.taux * 100)} % de réussite sur ${pf.profil && pf.profil.essais} essais.${pf.profil && pf.profil.conseil ? h` <span class="petit">${pf.profil.conseil.pourquoi}</span><br>${lier(pf.profil.conseil.exercices, data.exercices)}` : ""}</p>`)}
+    ${si(pf.carac, () => h`<p><b>${pf.carac.carac}</b> : ${Math.round(pf.carac.taux * 100)} % de réussite sur ${pf.carac.essais} essais — la caractéristique la moins réussie.${pf.carac.conseil ? h` <span class="petit">${pf.carac.conseil.pourquoi}</span><br>${lier(pf.carac.conseil.exercices, data.exercices)}` : ""}</p>
+      ${si((pf.caracs || []).length > 1, () => h`<p class="petit">Par caractéristique : ${pf.caracs.map(c => `${c.carac} ${Math.round(c.taux * 100)} % (${c.essais})`).join(" · ")}</p>`)}`)}
     ${si(pf.cause, h`<p>Cause d'échec la plus fréquente : <b>${pf.cause && pf.cause.cause}</b> (${pf.cause && pf.cause.n} fois).${pf.cause && pf.cause.conseil ? h` <span class="petit">${pf.cause.conseil.pourquoi}</span><br>${lier(pf.cause.conseil.exercices, data.exercices)}` : ""}</p>`)}`, { resume: [pf.profil && pf.profil.profil, pf.cause && pf.cause.cause].filter(Boolean).join(" · "), classe: "carte" })}`;
 
   const ch = B.charge, max = Math.max(1, ...ch.semaines.map(w => w.charge));

@@ -322,3 +322,25 @@ input.recherche { width: 100%; padding: 10px 12px; border: 1px solid var(--trait
 button.ligne-res.ligne-bouton { width: 100%; background: none; border: none; border-radius: 0; text-align: left; padding: 8px 0; min-height: 44px; }
 .pli-consignes { margin-top: 0; }
 #toast.sur-modal { z-index: 45; top: calc(12px + var(--haut)); bottom: auto; }
+
+/* ===== 8.6 ===== */
+/* Listes déroulantes (plus de 4 options) */
+select.liste { width: 100%; min-height: 46px; padding: 8px 12px; border: 1px solid var(--trait); border-radius: 10px; background: var(--carte); color: var(--texte); font-size: 16px; margin: 2px 0 6px; }
+select.liste[multiple] { min-height: 120px; }
+.barre-mur select.liste { width: auto; min-height: 38px; margin: 0; font-size: 14px; }
+/* Carte Voies : courte */
+.carte.voies > .gros.principal { margin: 10px 0 4px; }
+.carte.voies h3 { margin: 14px 0 6px; font-size: 15px; }
+.tuiles.cibles { flex-wrap: nowrap; overflow-x: auto; }
+.cot-rapide.compacte .cot-ligne { gap: 6px; margin-bottom: 4px; }
+.cot-rapide.compacte .cot-ligne button { min-height: 36px; padding: 4px 0; font-size: 15px; }
+.cot-rapide.compacte .cot-ligne b { min-width: 34px; }
+.jour-passages { display: grid; gap: 6px; }
+.groupe-passages { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--trait); }
+.gp-res { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.gp-res .tentative { min-height: 32px; padding: 3px 9px; border-radius: 14px; font-size: 14px; width: auto; display: inline-flex; }
+.gp-res .encore { min-height: 32px; padding: 3px 9px; border-radius: 14px; font-size: 13px; background: none; }
+/* Fenêtre « Noter un passage » */
+.noter-haut { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 10px; }
+.noter-haut button { min-height: 52px; }
+.filtre-couleurs { margin-bottom: 6px; }
