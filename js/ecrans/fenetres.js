@@ -1,9 +1,10 @@
 // ecrans/fenetres.js — les fenêtres du bas. L'état de la fenêtre est ctx.state.modal (M) ; les champs « data-champ » l'écrivent à la frappe.
-import { h, si, choix, echelle, brut, pictoProfil as dessinProfil, ligneChoix, forcerOuvert, info, liste, listeMulti } from "../html.js";
+import { h, si, choix, echelle, brut, pictoProfil as dessinProfil, ligneChoix, forcerOuvert, info, liste, listeMulti, lier } from "../html.js";
+import { COULEUR_ROUTINES, GENRES_ROUTINE, etiquetteNiveau, couleurCategorie } from "./plus.js";
 import { INFOS } from "../infos.js";
 import { discipline, etapesSeance, nouvelId, idsAPauser, opsCopieSeance, opsCopieSemaine, activiteAffichee } from "../programme.js";
 import { RES_LABEL, ajouterTentative, cleRattachement, fenetreNoter, actions as ACTIONS_SEANCE } from "./seance.js";
-import { court, semaineDe, nomJour, ajouterJours } from "../dates.js";
+import { court, semaineDe, nomJour, ajouterJours, mmss } from "../dates.js";
 import { verifierImport, lireTexte } from "../export.js";
 import { salleDe, couleursDe, hexDe, texteSur, cotationDe, cotApp, nouvelleVoie, voieExistante, tentativeDe, libelleVoie, secteurDe, renouveler, profilHabituel, inclinaisonSecteur, categorieInclinaison, FONDS_SALLE, fondSalle, ranger, PALETTE, CARACTERISTIQUES, salleParDefautPour, retenirSalle, sallesPour, passagesDe, supprimerVoies, dupliquerVoie, deplacerVoieSalle, deplacerSecteur, supprimerSecteur, supprimerSalle, renommerCouleur, supprimerCouleur, voiesDeCouleur } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, causePrincipale, essaisPrecedents, essaisAvantReussite, dejaReussie, AISANCES } from "../analyse.js";
@@ -199,7 +200,11 @@ export function rendre(ctx) {
     case "deplacer": return h`<h2>Déplacer la séance</h2><p class="petit">Prévue le ${court(s.datePrevue)}. La séance garde sa place dans le programme ; seule sa date change.</p>
       <input type="date" data-champ="date" value="${M.date}">${actionsBas("Déplacer", "deplacerOk")}`;
 
-    case "ficheExo": { const x = data.exercices[+M.k]; return h`<h2>${x.nom}</h2><p class="petit">${x.categorie}${x.niveau ? " · " + x.niveau : ""}${x.discipline ? " · " + x.discipline : ""}</p>
+    case "ficheRoutine": { const e = data.routines.filter(x => x.routine === M.nom), tot = e.reduce((t, x) => t + (x.duree || 0), 0);
+      return h`<h2>${M.nom}</h2><p class="petit"><span class="cat-chip" style="--cat:${COULEUR_ROUTINES}">Routine</span> ${GENRES_ROUTINE[(e[0] || {}).genre] || ""}${tot ? ` · ${mmss(tot)} en tout` : ""}</p>
+      <ol class="routine">${e.map(x => h`<li><b>${x.etape}</b>${x.duree ? h` <span class="petit">${mmss(x.duree)}</span>` : ""}<div>${lier(x.quoi, data.exercices)}</div></li>`)}</ol>
+      <div class="actions"><button data-act="favori" data-nom="${M.nom}">${doc.favoris.includes(M.nom) ? "★ Favori" : "☆ Favori"}</button><button class="principal" data-act="mFermer">Fermer</button></div>`; }
+    case "ficheExo": { const x = data.exercices[+M.k]; return h`<h2>${x.nom}</h2><p class="petit"><span class="cat-chip" style="--cat:${couleurCategorie(x.categorie)}">${x.categorie}</span> ${etiquetteNiveau(x.niveau)}${x.discipline ? " · " + x.discipline : ""}</p>
       ${si(x.but, h`<p><b>But.</b> ${x.but}</p>`)}<ol>${x.comment.split("\n").filter(Boolean).map(l => h`<li>${l}</li>`)}</ol>
       ${si(x.erreurs, h`<p><b>Erreurs fréquentes.</b> ${x.erreurs}</p>`)}${si(x.facile, h`<p><b>Plus facile.</b> ${x.facile}</p>`)}${si(x.securite, h`<p class="securite">🛡 ${x.securite}</p>`)}
       <div class="actions"><button data-act="favori" data-nom="${x.nom}">${doc.favoris.includes(x.nom) ? "★ Favori" : "☆ Favori"}</button><button class="principal" data-act="mFermer">Fermer</button></div>`; }
@@ -216,7 +221,7 @@ export function rendre(ctx) {
       <p>Tu ne peux pas grimper pendant un moment (blessure, vacances, maladie) ? Le programme t'attend : il reprendra à la semaine ${M.depuis} après la pause, au lieu de te faire sauter des séances.</p>
       <label class="champ">Durée de la pause</label>${choix("mChamp", [[1, "1 semaine"], [2, "2 semaines"], [3, "3 semaines"], [4, "4 semaines"]], M.n, { data: { champ: "n" }, classe: "compact" })}
       <div class="carte compacte"><p>La semaine ${M.depuis} commencera le <b>${court(apres)}</b> au lieu du ${court(lundi)}.</p>${fin ? h`<p class="petit">Toutes les semaines suivantes glissent aussi : fin du programme le ${court(ajouterJours(fin, 7 * (M.n || 1)))} au lieu du ${court(fin)}.</p>` : ""}
-        <p class="petit">Les séances déjà commencées, faites ou sautées restent à leur date. Rien n'est effacé ; ⋯ › Annuler défait la pause.</p></div>
+        <p class="petit">Les séances déjà commencées, faites ou sautées restent à leur date. Rien n'est effacé ; Options › Annuler défait la pause.</p></div>
       ${info("pause", "En savoir plus")}${actionsBas(`Décaler de ${M.n || 1} semaine${(M.n || 1) > 1 ? "s" : ""}`, "pauseOk")}`; }
 
     case "salle": { const sl = M.id ? salleDe(doc, M.id) : null, nb = sl ? sl.voies.length : 0;
@@ -281,7 +286,7 @@ export function rendre(ctx) {
       ${ligne("carac", "Caractéristiques", (M.carac || []).join(", ") || "—", () => h`${listeMulti("carac", CARACTERISTIQUES, M.carac)}<p class="petit">Arête, traversée, dièdre… plusieurs possibles. Elles entrent dans « À travailler » de Progrès.</p>`)}
       ${ligne("nom", "Nom ou repère", M.nom || "—", () => h`<input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`)}
       ${si(M.id && autresSalles.length, () => ligne("salle", "Salle", sl.nom, () => h`<p class="petit">Voie notée dans la mauvaise salle ? Déplace-la : ses passages la suivent.</p>${liste("salleCible", [[sl.id, sl.nom + " (actuelle)"], ...autresSalles.map(x => [x.id, x.nom])], M.salleCible || sl.id, { vide: null })}`))}
-      ${si(M.id, () => h`<div class="historique-voie"><div class="hv-tete"><b>Historique</b><button class="petit-btn" data-act="passageAutreJour">+ Ajouter</button></div>
+      ${si(M.id, () => h`<div class="historique-voie"><div class="hv-tete"><b>Historique</b><button class="petit-btn btn-ajout" data-act="passageAutreJour">+ Ajouter</button></div>
         ${ts.length ? ts.map(t => { const e = reussiT(t) ? essaisAvantReussite(tous, t) : null, rep = reussiT(t) && dejaReussie(tous, t.voieId, t) !== null;
           return h`<div class="hv-ligne"><span><b>${t.date ? court(t.date) : "Date inconnue"}</b> · ${RES_LABEL[t.res]}${rep ? " · répétition" : ""}${t.aisance ? " · " + AISANCES[t.aisance].toLowerCase() : ""}${e ? ` · ${e === "inconnu" ? "essais inconnus" : e === "1" || e === 1 ? "flash" : e + " essais"}` : ""}${t.cause ? " · " + t.cause.toLowerCase() : ""}<br><span class="petit">${t.approx ? "hors séance" : "en séance"}</span></span>
             <button class="hv-suppr" data-act="passageSupprimer" data-pa="${t.approx ? t.id || "" : ""}" data-s="${t.approx ? "" : t.seanceId}" data-t="${t.t || ""}" aria-label="Supprimer ce passage">✕</button></div>`; })

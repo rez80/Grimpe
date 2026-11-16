@@ -12,7 +12,7 @@ export function rendre(ctx) {
   for (const f of B.nouveauxFeux) out = h`${out}<div class="carte feu-carte"><div><b>🟢 Feu vert : ${f.titre}</b><br><span class="petit">${f.criteres.map(c => `${c.t} : ${c.val}${c.pct ? " %" : ""}`).join(" · ")}</span></div><button data-act="feuVu" data-id="${f.id}">Vu !</button></div>`;
 
   // Les phrases
-  out = h`${out}<div class="carte phrases">${B.phrases.length ? B.phrases.map(p => h`<p class="${p.cle}">${p.texte}</p>`) : h`<p>Pas encore de quoi dire quelque chose : grimpe, note deux ou trois voies, et reviens.</p>`}
+  out = h`${out}<div class="carte phrases carte-liseree">${B.phrases.length ? B.phrases.map(p => h`<p class="${p.cle}">${p.texte}</p>`) : h`<p>Pas encore de quoi dire quelque chose : grimpe, note deux ou trois voies, et reviens.</p>`}
     <div class="ligne-res"><span>Forme</span><b>${B.formeJour ? h`<span class="point ${B.formeJour.forme}"></span>${FORME[B.formeJour.forme]} <span class="petit">(${court(B.formeJour.date)})</span>` : "pas encore notée"}</b></div>
     ${B.vigilance.filter(v => v.niveau !== "vert").map(v => h`<div class="vig ${v.niveau}">${v.texte}</div>`)}</div>`;
 
@@ -26,7 +26,7 @@ export function rendre(ctx) {
     ${si(p && B.recul, () => h`<p class="petit">${p.semaines ? `À ce rythme : ${p.semaines > 26 ? "plus de six mois" : p.semaines === 1 ? "une semaine" : p.semaines + " semaines"}.` : p.val > 0 ? "Pas d'avancée sur quatre semaines." : ""}</p>`)}</div>`; })}`, { resume: `${B.feux.filter(f => f.ok).length} / ${B.feux.filter(f => !f.info).length}`, classe: "carte" })}`;
 
   out = h`${out}${pli("pg-niveau", false, "Niveau consolidé", () => h`${info("niveau")}<p class="petit">≥ ${Math.round(B.params.consolide_taux * 100)} % de réussite sur ≥ ${B.params.consolide_essais} essais.</p>
-    <div class="grille-niv">${Object.values(B.consolides).map(c => h`<div class="niv"><span class="petit">${c.disc} · ${c.groupe}</span><b>${c.niveau || "—"}</b></div>`)}</div>
+    <div class="grille-niv">${Object.values(B.consolides).map(c => h`<div class="niv"><span class="petit">${c.disc} · ${c.groupe}</span>${c.niveau ? h`<span class="niv-tag niv-cot niv-${c.disc === "Bloc" ? "bloc" : "voie"}">${c.niveau}</span>` : h`<b>—</b>`}</div>`)}</div>
     ${pli("pg-niveau-detail", false, "Détail par cotation", () => Object.values(B.consolides).filter(c => c.detail.length).map(c => h`<p class="petit"><b>${c.disc} · ${c.groupe}</b></p>${c.detail.map(d => h`<div class="crit"><span>${d.cot}</span>${barre(d.taux, 1, d.taux >= B.params.consolide_taux ? "ok" : "")}<b>${Math.round(d.taux * 100)} % · ${d.essais}</b></div>`)}`))}`, { resume: Object.values(B.consolides).map(c => c.niveau).filter(Boolean).join(" · "), classe: "carte" })}`;
 
   const pf = B.pointsFaibles;
@@ -39,10 +39,10 @@ export function rendre(ctx) {
   const ch = B.charge, max = Math.max(1, ...ch.semaines.map(w => w.charge));
   out = h`${out}${pli("pg-charge", false, "Charge par semaine", () => h`${info("charge")}<p class="petit">Minutes × effort.</p>
     ${ch.semaines.length ? h`<div class="histo">${ch.semaines.map(w => h`<div class="col" title="S${w.semaine}"><span class="col-barre" style="height:${w.charge / max * 100}%"></span><span class="petit">S${w.semaine}</span></div>`)}</div>
-      <p class="petit">4 dernières semaines : ${ch.recentes} · 4 précédentes : ${ch.precedentes}${ch.precedentes ? ` · rapport ${(ch.recentes / ch.precedentes).toFixed(2)}` : ""}</p>` : h`<p class="petit">Aucune séance terminée.</p>`}`, { resume: ch.precedentes ? `rapport ${(ch.recentes / ch.precedentes).toFixed(2)}` : "", classe: "carte" })}`;
+      <p class="petit">4 dernières semaines : ${ch.recentes} · 4 précédentes : ${ch.precedentes}${ch.precedentes ? ` · rapport ${(ch.recentes / ch.precedentes).toFixed(2)}` : ""}</p>` : h`<p class="petit">Aucune séance terminée.</p>`}`, { resume: ch.precedentes ? `rapport ${(ch.recentes / ch.precedentes).toFixed(2)}` : ch.semaines.length ? `${ch.semaines.length} sem.` : "", classe: "carte" })}`;
 
   if (B.meilleures.length) out = h`${out}${pli("pg-meilleures", false, "Meilleure cotation réussie", () => h`<table class="tableau"><tr><th>Sem.</th><th>Voie vert.</th><th>Voie dév.</th><th>Bloc vert.</th><th>Bloc dév.</th></tr>
-    ${B.meilleures.map(w => h`<tr><td>${w.semaine}</td><td>${w["Voie-Vertical"] || ""}</td><td>${w["Voie-Dévers"] || ""}</td><td>${w["Bloc-Vertical"] || ""}</td><td>${w["Bloc-Dévers"] || ""}</td></tr>`)}</table>`, { classe: "carte" })}`;
+    ${B.meilleures.map(w => h`<tr><td>${w.semaine}</td><td>${w["Voie-Vertical"] || ""}</td><td>${w["Voie-Dévers"] || ""}</td><td>${w["Bloc-Vertical"] || ""}</td><td>${w["Bloc-Dévers"] || ""}</td></tr>`)}</table>`, { classe: "carte", resume: (() => { const d = B.meilleures[B.meilleures.length - 1] || {}; return [d["Voie-Vertical"] && `voie ${d["Voie-Vertical"]}`, d["Bloc-Vertical"] && `bloc ${d["Bloc-Vertical"]}`].filter(Boolean).join(" · "); })() })}`;
 
   const enCours = B.episodes.filter(e => !e.fin).length;
   out = h`${out}${pli("pg-douleurs", false, "Douleurs", () => h`${B.episodes.length ? B.episodes.slice().reverse().map(e => h`<div class="ligne-res"><span>${e.zone} <span class="petit">${court(e.debut)}${e.fin ? " → " + court(e.fin) : ""}</span></span><b class="${e.fin ? "" : "rouge-txt"}">${e.fin ? "terminé" : "en cours"} · max ${e.max}/10</b></div>`) : h`<p class="petit">Aucune douleur signalée.</p>`}
@@ -50,7 +50,7 @@ export function rendre(ctx) {
 
   const mes = Object.entries(doc.mesures).filter(([, m]) => Object.keys(m).length).sort((a, b) => +a[0] - +b[0]);
   if (mes.length) { const cles = [...new Set(mes.flatMap(([, m]) => Object.keys(m)))].filter(k => k !== "notes");
-    out = h`${out}${pli("pg-mesures", false, "Mesures", () => h`${info("mesures", "Ce que mesurent ces tests")}<table class="tableau"><tr><th>Sem.</th>${cles.map(k => h`<th>${k}</th>`)}</tr>${mes.map(([w, m]) => h`<tr><td>${w}</td>${cles.map(k => h`<td>${m[k] ?? ""}</td>`)}</tr>`)}</table>`, { classe: "carte" })}`; }
+    out = h`${out}${pli("pg-mesures", false, "Mesures", () => h`${info("mesures", "Ce que mesurent ces tests")}<table class="tableau"><tr><th>Sem.</th>${cles.map(k => h`<th>${k}</th>`)}</tr>${mes.map(([w, m]) => h`<tr><td>${w}</td>${cles.map(k => h`<td>${m[k] ?? ""}</td>`)}</tr>`)}</table>`, { classe: "carte", resume: `${mes.length} semaine${mes.length > 1 ? "s" : ""}` })}`; }
   return { html: out, titre: h`<b>Progrès</b>` };
 }
 export const actions = {

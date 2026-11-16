@@ -446,3 +446,50 @@ html.sombre { color-scheme: dark; }
 .pli-tete[data-cle="pg-projets"] { --s: var(--bloc); } .pli-tete[data-cle="pg-feux"] { --s: #2E9E6B; } .pli-tete[data-cle="pg-niveau"] { --s: var(--voie); }
 .pli-tete[data-cle="pg-travailler"] { --s: #E08A2E; } .pli-tete[data-cle="pg-charge"] { --s: #7A5BB5; } .pli-tete[data-cle="pg-meilleures"] { --s: var(--ocre); }
 .pli-tete[data-cle="pg-douleurs"] { --s: var(--rouge); } .pli-tete[data-cle="pg-mesures"] { --s: #1AA3A3; } .pli-tete[data-cle="pg-niveau-detail"], .pli-tete[data-cle="pg-signalements"] { --s: var(--gris); }
+
+/* ===== 8.13 ===== */
+/* « Options ▾ » : un vrai bouton, visible, au lieu du ⋯ discret */
+#entete { grid-template-columns: auto 1fr 40px auto 40px; }
+#entete #btn-menu { font-size: 14px; font-weight: 600; min-width: 0; min-height: 32px; padding: 0 10px; margin: 0 2px; border-radius: 16px; background: var(--ocre); color: #261F30; white-space: nowrap; }
+#entete #btn-menu .options-fl { font-size: 11px; }
+html.sombre #entete #btn-menu { background: #E3B45A; color: #261F30; }
+/* Appui long : pas de menu iOS (copier, aperçu), pas de sélection de texte */
+.tuile-voie, [data-appui], .secteur-plier { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.tuile-voie.glissable.souleve { transition: transform .4s ease .15s; transform: scale(.95); }
+.fantome { transform: scale(1.1) rotate(-2deg); box-shadow: 0 12px 28px rgba(0,0,0,.4); }
+.poignee { display: none; }
+/* Un seul style pour « ajouter » : contour ocre, fond teinté */
+button.btn-ajout { background: color-mix(in srgb, var(--ocre) 16%, var(--carte)); border: 1.5px solid var(--ocre); color: var(--accent); font-weight: 600; }
+button.btn-ajout.rond { width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; font-size: 20px; line-height: 1; }
+/* Plus : le nom à côté de l'icône, deux colonnes compactes */
+.menu-plus { gap: 8px; }
+.tuile { flex-direction: row; align-items: center; gap: 10px; min-height: 64px; padding: 10px; border-top: none; border-left: 4px solid var(--t); }
+.tuile .ico { flex: 0 0 36px; width: 36px; height: 36px; font-size: 20px; border-radius: 10px; }
+.tuile > span:last-child { min-width: 0; line-height: 1.25; } .tuile > span:last-child .petit { display: block; font-size: 12px; }
+/* Bibliothèque : filtres niveau et semaine, étiquettes de niveau (même forme partout) */
+.filtres-biblio { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 8px; } .filtres-biblio .choix { margin: 0; flex: 1 1 auto; }
+.filtres-biblio .choix button { padding: 4px 6px; font-size: 13px; } .filtres-biblio .choix button .petit { opacity: .7; }
+.niv-tag { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11.5px; font-weight: 600; background: color-mix(in srgb, var(--n) 18%, var(--carte)); color: color-mix(in srgb, var(--n) 75%, var(--texte)); border: 1px solid color-mix(in srgb, var(--n) 45%, transparent); --n: var(--gris); }
+.niv-tag.niv-deb { --n: var(--vert); } .niv-tag.niv-int { --n: var(--ocre); } .niv-tag.niv-ava { --n: var(--bloc); }
+/* Même modèle de section partout : carte repliable, liseré de couleur à gauche, résumé dans l'en-tête */
+.pli-bloc.carte, .carte-liseree { border-left: 5px solid var(--lis, var(--ocre)); }
+.pli-bloc.carte .pli-tete[data-cle^="pg-"] .pli-titre::before { display: none; }
+.cat-bloc .pli-bloc.carte { --lis: var(--cat); margin: 8px 0; } .cat-bloc .pli-tete { border-left: none; padding-left: 14px; } .cat-bloc .pli-titre::before { display: none; }
+.pli-bloc.carte:has(> [data-cle="pg-projets"]) { --lis: var(--bloc); } .pli-bloc.carte:has(> [data-cle="pg-feux"]) { --lis: #2E9E6B; }
+.pli-bloc.carte:has(> [data-cle="pg-niveau"]) { --lis: var(--voie); } .pli-bloc.carte:has(> [data-cle="pg-travailler"]) { --lis: #E08A2E; }
+.pli-bloc.carte:has(> [data-cle="pg-charge"]) { --lis: #7A5BB5; } .pli-bloc.carte:has(> [data-cle="pg-meilleures"]) { --lis: var(--ocre); }
+.pli-bloc.carte:has(> [data-cle="pg-douleurs"]) { --lis: var(--rouge); } .pli-bloc.carte:has(> [data-cle="pg-mesures"]) { --lis: #1AA3A3; }
+.pli-bloc.carte:has(> [data-cle="reg-affichage"]) { --lis: #7A5BB5; } .pli-bloc.carte:has(> [data-cle="reg-repos"]) { --lis: var(--voie); }
+.pli-bloc.carte:has(> [data-cle="reg-minuteur"]) { --lis: #E08A2E; } .pli-bloc.carte:has(> [data-cle="reg-programme"]) { --lis: var(--ocre); }
+.pli-bloc.carte:has(> [data-cle="sv-github"]) { --lis: #2E9E6B; } .pli-bloc.carte:has(> [data-cle="sv-fichier"]) { --lis: var(--voie); } .pli-bloc.carte:has(> [data-cle="sv-effacer"]) { --lis: var(--rouge); }
+/* les cartes de séance, du plan et des voies gardent leur propre style */
+.pli-bloc.carte.voies, .pli-bloc.carte.pli-plan, .pli-bloc.carte.recap-salle, .pli-bloc.carte:has(> [data-cle="consignes-seance"]) { border-left-width: 0; }
+/* Progrès : barres colorées (en cours : ocre ; atteint : vert), bâtons de charge, tableaux à lignes alternées */
+.barre span { background: var(--ocre); } .barre.ok span { background: #2E9E6B; }
+.histo .col-barre { background: #7A5BB5; border-radius: 4px 4px 0 0; }
+.tableau tr:nth-child(even) td { background: color-mix(in srgb, var(--texte) 4%, transparent); } .tableau th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+.niv-tag.niv-cot { font-size: 18px; padding: 2px 12px; border-radius: 12px; margin-top: 4px; } .niv-tag.niv-voie { --n: var(--voie); } .niv-tag.niv-bloc { --n: var(--bloc); }
+.choix button.choisi .petit { color: inherit; opacity: .8; }
+.niv .niv-tag { align-self: flex-start; }
+select.ed-duree { width: auto; min-width: 84px; min-height: 36px; margin: 0; padding: 4px 6px; font-size: 14px; }
+html, body { overscroll-behavior-x: none; }                       /* glisser horizontalement ne fait pas « page précédente » du navigateur */

@@ -6,7 +6,7 @@ import { construireExport, nomFichier, partager, lireFichier, verifierImport, co
 import { reussi, tentatives as toutesTentatives } from "../analyse.js";
 import { lireJeton, ecrireJeton, configValide, creerSync } from "../sync.js";
 import { fondSalle, hexDe } from "../salles.js";
-import { court, mmss } from "../dates.js";
+import { court, mmss, semaineDe } from "../dates.js";
 import { RES_LABEL } from "./seance.js";
 
 export function rendre(ctx) {
@@ -33,7 +33,7 @@ function menu(ctx) {
     <button class="tuile" data-act="ouvrirVue" data-vue="biblio"><span class="ico">📖</span><span><b>Bibliothèque</b><br><span class="petit">${data.exercices.length} exercices · ${new Set(data.routines.map(r => r.routine)).size} routines</span></span></button>
     <button class="tuile" data-act="ouvrirVue" data-vue="reglages"><span class="ico">⚙</span><span><b>Réglages</b><br><span class="petit">repos, affichage, minuteur</span></span></button>
     <button class="tuile" data-act="ouvrirVue" data-vue="aide"><span class="ico">?</span><span><b>Aide</b><br><span class="petit">principe, syntaxe, données</span></span></button>
-    </div><p class="petit centre">Annuler le dernier geste : ⋯ en haut, sur chaque écran.</p><p class="petit centre">Grimpe ${ctx.APP_VERSION} · programme du ${data.dateDebut} généré le ${data.genereLe} · document v${doc.version}</p>` };
+    </div><p class="petit centre">Annuler le dernier geste : « Options » en haut, sur chaque écran.</p><p class="petit centre">Grimpe ${ctx.APP_VERSION} · programme du ${data.dateDebut} généré le ${data.genereLe} · document v${doc.version}</p>` };
 }
 
 function sauvegarde(ctx) {
@@ -57,11 +57,25 @@ function sauvegarde(ctx) {
 }
 
 function biblio(ctx) {
-  const { data, state } = ctx, r = state.filtre.biblio || "";
-  const routines = [...new Set(data.routines.map(x => x.routine))];
-  return { titre: h`<b>Bibliothèque</b>`, html: h`<input type="search" class="recherche" placeholder="Rechercher un exercice…" value="${r}" data-frappe="biblioRecherche" aria-label="Rechercher">
-    <div id="biblio-liste">${listeBiblio(ctx, r)}</div>
-    <h2 class="section">Routines</h2>${routines.map(n => pli(`routine-${n}`, false, n, () => h`<ol class="routine">${data.routines.filter(x => x.routine === n).map(x => h`<li><b>${x.etape}</b>${x.duree ? h` <span class="petit">${mmss(x.duree)}</span>` : ""}<div class="petit">${lier(x.quoi, data.exercices)}</div></li>`)}</ol>`, { resume: mmss(data.routines.filter(x => x.routine === n).reduce((t, x) => t + x.duree, 0)) }))}` };
+  const { data, state } = ctx, r = state.filtre.biblio || "", niv = state.filtre.niveauExo || "", sem = !!state.filtre.semaineExo;
+  const compte = n => data.exercices.filter(x => !n || x.niveau === n).length;
+  return { titre: h`<b>Bibliothèque</b>`, html: h`<input type="search" class="recherche" placeholder="Rechercher un exercice, une routine…" value="${r}" data-frappe="biblioRecherche" aria-label="Rechercher">
+    <div class="filtres-biblio"><div class="choix compact segmente">${["", "Débutant", "Intermédiaire", "Avancé"].map(n => h`<button data-act="niveauExo" data-valeur="${n}" class="${niv === n ? "choisi" : ""}">${n ? n.slice(0, n === "Intermédiaire" ? 5 : 8) + (n === "Intermédiaire" ? "." : "") : "Tous"} <span class="petit">${compte(n)}</span></button>`)}</div>
+      <button class="petit-btn ${sem ? "choisi" : ""}" data-act="semaineExo">📅 Cette semaine</button></div>
+    <div id="biblio-liste">${listeBiblio(ctx, r)}</div>` };
+}
+// Routines : leurs étapes, leur durée, leur genre
+export const GENRES_ROUTINE = { echauffement: "Échauffement", recup: "Récupération", securite: "Sécurité", facile: "Facile" };
+export const COULEUR_ROUTINES = "#1AA3A3";
+const routinesDe = data => [...new Set(data.routines.map(x => x.routine))].map(nom => { const e = data.routines.filter(x => x.routine === nom);
+  return { nom, etapes: e, duree: e.reduce((t, x) => t + (x.duree || 0), 0), genre: (e[0] || {}).genre || "" }; });
+// Ce que le programme utilise cette semaine : exercices « cités » dans les plans, routines appelées (« > Nom »), et les exercices cités dans ces routines
+function semaineEnCours(ctx) {
+  const { data } = ctx, w = semaineDe(ctx.doc.reglages.dateDebut || data.dateDebut, ctx.aujourdhui()), textes = ctx.programme.filter(s => s.semaine === w).map(s => s.contenu || "");
+  const routines = new Set(); textes.forEach(t => t.split("\n").forEach(l => { const m = l.match(/^>\s*(.+?)\s*$/); if (m) routines.add(m[1].toLowerCase()); }));
+  const tout = [...textes, ...data.routines.filter(x => routines.has(x.routine.toLowerCase())).map(x => x.quoi)].join("\n");
+  const cites = new Set([...tout.matchAll(/«\s*(.+?)\s*»/g)].map(m => m[1].toLowerCase()));
+  return { w, exercices: cites, routines };
 }
 const sansAccent = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 // Couleurs de la Bibliothèque, par famille : technique (bleu), méthode et apprentissage (violet), endurance et course (orange),
@@ -71,13 +85,24 @@ const FAMILLES = [["#2F80C0", ["Pieds", "Corps et équilibre", "Prises et positi
 const TEINTES = ["#2F80C0", "#7A5BB5", "#E08A2E", "#5E8F2E", "#C2457A", "#1AA3A3"];
 export const couleurCategorie = c => (FAMILLES.find(([, l]) => l.includes(c)) || [TEINTES[[...String(c)].reduce((a, x) => a + x.charCodeAt(0), 0) % TEINTES.length]])[0];
 function listeBiblio(ctx, recherche) {
-  const { data, doc } = ctx, q = sansAccent(recherche).trim(), tous = data.exercices.map((x, k) => ({ ...x, k }));
-  const item = x => h`<button class="item item-cat" style="--cat:${couleurCategorie(x.categorie)}" data-act="ficheExo" data-k="${x.k}"><span>${doc.favoris.includes(x.nom) ? h`<span class="etoile-fav">★</span> ` : ""}${x.nom}</span><span class="petit">${q ? h`<span class="cat-chip">${x.categorie}</span>` : ""}${x.niveau ? " " + x.niveau : ""}</span></button>`;
-  if (q) { const l = tous.filter(x => sansAccent([x.nom, x.categorie, x.description, x.consignes].join(" ")).includes(q)); return l.length ? h`<div class="liste">${l.map(item)}</div>` : h`<p class="petit">Aucun exercice pour « ${recherche} ».</p>`; }
-  const favs = tous.filter(x => doc.favoris.includes(x.nom)), cats = [...new Set(tous.map(x => x.categorie))];
-  return h`${si(favs.length, () => pli("biblio-favoris", true, "★ Favoris", () => h`<div class="liste">${favs.map(item)}</div>`, { resume: String(favs.length) }))}
-    ${cats.map(c => { const l = tous.filter(x => x.categorie === c); return h`<div class="cat-bloc" style="--cat:${couleurCategorie(c)}">${pli(`biblio-${c}`, false, c, () => h`<div class="liste">${l.map(item)}</div>`, { resume: String(l.length) })}</div>`; })}`;
+  const { data, doc, state } = ctx, q = sansAccent(recherche).trim(), niv = state.filtre.niveauExo || "", S = state.filtre.semaineExo ? semaineEnCours(ctx) : null;
+  let tous = data.exercices.map((x, k) => ({ ...x, k })), routines = routinesDe(data);
+  if (niv) { tous = tous.filter(x => x.niveau === niv); routines = []; }                                     // les routines n'ont pas de niveau
+  if (S) { tous = tous.filter(x => S.exercices.has(x.nom.toLowerCase())); routines = routines.filter(r => S.routines.has(r.nom.toLowerCase())); }
+  const item = x => h`<button class="item item-cat" style="--cat:${couleurCategorie(x.categorie)}" data-act="ficheExo" data-k="${x.k}"><span>${doc.favoris.includes(x.nom) ? h`<span class="etoile-fav">★</span> ` : ""}${x.nom}</span><span class="petit">${q || S ? h`<span class="cat-chip">${x.categorie}</span> ` : ""}${etiquetteNiveau(x.niveau)}</span></button>`;
+  const itemR = r => h`<button class="item item-cat" style="--cat:${COULEUR_ROUTINES}" data-act="ficheRoutine" data-nom="${r.nom}"><span>${doc.favoris.includes(r.nom) ? h`<span class="etoile-fav">★</span> ` : ""}${r.nom}</span><span class="petit">${q || S ? h`<span class="cat-chip">Routine</span> ` : ""}${GENRES_ROUTINE[r.genre] || ""}${r.duree ? " · " + mmss(r.duree) : ""}</span></button>`;
+  const vide = h`<p class="petit">${S ? `Rien de la bibliothèque n'est cité dans les séances de la semaine ${S.w}${niv ? " à ce niveau" : ""}.` : "Aucun exercice à ce niveau."}</p>`;
+  if (q) { const l = tous.filter(x => sansAccent([x.nom, x.categorie, x.but, x.comment].join(" ")).includes(q)), lr = routines.filter(r => sansAccent([r.nom, ...r.etapes.map(e => e.etape + " " + e.quoi)].join(" ")).includes(q));
+    return l.length || lr.length ? h`<div class="liste">${lr.map(itemR)}${l.map(item)}</div>` : h`<p class="petit">Rien pour « ${recherche} »${niv || S ? " avec ces filtres" : ""}.</p>`; }
+  if (!tous.length && !routines.length) return vide;
+  const favs = [...routines.filter(r => doc.favoris.includes(r.nom)).map(itemR), ...tous.filter(x => doc.favoris.includes(x.nom)).map(item)], cats = [...new Set(tous.map(x => x.categorie))];
+  return h`${si(S, () => h`<p class="petit">Semaine ${S.w} : ${tous.length} exercice${tous.length > 1 ? "s" : ""}${routines.length ? ` et ${routines.length} routine${routines.length > 1 ? "s" : ""}` : ""} cités dans tes séances.</p>`)}
+    ${si(favs.length, () => h`<div class="cat-bloc" style="--cat:var(--ocre)">${pli("biblio-favoris", true, "★ Favoris", () => h`<div class="liste">${favs}</div>`, { resume: String(favs.length), classe: "carte" })}</div>`)}
+    ${si(routines.length, () => h`<div class="cat-bloc" style="--cat:${COULEUR_ROUTINES}">${pli("biblio-routines", false, "Routines", () => h`<div class="liste">${routines.map(itemR)}</div>`, { resume: String(routines.length), classe: "carte" })}</div>`)}
+    ${cats.map(c => { const l = tous.filter(x => x.categorie === c); return h`<div class="cat-bloc" style="--cat:${couleurCategorie(c)}">${pli(`biblio-${c}`, false, c, () => h`<div class="liste">${l.map(item)}</div>`, { resume: String(l.length), classe: "carte" })}</div>`; })}`;
 }
+// Étiquette de niveau : même forme partout (exercices, fiches)
+export const etiquetteNiveau = n => n ? h`<span class="niv-tag niv-${sansAccent(n).slice(0, 3)}">${n}</span>` : "";
 
 function salles(ctx) {
   const { doc } = ctx, ts = toutesTentatives(ctx.programme, doc);
@@ -87,7 +112,7 @@ function salles(ctx) {
         <span class="cs-infos">${s.type === "Bloc et voie" ? "Bloc et voie" : s.type === "Bloc" ? "Bloc" : "Voie"} · ${[s.type !== "Bloc" ? `${nv} voie${nv > 1 ? "s" : ""}` : "", s.type !== "Voie" ? `${nb} bloc${nb > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ")}</span></button>
         <button class="item-edit" data-act="salleEditer" data-id="${s.id}" aria-label="Modifier la salle">✎</button></div>`; })}</div>
     ${si(!doc.salles.length, h`<p class="petit">Une salle, c'est ta mémoire des voies : couleur, niveau, secteur, et ton historique sur chacune. Pendant une séance, tu touches la voie au lieu de remplir une fiche.</p>`)}
-    <button class="gros contour" data-act="salleNouvelle">+ Nouvelle salle</button>` };
+    <button class="gros btn-ajout" data-act="salleNouvelle">+ Nouvelle salle</button>` };
 }
 
 function historique(ctx) {
@@ -109,9 +134,12 @@ function reglages(ctx) {
   const { doc, data } = ctx, r = doc.reglages, acts = data.listes.Activités || ["Voie", "Bloc", "Maison", "Course"];
   const bascule = (cle, label, aide) => h`<div class="ligne-reg"><span>${label}${aide ? h`<br><span class="petit">${aide}</span>` : ""}</span><button class="bascule ${r[cle] ? "on" : ""}" data-act="reglageBool" data-cle="${cle}" aria-label="${label}"></button></div>`;
   return { titre: h`<b>Réglages</b>`, html: h`${pli("reg-affichage", false, "Affichage", () => h`${liste("theme", [["auto", "Automatique (comme l'iPhone)"], ["clair", "Clair"], ["sombre", "Sombre"]], themeActuel(), { act: "reglageTheme", vide: null, label: "Thème" })}${bascule("grand", "Grand affichage", "texte et boutons plus grands")}${bascule("ecranAllume", "Écran allumé pendant la séance", "le minuteur le garde allumé de toute façon")}`, { classe: "carte", resume: r.grand ? "grand affichage" : "" })}
-    ${pli("reg-repos", false, "Repos par défaut", () => h`<p class="petit">Utilisé quand la ligne n'indique pas de repos.</p>
-    ${acts.filter(a => a !== "Repos").map(a => h`<div class="ligne-reg"><span>${a}</span>${liste(`repos-${a}`, DUREES_REPOS.map(x => [x, x ? mmss(x) : "Pas de repos"]), String((r.repos || {})[a] ?? 0), { act: "reglageReposListe", vide: null, data: { a } })}</div>`)}
-    ${bascule("reposAuto", "Repos automatique", "lance le repos dès qu'un passage est noté")}`, { classe: "carte" })}
+    ${(() => { const L = acts.filter(a => a !== "Repos"), a = L.includes(ctx.state.filtre.reposAct) ? ctx.state.filtre.reposAct : L[0], val = a2 => (r.repos || {})[a2] ?? 0;
+      return pli("reg-repos", false, "Repos par défaut", () => h`<p class="petit">Utilisé quand la ligne du plan n'indique pas de repos. Choisis l'activité, puis sa durée.</p>
+      <div class="ligne-reg"><span>Activité</span>${liste("repos-activite", L, a, { act: "reglageReposActivite", vide: null })}</div>
+      <div class="ligne-reg"><span>Repos</span>${liste(`repos-${a}`, DUREES_REPOS.map(x => [x, x ? mmss(x) : "Pas de repos"]), String(val(a)), { act: "reglageReposListe", vide: null, data: { a } })}</div>
+      <p class="petit">${L.map(x => `${x} ${val(x) ? mmss(val(x)) : "—"}`).join(" · ")}</p>
+      ${bascule("reposAuto", "Repos automatique", "lance le repos dès qu'un passage est noté")}`, { classe: "carte", resume: L.filter(x => val(x)).map(x => `${x} ${mmss(val(x))}`).slice(0, 2).join(" · ") }); })()}
     ${pli("reg-minuteur", false, "Minuteur", () => h`${bascule("son", "Sons", "quand l'app est à l'écran ; écran verrouillé, une app web ne sonne pas")}
       <label class="champ">Minuteur natif de l'iPhone via un Raccourci <span class="petit">(facultatif)</span></label><input type="text" value="${r.raccourciRepos || ""}" placeholder="Nom du raccourci, ex. Repos" data-act="reglageRaccourci">
       <p class="petit">Crée dans Raccourcis un raccourci nommé ainsi : « Obtenir les nombres dans l'entrée » → « Démarrer le minuteur » (secondes). Un bouton 🔔 iPhone apparaît à côté du repos ; il sonne même écran verrouillé, mais quitte l'app une seconde.</p>`, { classe: "carte", resume: r.son ? "sons" : "sans son" })}
@@ -130,12 +158,12 @@ function textesAide(ctx) {
     programme: h`<p><b>Aujourd'hui.</b> L'app s'ouvre ici ; la carte du haut ouvre la séance du jour en un appui (ou la prochaine). Une séance en cours s'ouvre directement.</p>
       <p>Les semaines par bloc ; touche une semaine pour ses jours et ses séances. La semaine en cours montre un encadré <b>À faire</b> (séances à régler, mesures du week-end) et, dès qu'une séance est faite, son bilan.</p>
       <p><b>Outils d'une semaine.</b> 📏 Mesures (ⓘ pour les tests) · ⏸ Faire une pause : repousse la semaine et les suivantes de 1 à 4 semaines, la fenêtre montre les nouvelles dates · Copier · répéter (une semaine commencée n'est jamais écrasée).</p>
-      <p><b>Une séance.</b> ⋯ à droite de chaque séance (ou dans l'en-tête d'une séance ouverte) : bilan, modifier le plan (les saisies suivent leur ligne), déplacer, copier vers une autre date, sautée ; une séance que tu as créée ou copiée peut être supprimée.</p>
-      <p><b>Passages hors séance</b> (⋯ du Programme) : ce que tu as grimpé sans séance et sans voie de salle connue. Pour une voie d'une salle, passe par sa fiche › Historique.</p>`,
+      <p><b>Une séance.</b> ⋯ à droite de chaque séance, un appui long sur elle, ou Options dans une séance ouverte : bilan, modifier le plan (les saisies suivent leur ligne), déplacer, copier vers une autre date, sautée ; une séance que tu as créée ou copiée peut être supprimée.</p>
+      <p><b>Passages hors séance</b> (Options du Programme) : ce que tu as grimpé sans séance et sans voie de salle connue. Pour une voie d'une salle, passe par sa fiche › Historique.</p>`,
     progres: h`<p>En haut, quelques phrases : la semaine, le niveau acquis, le point faible, le prochain cap. « À ce rythme… » n'apparaît qu'après 4 semaines de programme, quand il y a de quoi estimer.</p>
       <p>Dessous, en sections repliables (l'app retient ce que tu as ouvert) : les projets, les feux verts, le niveau consolidé, à travailler, la charge, les douleurs (et les signalements, pour supprimer une erreur), les mesures. ⓘ explique chaque calcul. Toucher un projet ouvre la fiche de la voie.</p>`,
     salles: h`<p><b>Une salle</b> garde ses voies par secteur, leur couleur, leur niveau et ton historique sur chacune. Façon de coter : comme l'app, ses propres niveaux, par couleurs, ou aucune.</p>
-      <p><b>Le mur.</b> En haut, toujours visible : Tout / Voies / Blocs, + Voie, Sélectionner. Les secteurs sont repliés avec un résumé (nombre, couleurs, cotations) ; touche-les pour les ouvrir, l'app s'en souvient. Touche une voie pour sa fiche. + Secteur est dans la barre : il demande combien de secteurs et les crée d'un coup (1, 2, 3… à renommer). L'inclinaison d'un secteur se calcule d'après ses voies. « Inventaire rapide » (⋯) crée d'un coup les voies d'une salle, niveau par niveau. Pour déplacer une voie : ⋮⋮ puis lâche-la sur une voie, un secteur ouvert ou le nom d'un secteur replié. ⋯ : plusieurs voies d'un coup, démontées, modifier la salle. Un secteur rééquipé : ✎ › Renouveler.</p>
+      <p><b>Le mur.</b> En haut, toujours visible : Tout / Voies / Blocs, + Voie, Sélectionner. Les secteurs sont repliés avec un résumé (nombre, couleurs, cotations) ; touche-les pour les ouvrir, l'app s'en souvient. Touche une voie pour sa fiche. + Secteur est dans la barre : il demande combien de secteurs et les crée d'un coup (1, 2, 3… à renommer). L'inclinaison d'un secteur se calcule d'après ses voies. « Inventaire rapide » (Options) crée d'un coup les voies d'une salle, niveau par niveau. Pour déplacer une voie : garde le doigt dessus ½ seconde, elle se soulève ; lâche-la sur une voie, un secteur ouvert ou le nom d'un secteur replié (près du bord, la page défile). Appui long sur le nom d'un secteur : le modifier. Options : plusieurs voies d'un coup, démontées, modifier la salle. Un secteur rééquipé : ✎ › Renouveler.</p>
       <p><b>Couleurs.</b> 12 couleurs de base ; appui long sur une couleur pour ses nuances.</p>
       <p><b>Niveau inconnu.</b> Une voie peut toujours être enregistrée sans son niveau : elle s'affiche « ? » (et dans « En bref » sous un bâton « ? »). Complète-la depuis sa fiche.</p>
       <p><b>Inclinaison et caractéristiques.</b> L'inclinaison (dalle, vertical, léger dévers, dévers, surplomb, fort dévers, toit) est un seul choix ; les caractéristiques (arête, traversée, dièdre, fissure, volumes, réglettes, bacs, pinces, plats, dynamique, compression) se cumulent, dans la fiche de la voie. Le mur se filtre par caractéristique ; Progrès › À travailler dit laquelle tu réussis le moins.</p>
@@ -156,8 +184,10 @@ Planche (s) {mesure planche}</pre>
       <p>« Nom d'exercice » entre guillemets français → lien vers sa fiche.</p>`,
     donnees: h`<p><b>Où sont mes données ?</b> Sur ce téléphone, dans un seul document. Avec la sauvegarde GitHub activée, une copie part dans ton dépôt privé après chaque séance ; sinon, exporte de temps en temps. Si tu supprimes l'app sans copie, tout est perdu.</p>
       <p><b>Salles.</b> Une salle garde ses voies par secteur, leur couleur, leur niveau (dans son système à elle : comme l'app, ses propres niveaux, par couleurs, ou aucun) et ton historique dessus. Quand la salle rouvre un secteur, « Renouveler » passe ses voies en démontées sans rien effacer.</p>
-      <p><b>Modifier le programme.</b> ⋯ › Modifier le plan, Déplacer, ou + Séance dans Programme. Chaque modification est une opération datée ; l'outil PC la reporte dans Programme.xlsx au prochain rapport.</p>
-      <p><b>Annuler.</b> ⋯ en haut, sur chaque écran : les 30 derniers gestes. Une suppression propose aussi « Annuler » quelques secondes.</p>`,
+      <p><b>Modifier le programme.</b> ⋯ ou Options › Modifier le plan, Déplacer, ou + Séance dans Programme. Chaque modification est une opération datée ; l'outil PC la reporte dans Programme.xlsx au prochain rapport.</p>
+      <p><b>Gestes.</b> Appui long (½ s), comme sur l'iPhone : sur une séance du Programme, son menu ; sur une voie pendant une séance, sa fiche ; sur un passage d'aujourd'hui, le corriger ; sur une voie du mur, la déplacer ; sur un secteur, le modifier. Glisser depuis le bord gauche : revenir en arrière (sauf sur une séance, où glisser passe à la séance voisine). Une section qu'on ouvre s'affiche en entier.</p>
+      <p><b>Bibliothèque.</b> Filtre par niveau (Débutant, Intermédiaire, Avancé) et « Cette semaine » : les exercices et routines cités dans les séances de la semaine en cours. Les routines sont des fiches comme les exercices : étapes, durées, ★ favori.</p>
+      <p><b>Annuler.</b> Options en haut, sur chaque écran : les 30 derniers gestes. Une suppression propose aussi « Annuler » quelques secondes.</p>`,
   };
   return S;
 }
@@ -192,6 +222,7 @@ export const actions = {
   copierDonnees: async ctx => { const ex = construireExport({ data: ctx.data, doc: ctx.doc, programme: ctx.programme, bilan: ctx.bilan });
     if (await copierTexte(ex)) { ctx.modifier("export", d => { d.dernierExport = new Date().toISOString(); }, { annulable: false }); ctx.toast(`Données copiées (${tailleKo(ex)} ko) : colle-les dans Notes ou un mail`); }
     else ctx.toast("La copie n'a pas marché : utilise « Exporter le fichier »"); ctx.rendre(); },
+  reglageReposActivite: (ctx, d, el) => { ctx.state.filtre.reposAct = el.value; ctx.rendre(); },
   reglageReposListe: (ctx, d, el) => { ctx.modifier("repos par défaut", x => { x.reglages.repos = { ...(x.reglages.repos || {}), [d.a]: +el.value }; }); ctx.rendre(); },
   reglageTheme: (ctx, d, el) => { try { localStorage.setItem("grimpe-theme", el.value); } catch { /* ignore */ } if (window.appliquerTheme) window.appliquerTheme(); ctx.rendre(); },
   copierOuExporter: ctx => { forcerOuvert("sv-fichier"); ctx.ouvrir("sauvegarde"); },
@@ -208,6 +239,9 @@ export const actions = {
       const v = verifierImport(lu.contenu, ctx.data); ctx.ouvrirModal({ type: "import", ...v, source: "GitHub" }); } catch (e) { alert(e.message); } },
   filtreCat: (ctx, d) => { ctx.state.filtre.cat = d.valeur; ctx.rendre(); },
   // Recherche : seule la liste est redessinée, le champ garde le clavier
+  niveauExo: (ctx, d) => { ctx.state.filtre.niveauExo = d.valeur; ctx.rendre(); },
+  semaineExo: ctx => { ctx.state.filtre.semaineExo = !ctx.state.filtre.semaineExo; ctx.rendre(); },
+  ficheRoutine: (ctx, d) => ctx.ouvrirModal({ type: "ficheRoutine", nom: d.nom, precedent: ctx.state.modal }),
   biblioRecherche: (ctx, d, el) => { ctx.state.filtre.biblio = el.value; const z = document.getElementById("biblio-liste"); if (z) z.innerHTML = String(listeBiblio(ctx, el.value)); },
   filtreDemontees: ctx => { ctx.state.filtre.demontees = !ctx.state.filtre.demontees; ctx.rendre(); },
   salleOuvrir: (ctx, d) => ctx.ouvrir("salle", { salleId: d.id }),

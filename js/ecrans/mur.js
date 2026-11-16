@@ -15,7 +15,7 @@ export function rendre(ctx) {
   const groupes = [...s.secteurs.map(sec => ({ id: sec.id, nom: sec.nom, profil: inclinaisonSecteur(s, sec.id), voies: liste.filter(v => v.secteurId === sec.id) })), { id: "", nom: "Sans secteur", profil: "", voies: liste.filter(v => !v.secteurId || !s.secteurs.some(x => x.id === v.secteurId)) }];
   const classer = state.classer, ranger = state.ranger;
   const tuile = v => { const hv = voies.find(x => x.voieId === v.id), hex = hexDe(doc, v.couleur, s);
-    return h`<div class="tuile-voie glissable ${classer && classer.has(v.id) ? "selectionnee" : ""}" draggable="false" data-id="${v.id}" data-act="${classer ? "classerBascule" : "voieEditer"}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (v.profil || "").toLowerCase()}</span><span class="tuile-histo">${hv ? `${hv.reussies ? "✓" + (hv.reussies > 1 ? hv.reussies : "") : ""}${hv.essais - hv.reussies ? " ✗" + (hv.essais - hv.reussies) : ""}` : ""}${v.statut === "demontee" ? ` démontée ${v.demontee ? court(v.demontee) : ""}` : ""}</span>${si(!demontees && !classer, h`<span class="poignee" aria-label="Déplacer">⋮⋮</span>`)}</div>`; };
+    return h`<div class="tuile-voie glissable ${classer && classer.has(v.id) ? "selectionnee" : ""}" draggable="false" data-id="${v.id}" data-act="${classer ? "classerBascule" : "voieEditer"}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (v.profil || "").toLowerCase()}</span><span class="tuile-histo">${hv ? `${hv.reussies ? "✓" + (hv.reussies > 1 ? hv.reussies : "") : ""}${hv.essais - hv.reussies ? " ✗" + (hv.essais - hv.reussies) : ""}` : ""}${v.statut === "demontee" ? ` démontée ${v.demontee ? court(v.demontee) : ""}` : ""}</span></div>`; };
   if (classer) { const n = classer.size;
     const dis = n ? "" : "disabled", cotable = ["standard", "liste"].includes(cotationDe(s, filtre || (s.type === "Bloc" ? "Bloc" : "Voie")).mode);
     return { titre: h`<b>${s.nom}</b>`, infos: "Sélection", html: h`<p class="petit">Touche les voies à modifier ou supprimer ensemble.</p>
@@ -41,20 +41,20 @@ export function rendre(ctx) {
     <p class="petit">${s.secteurs.length} secteur${s.secteurs.length > 1 ? "s" : ""}${nDem ? ` · ${nDem} démontée${nDem > 1 ? "s" : ""}` : ""} · touche un bâton pour ne voir que ce niveau</p>`,
     { resume: [enPlace.filter(v => v.disc === "Voie").length && `${enPlace.filter(v => v.disc === "Voie").length} voies`, enPlace.filter(v => v.disc === "Bloc").length && `${enPlace.filter(v => v.disc === "Bloc").length} blocs`].filter(Boolean).join(" · "), classe: "carte recap-salle" });
   const html = h`${si(!ranger && !demontees && enPlace.length, () => recap)}<div class="barre-mur">${si(s.type === "Bloc et voie", h`<div class="choix compact segmente">${[["", "Tout"], ["Voie", "Voies"], ["Bloc", "Blocs"]].map(([v, l]) => h`<button data-act="filtreMur" data-valeur="${v}" class="${filtre === v ? "choisi" : ""}">${l}</button>`)}</div>`)}
-      ${si(!demontees && !ranger, h`<button class="petit-btn principal" data-act="voieNouvelle" data-secteur="${s.secteurs.some(x => x.id === state.dernierSecteur) ? state.dernierSecteur : ""}" data-disc="${discDefaut}">+ ${discDefaut === "Bloc" ? "Bloc" : "Voie"}</button>`)}
-      ${si(!demontees, h`<button class="petit-btn" data-act="secteurNouveau">+ Secteur</button>`)}<button class="petit-btn" data-act="classerDebut">Sélectionner</button>
+      ${si(!demontees && !ranger, h`<button class="petit-btn btn-ajout" data-act="voieNouvelle" data-secteur="${s.secteurs.some(x => x.id === state.dernierSecteur) ? state.dernierSecteur : ""}" data-disc="${discDefaut}">+ ${discDefaut === "Bloc" ? "Bloc" : "Voie"}</button>`)}
+      ${si(!demontees, h`<button class="petit-btn btn-ajout" data-act="secteurNouveau">+ Secteur</button>`)}<button class="petit-btn" data-act="classerDebut">Sélectionner</button>
       ${si(caracsPresentes.length && !ranger, () => listeDeroulante("carac", caracsPresentes, fCarac, { act: "filtreCarac", vide: "Toutes caractéristiques" }))}</div>
     ${(() => { const f = [filtre && [filtre === "Bloc" ? "Blocs" : "Voies", "filtreMur", { valeur: "" }], fCot && [`Niv ${fCot.cot}`, "filtreCotMur", { disc: fCot.disc, valeur: fCot.cot }], fCarac && [fCarac, "filtreCaracRetirer", {}], demontees && ["Démontées", "filtreDemontees", {}]].filter(Boolean);
       return f.length ? h`<div class="filtres-actifs"><span class="petit">Filtre :</span>${f.map(([l, act, d]) => h`<button class="etiquette-filtre" data-act="${act}" ${brutData(d)}>${l} ✕</button>`)}</div>` : ""; })()}
     ${groupes.filter(g => g.voies.length || g.id || s.secteurs.length).map(g => { const cle = `sec-${s.id}-${g.id}`, o = tout || ouvert(cle, false);
       return h`<div class="secteur ${o ? "ouvert" : "replie"}" data-secteur="${g.id}"><div class="secteur-tete">
-        <button class="secteur-plier" data-act="replier" data-cle="${cle}" data-defaut="" aria-expanded="${o ? "true" : "false"}"><span class="pli-fleche">${o ? "▾" : "▸"}</span><span><b>${g.nom}</b>${g.profil ? h` <span class="petit">${g.profil.toLowerCase()}</span>` : ""}<br>${resume(g)}</span></button>
-        <span class="ed-outils">${si(g.id, h`<button data-act="secteurEditer" data-id="${g.id}" aria-label="Modifier le secteur">✎</button>`)}${si(!demontees, h`<button data-act="voieNouvelle" data-secteur="${g.id}" data-disc="${discDefaut}" aria-label="Ajouter dans ${g.nom}">+</button>`)}</span></div>
+        <button class="secteur-plier" data-act="replier" data-cle="${cle}" data-defaut="" ${brut(g.id ? `data-appui="secteurEditer" data-id="${g.id}"` : "")} aria-expanded="${o ? "true" : "false"}"><span class="pli-fleche">${o ? "▾" : "▸"}</span><span><b>${g.nom}</b>${g.profil ? h` <span class="petit">${g.profil.toLowerCase()}</span>` : ""}<br>${resume(g)}</span></button>
+        <span class="ed-outils">${si(g.id, h`<button data-act="secteurEditer" data-id="${g.id}" aria-label="Modifier le secteur">✎</button>`)}${si(!demontees, h`<button class="btn-ajout rond" data-act="voieNouvelle" data-secteur="${g.id}" data-disc="${discDefaut}" aria-label="Ajouter dans ${g.nom}">+</button>`)}</span></div>
         ${si(o, () => h`<div class="tuiles zone-depot" data-secteur="${g.id}">${g.voies.map(tuile)}${si(!g.voies.length, h`<span class="petit depot-vide">${ranger ? "déposer ici" : "aucune voie"}</span>`)}</div>`)}</div>`; })}
     ${si(fCot && !liste.length, () => h`<p class="avert">Aucune ${fCot.disc === "Bloc" ? "bloc" : "voie"} de ce niveau ici. <button class="lien" data-act="filtreCotMur" data-disc="${fCot.disc}" data-valeur="${fCot.cot}">Tout afficher</button></p>`)}
     ${si(!s.voies.length, h`<button class="gros principal" data-act="inventaireOuvrir">Inventaire rapide : combien de voies par niveau ?</button>`)}
     ${si(!s.voies.length, h`<p class="petit">Aucune voie. Ajoute-les avec « + ${discDefaut === "Bloc" ? "Bloc" : "Voie"} », ou directement pendant une séance.</p>`)}
-    ${si(!ranger, h`<p class="petit">Touche une voie pour sa fiche. Pour la déplacer, prends-la par ⋮⋮ et lâche-la sur une autre voie, dans un secteur ouvert, ou sur le nom d'un secteur replié. Plusieurs voies d'un coup, démontées, salle : ⋯ en haut.</p>`)}`;
+    ${si(!ranger && s.voies.length, h`<p class="petit">Touche une voie pour sa fiche. Pour la déplacer, garde le doigt dessus ½ seconde : elle se soulève ; lâche-la sur une autre voie, dans un secteur ouvert, ou sur le nom d'un secteur replié. Plusieurs voies d'un coup, démontées, salle : Options en haut.</p>`)}`;
   document.body.classList.toggle("mode-ranger", !!ranger);
   return { html, titre: h`<b>${s.nom}</b>`, infos: `${cotationDe(s, "Voie").mode !== "standard" || cotationDe(s, "Bloc").mode !== "standard" ? "cotation propre à la salle" : ""}` };
 }
@@ -66,29 +66,46 @@ function ordreNiveau(ctx, s, disc, k) { const c = cotationDe(s, disc);
   if (c.mode === "liste" || c.mode === "couleurs") { const i = c.liste.findIndex(x => x.salle === k); return i < 0 ? 999 : i; }
   const r = rang(ctx.data.echelles, disc, k); return r < 0 ? 999 : r; }
 
-// --- Glisser-déposer (pointer events) : on prend la tuile par sa poignée ⋮⋮ ; dépôt sur une tuile (avant elle) ou sur un secteur (à la fin) ---
+// --- Glisser-déposer, comme les apps de l'iPhone : appui long (½ s) sur une tuile → elle se soulève et suit le doigt ;
+// dépôt sur une tuile (avant elle), dans un secteur ouvert ou sur le nom d'un secteur replié (à la fin). Un appui court ouvre la fiche. ---
 let installe = false;
 export function apresRendu(ctx) {
   const racine = document.getElementById("ecran"); if (ctx.state.vue !== "salle" || !racine || installe) return; installe = true;
-  let actif = null, fantome = null, bouge = false;
-  const nettoyer = () => { if (fantome) fantome.remove(); fantome = null; racine.querySelectorAll(".depot-cible, .en-glisse").forEach(x => x.classList.remove("depot-cible", "en-glisse")); actif = null; document.body.classList.remove("glisse-en-cours"); };
+  let actif = null, fantome = null, attente = null, depart = null, defile = null, dernier = null, ignorerClic = false;
+  const arreterDefile = () => { if (defile) { cancelAnimationFrame(defile); defile = null; } };
+  const nettoyer = () => { clearTimeout(attente); attente = null; arreterDefile(); if (fantome) fantome.remove(); fantome = null;
+    racine.querySelectorAll(".depot-cible, .en-glisse, .souleve").forEach(x => x.classList.remove("depot-cible", "en-glisse", "souleve")); actif = null; document.body.classList.remove("glisse-en-cours"); };
   const cibleSous = (x, y) => { if (fantome) fantome.style.display = "none"; const el = document.elementFromPoint(x, y); if (fantome) fantome.style.display = ""; if (!el) return null;
     const tuile = el.closest(".tuile-voie.glissable"), zone = el.closest(".zone-depot"), sec = el.closest(".secteur[data-secteur]");
     return tuile && tuile !== actif ? { tuile, zone: tuile.closest(".zone-depot") } : zone ? { tuile: null, zone } : sec ? { tuile: null, zone: sec } : null; };
-  const placer = (x, y) => { if (fantome) { fantome.style.left = (x - fantome.offsetWidth / 2) + "px"; fantome.style.top = (y - 30) + "px"; } };
-  racine.addEventListener("pointerdown", e => { if (e.button > 0 || ctx.state.vue !== "salle" || ctx.state.classer) return;
-    const p = e.target.closest(".poignee") || (ctx.state.ranger && e.target.closest(".tuile-voie.glissable")); if (!p) return; const t = p.closest(".tuile-voie.glissable"); if (!t) return;
-    e.preventDefault(); actif = t; bouge = false; t.classList.add("en-glisse"); document.body.classList.add("glisse-en-cours");
-    fantome = t.cloneNode(true); fantome.classList.add("fantome"); fantome.style.width = t.offsetWidth + "px"; document.body.appendChild(fantome); placer(e.clientX, e.clientY); try { p.setPointerCapture(e.pointerId); } catch { /* ignore */ } });
-  racine.addEventListener("pointermove", e => { if (!actif) return; bouge = true; e.preventDefault(); placer(e.clientX, e.clientY);
-    racine.querySelectorAll(".depot-cible").forEach(x => x.classList.remove("depot-cible")); const c = cibleSous(e.clientX, e.clientY); if (c) (c.tuile || c.zone).classList.add("depot-cible"); });
-  const lacher = e => { if (!actif) return; const c = cibleSous(e.clientX, e.clientY), id = actif.dataset.id; nettoyer();
+  const placer = (x, y) => { if (fantome) { fantome.style.left = (x - fantome.offsetWidth / 2) + "px"; fantome.style.top = (y - fantome.offsetHeight / 2 - 20) + "px"; } };
+  const marquer = (x, y) => { racine.querySelectorAll(".depot-cible").forEach(z => z.classList.remove("depot-cible")); const c = cibleSous(x, y); if (c) (c.tuile || c.zone).classList.add("depot-cible"); };
+  // Près du haut ou du bas de l'écran, la page défile toute seule (pour atteindre les autres secteurs)
+  const boucleDefile = () => { if (!actif || !dernier) { defile = null; return; } const m = 90, y = dernier.y, H = window.innerHeight;
+    const v = y < m + 60 ? -Math.ceil((m + 60 - y) / 6) : y > H - m ? Math.ceil((y - (H - m)) / 6) : 0;
+    if (v) { window.scrollBy(0, v); marquer(dernier.x, dernier.y); } defile = requestAnimationFrame(boucleDefile); };
+  const soulever = t => { actif = t; t.classList.add("en-glisse"); document.body.classList.add("glisse-en-cours"); if (navigator.vibrate) navigator.vibrate(20);
+    fantome = t.cloneNode(true); fantome.classList.add("fantome"); fantome.style.width = t.offsetWidth + "px"; document.body.appendChild(fantome); placer(depart.x, depart.y);
+    defile = requestAnimationFrame(boucleDefile); };
+  // le clic à ignorer est celui qui suit l'appui long ; un nouveau geste repart de zéro (après un glisser, aucun clic ne suit)
+  document.addEventListener("pointerdown", () => { ignorerClic = false; }, true);
+  racine.addEventListener("pointerdown", e => { if (e.button > 0 || ctx.state.vue !== "salle" || ctx.state.classer || ctx.state.filtre.demontees) return;
+    const t = e.target.closest(".tuile-voie.glissable"); if (!t) return;
+    depart = { x: e.clientX, y: e.clientY }; dernier = depart; t.classList.add("souleve");
+    attente = setTimeout(() => { attente = null; ignorerClic = true; soulever(t); }, 450); });
+  racine.addEventListener("pointermove", e => { dernier = { x: e.clientX, y: e.clientY };
+    if (attente && (Math.abs(e.clientX - depart.x) > 8 || Math.abs(e.clientY - depart.y) > 8)) { nettoyer(); return; }          // le doigt bouge avant ½ s : c'est un défilement
+    if (!actif) return; e.preventDefault(); placer(e.clientX, e.clientY); marquer(e.clientX, e.clientY); });
+  // Pendant un déplacement, la page ne défile pas sous le doigt (iPhone : il faut bloquer « touchmove »)
+  document.addEventListener("touchmove", e => { if (actif) e.preventDefault(); }, { passive: false });
+  const lacher = e => { if (attente) { nettoyer(); return; } if (!actif) return; const c = cibleSous(e.clientX, e.clientY), id = actif.dataset.id; nettoyer();
     if (!c) return; const secteurId = c.zone.dataset.secteur || null, avantId = c.tuile ? c.tuile.dataset.id : null;
     const avant = (salleDe(ctx.doc, ctx.state.salleId).voies.find(v => v.id === id) || {}).secteurId || null, sec = salleDe(ctx.doc, ctx.state.salleId).secteurs.find(x => x.id === secteurId);
-    ctx.modifier("voie rangée", d => { ranger(salleDe(d, ctx.state.salleId), id, secteurId, avantId); }); if (avant !== secteurId) ctx.toast(`Déplacée dans ${sec ? sec.nom : "Sans secteur"}`, () => ctx.store.annuler()); ctx.rendre(); };
-  racine.addEventListener("pointerup", lacher); racine.addEventListener("pointercancel", nettoyer);
-  // Un glissement ne doit pas ouvrir la fiche
-  racine.addEventListener("click", e => { if (ctx.state.vue === "salle" && (e.target.closest(".poignee") || (ctx.state.ranger && e.target.closest(".tuile-voie.glissable")))) { e.stopPropagation(); e.preventDefault(); } }, true);
+    ctx.modifier("voie déplacée", d => { ranger(salleDe(d, ctx.state.salleId), id, secteurId, avantId); }); ctx.toast(avant !== secteurId ? `Déplacée dans ${sec ? sec.nom : "Sans secteur"}` : "Voie déplacée", () => ctx.store.annuler()); ctx.rendre(); };
+  racine.addEventListener("pointerup", lacher); racine.addEventListener("pointercancel", () => { if (!actif) nettoyer(); });
+  racine.addEventListener("contextmenu", e => { if (e.target.closest(".tuile-voie.glissable")) e.preventDefault(); });
+  // Après un appui long, le relâchement ne doit pas ouvrir la fiche
+  racine.addEventListener("click", e => { if (ignorerClic) { ignorerClic = false; e.stopPropagation(); e.preventDefault(); } }, true);
 }
 
 // ⋯ de l'en-tête sur le mur

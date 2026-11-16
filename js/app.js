@@ -16,7 +16,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.12";
+export const APP_VERSION = "8.13";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
@@ -87,7 +87,7 @@ function rendre(enHaut = false) {
   document.body.classList.toggle("mode-ranger", state.vue === "salle" && !!state.ranger);
   glisserActif = !!r.glisser && !state.modal;
   $("suiv").style.visibility = r.fleches ? "visible" : "hidden";
-  $("btn-menu").style.visibility = state.vue === "aide" ? "hidden" : "visible";                       // ⋯ partout : les actions de l'écran, et Annuler
+  $("btn-menu").style.visibility = state.vue === "aide" ? "hidden" : "visible";                       // « Options » partout : les actions de l'écran, et Annuler
   document.body.dataset.activite = r.activite || "";
   $("fond-modal").style.display = state.modal ? "flex" : "none";
   $("modal").innerHTML = state.modal ? String(fenetres.rendre(ctx)) : "";
@@ -98,6 +98,13 @@ function rendre(enHaut = false) {
   if (cleChamp) { const el = document.querySelector(`${dansModal ? "#modal" : "#ecran"} ${cleChamp}`); if (el && el !== document.activeElement) { el.focus({ preventScroll: true }); if (selection) try { el.setSelectionRange(...selection); } catch { /* type sans sélection */ } } }
   minuteur.maj();
 }
+// Une section qu'on ouvre s'affiche en entier : la page défile juste assez (au plus, son titre vient sous la barre du haut)
+function montrer(bloc) {
+  if (!bloc) return; const haut = $("entete").offsetHeight + 6, bas = window.innerHeight - ($("onglets").offsetHeight || 0) - 8, r = bloc.getBoundingClientRect();
+  if (r.bottom <= bas && r.top >= haut) return;
+  const dy = Math.min(r.bottom - bas, r.top - haut); if (dy > 0 || r.top < haut) window.scrollTo({ top: window.scrollY + (r.top < haut ? r.top - haut : dy), behavior: "smooth" });
+}
+ctx.montrer = montrer;
 function rendreToast() {
   const t = $("toast"); if (!state.toast) { t.style.display = "none"; return; }
   t.innerHTML = String(h`<span>${state.toast.texte}</span>${state.toast.bouton ? h`<button data-act="toastBouton">${state.toast.bouton.label}</button>` : ""}${state.toast.annuler ? h`<button data-act="toastAnnuler">Annuler</button>` : ""}`); t.style.display = "flex"; t.classList.toggle("sur-modal", !!state.modal);   // au-dessus d'une fenêtre ouverte (ex. ✕ dans l'historique d'une voie)
@@ -110,7 +117,9 @@ const ACTIONS = {
   retour: () => retour(),
   retourProgramme: () => { const s = ctx.seance(state.seanceId); if (s) state.semaineVue = s.semaine; state.origine = null; state.parRetour = true; ouvrir("programme"); },
   aideContexte: () => { state.filtre.aide = SECTION_AIDE[state.vue] || "principe"; state.filtre.aideRecherche = ""; forcerOuvert(`aide-${state.filtre.aide}`); ouvrir("aide"); },
-  replier: (c, d) => { basculer(d.cle, d.defaut === "1"); rendre(false); },                            // blocs repliables : l'état est retenu
+  replier: (c, d) => { basculer(d.cle, d.defaut === "1"); rendre(false);                             // blocs repliables : l'état est retenu
+    const t = document.querySelector(`#ecran [data-act=replier][data-cle="${CSS.escape(d.cle)}"]`);
+    if (t && t.getAttribute("aria-expanded") === "true") montrer(t.closest(".pli-bloc, .secteur") || t); },
   menuEcran: () => { const ecran = ECRANS[state.vue] || plus;
     if (state.vue === "seance" && ctx.seance(state.seanceId)) return seance.actions.menu(ctx);
     const r = ecran.menuEcran ? ecran.menuEcran(ctx) : null;
@@ -152,6 +161,24 @@ document.addEventListener("contextmenu", e => { if (e.target.closest(".pastille[
 document.addEventListener("click", e => { if (ignorerClic) { ignorerClic = false; e.stopImmediatePropagation(); e.preventDefault(); return; }
   if (document.getElementById("nuancier") && !e.target.closest("#nuancier")) { fermerNuancier(); e.stopImmediatePropagation(); e.preventDefault(); }
   else if (e.target.closest("#nuancier [data-act]")) setTimeout(fermerNuancier, 0); }, true);
+
+// --- Appui long (½ s), comme sur l'iPhone : « data-appui » = l'action à lancer (mêmes données que l'élément) ; le relâchement n'ouvre rien d'autre ---
+let appuiLong = null;
+document.addEventListener("pointerdown", () => { ignorerClic = false; }, true);                      // un nouveau geste : rien à ignorer
+document.addEventListener("pointerdown", e => { const el = e.target.closest("[data-appui]"); if (!el || e.button > 0) return;
+  const x = e.clientX, y = e.clientY; clearTimeout(appuiLong && appuiLong.t);
+  appuiLong = { x, y, t: setTimeout(() => { appuiLong = null; const f = ACTIONS[el.dataset.appui]; if (!f) return; ignorerClic = true; if (navigator.vibrate) navigator.vibrate(15); f(ctx, el.dataset, el); }, 500) }; });
+const finAppuiLong = () => { if (appuiLong) { clearTimeout(appuiLong.t); appuiLong = null; } };
+document.addEventListener("pointerup", finAppuiLong); document.addEventListener("pointercancel", finAppuiLong);
+document.addEventListener("pointermove", e => { if (appuiLong && (Math.abs(e.clientX - appuiLong.x) > 8 || Math.abs(e.clientY - appuiLong.y) > 8)) finAppuiLong(); });
+document.addEventListener("contextmenu", e => { if (e.target.closest("[data-appui]")) e.preventDefault(); });
+
+// --- Glisser depuis le bord gauche = revenir, sur les écrans où l'on « entre » (pas sur une séance : là, glisser change de séance) ---
+let bord = null;
+document.addEventListener("touchstart", e => { bord = null; if (state.modal || !SOUS_ECRANS.includes(state.vue) || e.touches.length !== 1 || document.body.classList.contains("glisse-en-cours")) return;
+  const t = e.touches[0]; if (t.clientX < 28) bord = { x: t.clientX, y: t.clientY, t: Date.now() }; }, { passive: true });
+document.addEventListener("touchend", e => { if (!bord) return; const t = e.changedTouches[0], dx = t.clientX - bord.x, dy = Math.abs(t.clientY - bord.y), ok = dx > 70 && dx > 2 * dy && Date.now() - bord.t < 800; bord = null;
+  if (ok && !document.body.classList.contains("glisse-en-cours")) retour(); }, { passive: true });
 
 // --- Glisser d'une séance à l'autre (comme en 6.x) ; jamais pendant une séance en cours ---
 let glisserActif = false, depart = null;

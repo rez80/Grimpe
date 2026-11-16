@@ -26,5 +26,5 @@ export const INFOS = {
   pause: ["Faire une pause", [
     "Pour une interruption de 1 à 4 semaines (blessure, vacances, maladie) : le programme reprend là où tu t'étais arrêté, au lieu de sauter des semaines.",
     "Toutes les séances à partir de la semaine choisie sont repoussées du nombre de semaines choisi. Celles déjà commencées, faites ou sautées restent à leur date.",
-    "Rien n'est effacé, et ⋯ › Annuler défait la pause juste après. L'outil PC reporte la pause dans Programme.xlsx."]],
+    "Rien n'est effacé, et Options › Annuler défait la pause juste après. L'outil PC reporte la pause dans Programme.xlsx."]],
 };
