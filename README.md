@@ -1,4 +1,4 @@
-# Grimpe 8.6 — l'app d'escalade
+# Grimpe 8.7 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -21,7 +21,8 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 
 **Séance.**
 - **Commencer** lance la séance, sans questionnaire.
-- **Consignes ›** est sous le bandeau, avant, pendant et après la séance.
+- **📋 Consignes** est sous le bandeau, en évidence et ouvert, avant, pendant et après la séance. Une fois replié, il montre le début de la première consigne.
+- **La frise** sous le titre montre le déroulé prévu : une couleur par type d'étape, et la durée de chaque phase en minutes.
 - **La carte Maintenant** montre l'étape en cours, ses minuteurs (repos, chrono, fractions, routine guidée) et « ✓ Fait · suivant ». Le **Détail de l'étape** est dans la carte.
 - **La forme** se dit en un appui : 🙂 😐 😣.
 - **⚠ Douleur** note une douleur pendant la séance.
@@ -29,8 +30,8 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 - **Une séance restée ouverte** se ferme toute seule après quatre heures.
 - **Le lendemain**, une séance oubliée revient en une carte : faite, sautée, ou plus tard.
 
-**Voies et blocs pendant la séance.** La carte « Voies » (ou « Blocs ») est courte :
-- **Salle : … ›** choisit la salle du jour : une de tes salles, « Salle inconnue » ou « + Nouvelle salle… ».
+**Voies et blocs pendant la séance.** La carte « Voies » (ou « Blocs ») est courte et repliable :
+- **Salle : … ›** choisit la salle du jour : une de tes salles, « Salle inconnue » ou « + Nouvelle salle… ». La même règle vaut en voie et en bloc : par défaut, c'est la dernière salle choisie, si elle accepte la discipline. « Salle inconnue » vaut pour la séance.
 - **+ Noter un passage** ouvre une fenêtre :
   - en haut, « + Nouvelle voie » et « Sans voie précise » (cotation seule) ;
   - dessous, les voies de la salle, filtrées par couleur et par cotation, avec tes cibles et les voies d'aujourd'hui en premier ;
@@ -41,14 +42,20 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 - **Voir tout le mur ›** ouvre la salle.
 
 **Après une réussite**, le passage est déjà enregistré. La fenêtre reste ouverte pour préciser, si tu veux :
-- l'aisance (Facile · Correct · Arraché) ;
-- les essais avant réussite : calculés si tes échecs sont notés, sinon 1 / 2 / 3 / 4 / 5+ / Inconnu ;
-- la date du premier essai.
+- **Comment ?** : À vue · Flash · 2ᵉ · 3ᵉ · 4ᵉ · 5ᵉ+ · Inconnu. Un seul choix donne le style et le nombre d'essais :
+  - *À vue* = 1er essai sans rien savoir de la voie ;
+  - *Flash* = 1er essai avec des infos ;
+  - *2ᵉ et plus* = après travail.
+
+  Si tes échecs sur la voie sont notés, l'essai est présélectionné.
+- la date du premier essai, dès le 2ᵉ essai ;
+- l'aisance (Facile · Correct · Arraché).
 
 « Fermer » suffit. Si la voie était déjà réussie, l'app indique une répétition et ne demande que l'aisance.
 
 **Salles.**
 - **La liste** est en cartes : couleurs présentes, nombre de voies et de blocs, secteurs, dernière séance, ✎.
+- **En bref**, en haut d'une salle : le nombre de voies et de blocs par cotation (« 5b · 6 »), le nombre de secteurs et de voies démontées. Toucher une cotation filtre le mur.
 - **Dans une salle**, une barre reste en haut : Tout / Voies / Blocs, + Voie, Sélectionner, et un filtre par caractéristique. Le reste est dans ⋯ : plusieurs voies d'un coup, + Secteur, Ranger (glisser-déposer), voies démontées, modifier la salle.
 - **Les secteurs** sont repliés avec un résumé (nombre, couleurs, étendue des cotations). L'app retient ceux que tu ouvres.
 - **Une voie** a :
@@ -87,6 +94,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 - Les choix de 4 options ou moins sont des boutons. Au-delà, c'est une liste déroulante, c'est-à-dire le sélecteur de l'iPhone.
 - La Bibliothèque, l'Aide, les Réglages et la Sauvegarde ont des sections repliables. La Bibliothèque et l'Aide ont une recherche.
 - Le « ? » d'un écran ouvre l'aide de cet écran.
+- Changer de page arrive en haut de la page ; le retour ‹ ramène où tu étais.
 
 ---
 
@@ -102,6 +110,8 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 1. Ouvre l'adresse **https://ton-pseudo.github.io/grimpe/** dans **Safari**. N'ouvre pas la page du dépôt github.com/… : c'est la liste des fichiers, pas l'app.
 2. Touche **Partager › Sur l'écran d'accueil**.
 3. Lance l'app depuis son icône. Elle fonctionne ensuite hors ligne.
+
+L'iPhone mémorise l'icône au moment de l'ajout. Si l'écran d'accueil montre une lettre (« G ») au lieu du dessin, supprime l'icône et ajoute-la à nouveau depuis Safari. Tes données restent : elles sont liées à l'adresse de l'app, pas à l'icône. Par prudence, fais quand même un export avant.
 
 ### 2.3 Mettre à jour
 Remplace les fichiers dans le dépôt. À la prochaine ouverture, ou au retour dans l'app, un bandeau « Nouvelle version disponible — mettre à jour » apparaît ; un appui suffit. Tes données ne sont pas touchées.
@@ -216,7 +226,7 @@ Les seuils se règlent dans la feuille Paramètres de Programme.xlsx.
 ## 7. Pour développer
 
 ```
-index.html  style.css  sw.js  manifest.webmanifest  icone*.{svg,png}
+index.html  style.css  sw.js  manifest.webmanifest  icone*.{svg,png}  apple-touch-icon.png
 data.js  programme.ics          générés par l'outil, ne pas modifier à la main
 js/
   app.js        démarrage, état d'écran, rendu, routage des actions, menu ⋯, nuancier, mise à jour
@@ -239,10 +249,10 @@ tests/          *.test.js (node --test) ; navigateur/smoke.py ; navigateur/mise_
 
 ```js
 { version: 2, programmeId,
-  reglages: { dateDebut, repos, son, reposAuto, ecranAllume, grand, raccourciRepos, salleParDefaut, sync: { owner, repo, chemin, auto }, params },
+  reglages: { dateDebut, repos, son, reposAuto, ecranAllume, grand, raccourciRepos, salleDuJour, salleParDefaut, sync: { owner, repo, chemin, auto }, params },
   seances: { "<id>": { version, debut, fin, pauseTotale, dateReelle, statut, raison, salle,
       tentatives: [ { t, k, disc, cot, cotSalle, profil, res: "ok"|"sec"|"ko", sec, style, cause, couleur, nom, salle, voieId,
-                      aisance, essaisAvant, premierEssai, nouvelle, approx } ],
+                      aisance, essaisAvant, premierEssai, nouvelle, approx } ],     // style + essaisAvant viennent de « Comment ? »
       effort, duree, notes, mesures, douleur: { avant, zoneAvant, pendant: [ { zone, niveau } ], apres, zone }, recup } },
   ops: [ { id, op: "set"|"del"|"pause"|"date", cible, … } ],
   mesures: { "<semaine>": { planche, course, tractions, genou, squat, notes } },
