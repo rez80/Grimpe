@@ -49,13 +49,6 @@ export function rendre(ctx) {
 
   // Feux verts tout juste atteints : une carte, une fois
   for (const f of ctx.bilan.nouveauxFeux) out = h`${out}<div class="carte feu-carte"><div><b>🟢 Feu vert : ${f.titre}</b><br><span class="petit">${f.criteres.map(c => `${c.t} : ${c.val}${c.pct ? " %" : ""}`).join(" · ")}</span></div><button data-act="feuVu" data-id="${f.id}">Vu !</button></div>`;
-  // La séance d'hier à régler
-  const hier = seanceARegler(ctx.programme, doc, auj);
-  if (hier && hier.id !== s.id && plusTard() === `${hier.id}|${auj}`) out = h`${out}<button class="hier-mini" data-act="hierRouvrir"><span>${court(hier.date)} · ${hier.activite} : bilan ?</span><span>›</span></button>`;
-  else if (hier && hier.id !== s.id) { const eh = etatSeance(hier, ctx.saisie(hier.id), auj);
-    out = h`${out}<div class="carte hier"><div><b>${court(hier.date)} · ${hier.activite}</b><br><span class="petit">${eh === "abilan" ? "Séance terminée, il manque le bilan (effort, douleur)." : eh === "encours" ? "Séance restée ouverte." : "Faite ? Sautée ? Dis-le en un appui, ou laisse."}</span></div>
-      <div class="hier-btns"><button class="principal" data-act="hierBilan" data-id="${hier.id}">${eh === "passee" ? "Faite → bilan" : "Bilan"}</button>${si(eh === "passee", h`<button data-act="hierSautee" data-id="${hier.id}">Sautée</button>`)}<button data-act="hierPlusTard" data-id="${hier.id}">Plus tard</button></div></div>`; }
-
   // Bandeau
   const sousTitre = sa.fin ? `✓ Faite en ${hm(dureeReelle(sa))} · prévu ≈ ${hm(duree)}` : etat === "sautee" ? `Sautée${sa.raison ? " · " + sa.raison : ""}` : `≈ ${hm(duree)} · ${actives(etapes).length} étapes`;
   const theme = etapes.find(e => e.type === "info" && /^thème/i.test(e.texte));
@@ -225,6 +218,15 @@ export function fenetreNoter(ctx, M) {
 }
 // Repère de réussite d'une voie : ✓ (✓ facile), ✗ n
 export function reperes(hv) { return `${hv.reussies ? (hv.aisance === "facile" ? "✓ facile" : "✓") : ""}${hv.essais - hv.reussies ? `${hv.reussies ? " " : ""}✗${hv.essais - hv.reussies}` : ""}`; }
+
+// --- Rappel de la séance précédente à régler (affiché en haut du Programme) ---
+export function carteHier(ctx) {
+  const doc = ctx.doc, auj = ctx.aujourdhui(), hier = seanceARegler(ctx.programme, doc, auj); if (!hier) return "";
+  if (plusTard() === `${hier.id}|${auj}`) return h`<button class="hier-mini" data-act="hierRouvrir"><span>${court(hier.date)} · ${activiteAffichee(hier, ctx.saisie(hier.id))} : bilan ?</span><span>›</span></button>`;
+  const eh = etatSeance(hier, ctx.saisie(hier.id), auj);
+  return h`<div class="carte hier"><div><b>${court(hier.date)} · ${activiteAffichee(hier, ctx.saisie(hier.id))}</b><br><span class="petit">${eh === "abilan" ? "Séance terminée, il manque le bilan (effort, douleur)." : eh === "encours" ? "Séance restée ouverte." : "Faite ? Sautée ? Dis-le en un appui, ou laisse."}</span></div>
+    <div class="hier-btns"><button class="principal" data-act="hierBilan" data-id="${hier.id}">${eh === "passee" ? "Faite → bilan" : "Bilan"}</button>${si(eh === "passee", h`<button data-act="hierSautee" data-id="${hier.id}">Sautée</button>`)}<button data-act="hierPlusTard" data-id="${hier.id}">Plus tard</button></div></div>`;
+}
 
 // --- Actions ---
 const demarrerSiBesoin = sa => { if (!sa.debut && !sa.fin) { sa.debut = Date.now(); delete sa.statut; } };

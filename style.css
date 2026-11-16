@@ -1,17 +1,20 @@
 /* style.css — Grimpe. Une couleur = un sens. Variables en tête, clair et sombre. */
 :root {
-  --fond: #f4f6f7; --carte: #ffffff; --texte: #1d2a2f; --texte-2: #5b6b72; --trait: #dde3e6;
-  --accent: #1F4E5A; --accent-txt: #ffffff;
-  --voie: #1F4E5A; --bloc: #7B4A12; --maison: #3E6B3A; --course: #5B3F8C; --exterieur: #0E6E6E;
+  --fond: #f6f4ef; --carte: #ffffff; --texte: #1d2a2f; --texte-2: #5f6669; --trait: #e7e1d4;
+  --accent: #9A6B1C; --accent-txt: #ffffff; --ocre: #C08A2E;
+  --voie: #2F80C0; --bloc: #E0664F; --maison: #7A8F2E; --course: #5B3F8C; --exterieur: #0E6E6E;
+  --bandeau-voie: #2F80C0; --bandeau-bloc: #E0664F; --bandeau-maison: #7A8F2E; --bandeau-course: #5B3F8C;     /* bandeau de séance (plus foncé en mode sombre) */
+  --entete-txt: #E3B45A; --entete-txt-2: #B9AEC8;
   --echauffement: #E8A33C; --securite: #2E6FB7; --facile: #3FA066; --effort: #D93636; --recup: #7B5EA7;
   --vert: #2E7D32; --orange: #E8A33C; --rouge: #D93636; --gris: #6B7780;     /* texte blanc lisible (≥ 4,5:1) sur vert, rouge, gris ; texte foncé sur orange */
-  --entete: #1F4E5A;
+  --entete: #261F30;
   --rayon: 14px; --ombre: 0 1px 3px rgba(0,0,0,.08);
   --haut: env(safe-area-inset-top, 0px); --bas: env(safe-area-inset-bottom, 0px);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --entete: #16343c; --fond: #121a1d; --carte: #1b262b; --texte: #e8edef; --texte-2: #9fb0b7; --trait: #2c3a40; --accent: #58a6b9; --accent-txt: #0d1517;
-    --voie: #2d7d91; --bloc: #a86a2a; --maison: #4f8a4a; --course: #8565b8; --exterieur: #1f9a9a; --echauffement: #f0b65a; --ombre: none; }
+  :root { --entete: #261F30; --fond: #151310; --carte: #221F1A; --texte: #ECE7DE; --texte-2: #A79F92; --trait: #2E2A23; --accent: #E3B45A; --accent-txt: #1E1505; --ocre: #E3B45A;
+    --voie: #5AA6E0; --bloc: #F08A73; --maison: #A3B84E; --course: #9A7CD0; --exterieur: #1f9a9a; --echauffement: #f0b65a; --ombre: none;
+    --bandeau-voie: #245F8F; --bandeau-bloc: #A9483A; --bandeau-maison: #56671F; --bandeau-course: #4A3473; }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { font: 16px/1.4 -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif; background: var(--fond); color: var(--texte); }
@@ -60,8 +63,8 @@ p { margin: 6px 0; } .petit { font-size: 13px; color: var(--texte-2); } .centre 
 .point { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; } .point.vert { background: var(--vert); } .point.orange { background: var(--orange); } .point.rouge { background: var(--rouge); }
 
 /* Bandeau de séance (couleur = activité) */
-body[data-activite="Voie"] .bandeau-seance { background: var(--voie); } body[data-activite="Bloc"] .bandeau-seance { background: var(--bloc); }
-body[data-activite="Maison"] .bandeau-seance { background: var(--maison); } body[data-activite="Course"] .bandeau-seance { background: var(--course); }
+body[data-activite="Voie"] .bandeau-seance { background: var(--bandeau-voie); } body[data-activite="Bloc"] .bandeau-seance { background: var(--bandeau-bloc); }
+body[data-activite="Maison"] .bandeau-seance { background: var(--bandeau-maison); } body[data-activite="Course"] .bandeau-seance { background: var(--bandeau-course); }
 body[data-activite="Escalade extérieur"] .bandeau-seance { background: var(--exterieur); }
 .bandeau-seance { background: var(--accent); color: #fff; border-radius: var(--rayon); padding: 16px; margin: 4px 0 10px; }
 .bandeau-seance.reduit { padding: 10px 14px; } .bandeau-seance.reduit h1 { font-size: 18px; } .bandeau-seance.reduit .sous-titre { display: none; }
@@ -183,7 +186,7 @@ label.fichier { display: block; text-align: center; cursor: pointer; } label.fic
 /* ===== v8 : vu du mur ===== */
 a.bouton { display: inline-block; background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 8px 12px; min-height: 40px; text-decoration: none; color: inherit; line-height: 22px; }
 .forme-ligne { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 2px 0 10px; } .forme-ligne button { flex: 1; padding: 8px 4px; font-size: 15px; }
-.hier { display: flex; flex-direction: column; gap: 10px; border-left: 5px solid var(--accent); } .hier-btns { display: flex; gap: 8px; } .hier-btns button { flex: 1; }
+.hier { display: flex; flex-direction: column; gap: 10px; border-left: 5px solid var(--ocre); } .hier-btns { display: flex; gap: 8px; } .hier-btns button { flex: 1; }
 .feu-carte { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: #e6f4ea; border: 1px solid var(--vert); } @media (prefers-color-scheme: dark) { .feu-carte { background: #16301f; } }
 .feu-carte button { white-space: nowrap; }
 .curseur { width: 40px; height: 40px; padding: 0; border-radius: 50%; border: 1px solid var(--trait); flex-shrink: 0; font-size: 18px; color: var(--texte-2); }
@@ -224,12 +227,12 @@ input.secret:not(:focus) { -webkit-text-security: disc; }
 /* ===== v8.2 ===== */
 .ico-svg { width: 1.15em; height: 1.15em; vertical-align: -0.2em; flex-shrink: 0; }
 /* En-tête et onglets à la couleur de l'app */
-#entete { background: var(--entete); color: #fff; border-bottom: none; grid-template-columns: auto 1fr 40px 40px 40px; gap: 2px; }
-#entete button { color: #fff; min-width: 40px; } #infos { color: rgba(255,255,255,.8); }
+#entete { background: var(--entete); color: var(--entete-txt); border-bottom: none; grid-template-columns: auto 1fr 40px 40px 40px; gap: 2px; }
+#entete button { color: var(--entete-txt); min-width: 40px; } #infos { color: var(--entete-txt-2); }
 #prec.large { font-size: 15px; font-weight: 600; padding: 0 6px; white-space: nowrap; } .retour-txt { display: inline-block; }
 #btn-aide .ico-svg { width: 22px; height: 22px; }
-#onglets { background: var(--entete); border-top: none; } #onglets button { color: rgba(255,255,255,.7); } #onglets button.actif { color: #fff; }
-#onglets button.actif::before { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 0 0 3px 3px; background: #fff; }
+#onglets { background: var(--entete); border-top: none; } #onglets button { color: var(--entete-txt-2); } #onglets button.actif { color: var(--entete-txt); }
+#onglets button.actif::before { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 0 0 3px 3px; background: var(--entete-txt); }
 #onglets .ico .ico-svg { width: 22px; height: 22px; }
 /* Contraste : texte foncé sur l'orange */
 .res-sec, .genre-txt.echauffement, .rapide-btns .sec, .cot-ligne .sec { color: #1d2a2f; }
@@ -281,7 +284,7 @@ input.secret:not(:focus) { -webkit-text-security: disc; }
 .pli-fleche { width: 14px; color: var(--texte-2); font-weight: 400; } .pli-titre { flex: 1; } .pli-resume { color: var(--texte-2); font-weight: 400; font-size: 14px; }
 .pli-corps { padding: 0 14px 12px; } .pli-bloc:not(.carte) .pli-corps { padding: 6px 0 4px; }
 /* Carte « Aujourd'hui » du programme */
-.carte-auj { border-left: 5px solid var(--accent); } .carte-auj > .petit { margin: 0 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+.carte-auj { border-left: 5px solid var(--ocre); } .carte-auj > .petit { margin: 0 0 6px; text-transform: uppercase; letter-spacing: .04em; }
 .auj-seance { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; padding: 12px; margin-top: 6px; }
 .auj-go { font-weight: 700; color: var(--accent); white-space: nowrap; }
 .carte-seance-cadre { display: flex; align-items: stretch; } .carte-seance-cadre .carte-seance { flex: 1; }
@@ -389,11 +392,19 @@ button.gros { padding: 10px 14px; font-size: 16px; min-height: 44px; margin: 6px
 .cs-infos { font-size: 15px; opacity: .8; }
 
 /* ===== 8.9 ===== */
-/* Programme : la pastille d'une séance prend la couleur de son plan (type d'étape dominant) */
-.pastille-seance.genre-echauffement { background: var(--echauffement); } .pastille-seance.genre-securite { background: var(--securite); }
-.pastille-seance.genre-facile { background: var(--facile); } .pastille-seance.genre-effort { background: var(--effort); } .pastille-seance.genre-recup { background: var(--recup); }
-.legende-genres { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; color: var(--texte-2); margin: 2px 0 8px; }
-.legende-genres i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; background: var(--g); }
-.legende-genres i.genre-echauffement { --g: var(--echauffement); } .legende-genres i.genre-securite { --g: var(--securite); } .legende-genres i.genre-facile { --g: var(--facile); } .legende-genres i.genre-effort { --g: var(--effort); } .legende-genres i.genre-recup { --g: var(--recup); }
 .noms-secteurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 6px; margin: 4px 0 8px; } .noms-secteurs input { min-width: 0; }
 .inventaire .ligne-reg { padding: 4px 0; }
+
+/* ===== 8.10 ===== */
+/* Programme : séances et pastilles dans la couleur de l'activité (celle du bandeau de séance), en transparence */
+.carte-seance-cadre { --a: var(--gris); background: color-mix(in srgb, var(--a) 13%, var(--carte)); }
+.carte-seance-cadre:has(.carte-seance[data-activite="Voie"]) { --a: var(--voie); } .carte-seance-cadre:has(.carte-seance[data-activite="Bloc"]) { --a: var(--bloc); }
+.carte-seance-cadre:has(.carte-seance[data-activite="Maison"]) { --a: var(--maison); } .carte-seance-cadre:has(.carte-seance[data-activite="Course"]) { --a: var(--course); }
+.carte-seance-cadre:has(.carte-seance[data-activite="Escalade extérieur"]) { --a: var(--exterieur); }
+.carte-seance-cadre .carte-seance b { color: color-mix(in srgb, var(--a) 75%, var(--texte)); }
+.pastille-seance { --a: var(--gris); background: color-mix(in srgb, var(--a) 22%, var(--carte)) !important; border: 2px solid var(--a); color: color-mix(in srgb, var(--a) 80%, var(--texte)); font-weight: 700; }
+.pastille-seance[data-activite="Voie"] { --a: var(--voie); } .pastille-seance[data-activite="Bloc"] { --a: var(--bloc); } .pastille-seance[data-activite="Maison"] { --a: var(--maison); } .pastille-seance[data-activite="Course"] { --a: var(--course); } .pastille-seance[data-activite="Escalade extérieur"] { --a: var(--exterieur); }
+.pastille-seance.etat-faite { box-shadow: 0 0 0 2px var(--vert); } .pastille-seance.etat-encours { box-shadow: 0 0 0 3px var(--accent); }
+.pastille-seance.etat-avenir { opacity: .75; }
+/* Couleurs 8.11 : bouton blanc du bandeau, texte toujours foncé (lisible en mode sombre) */
+.bandeau-seance .blanc, .bandeau-seance .blanc * { color: #1d2a2f; }

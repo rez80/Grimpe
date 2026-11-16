@@ -134,7 +134,7 @@ function textesAide(ctx) {
     principe: h`<p>Le programme est écrit dans <b>Programme.xlsx</b> et transformé en <code>data.js</code> par <code>outil/grimpe.py app</code>. L'app sert à faire les séances : elle ne demande rien pendant, et calcule tout après (feux verts, forme, niveaux, projets). Sur PC, <code>grimpe.py rapport</code> met ce bilan en page dans <b>Suivi.xlsx</b> et reporte dans Programme.xlsx les séances modifiées ici.</p>
       <p><b>Une séance.</b> Voir l'onglet « Séance » de cette aide.</p>
       <p><b>Couleurs.</b> <span class="genre-txt echauffement">échauffement</span> · <span class="genre-txt securite">sécurité</span> · <span class="genre-txt facile">facile</span> · <span class="genre-txt effort">effort</span> · <span class="genre-txt recup">récupération</span>.</p>
-      <p><b>Le lendemain.</b> Une séance oubliée ou laissée ouverte revient en une carte : faite, sautée, plus tard. Jamais de point d'exclamation.</p>`,
+      <p><b>Le lendemain.</b> Une séance oubliée ou laissée ouverte revient en une carte en haut du Programme : faite → bilan, sautée, plus tard. Jamais de point d'exclamation.</p>`,
     syntaxe: h`<p>Une ligne par étape. Tout ce qui n'est pas entre accolades est de la prose : rien n'est deviné. Dans l'app, l'éditeur de plan écrit ces lignes pour toi.</p>
       <pre class="code">## Nom de version
 > Échauffement voie

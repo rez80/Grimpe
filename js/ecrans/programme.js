@@ -1,9 +1,10 @@
 // ecrans/programme.js — le programme semaine par semaine, la semaine dépliée, les outils de semaine.
 import { h, si, classes } from "../html.js";
-import { etatSeance, etapesSeance, dureeSeance, dureeEtape, activiteAffichee } from "../programme.js";
+import { etatSeance, etapesSeance, dureeSeance, activiteAffichee } from "../programme.js";
 import { semaineDe, dateSeance, ajouterJours, jourMois, court, hm, JOURS, nomJour, jourSemaine } from "../dates.js";
 import { reussi } from "../analyse.js";
 import * as editeur from "./editeur.js";
+import { carteHier } from "./seance.js";
 
 const ICONE = { faite: "✓", abilan: "✓", sautee: "–", encours: "▸", aujourdhui: "●", passee: "·", avenir: "" };
 
@@ -12,7 +13,7 @@ export function rendre(ctx) {
   const semaines = [...new Set(P.map(s => s.semaine))].sort((a, b) => a - b), wNow = semaineDe(debut, auj);
   if (state.semaineVue !== null && !semaines.includes(state.semaineVue)) state.semaineVue = semaines.includes(wNow) ? wNow : semaines[0];   // null = tout replié
   const phases = []; for (const w of semaines) { const ph = (P.find(s => s.semaine === w) || {}).phase || ""; const bloc = ph.split(" · ")[0]; if (!phases.length || phases[phases.length - 1].bloc !== bloc) phases.push({ bloc, semaines: [] }); phases[phases.length - 1].semaines.push(w); }
-  let out = h`${carteRestaurer(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn" data-act="creationOuvrir">+ Séance</button><button class="petit-btn" data-act="progres">Progrès ›</button></div>`;
+  let out = h`${carteRestaurer(ctx)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn" data-act="creationOuvrir">+ Séance</button><button class="petit-btn" data-act="progres">Progrès ›</button></div>`;
   for (const ph of phases) {
     out = h`${out}<h3 class="bloc-titre">${ph.bloc || "Programme"}</h3>`;
     for (const w of ph.semaines) {
@@ -24,14 +25,6 @@ export function rendre(ctx) {
     }
   }
   return { html: out, titre: h`<b>Programme</b>` };
-}
-
-// Couleur d'une séance = celle du plan : le type d'étape qui prend le plus de temps (échauffement et sécurité ne comptent que s'il n'y a rien d'autre)
-const NOM_GENRE = { echauffement: "échauffement", securite: "sécurité", facile: "facile", effort: "effort", recup: "récup" };
-function genreDominant(ctx, s) {
-  const t = {}; for (const e of etapesSeance(s, ctx.saisie(s.id)).filter(e => e.type !== "info")) { const g = e.type === "routine" ? e.genre || "echauffement" : e.genre || "facile"; t[g] = (t[g] || 0) + Math.max(60, dureeEtape(e, s, ctx.data, ctx.doc.reglages)); }
-  const l = Object.entries(t).sort((a, b) => b[1] - a[1]), principal = l.find(([g]) => g !== "echauffement" && g !== "securite");
-  return (principal || l[0] || [])[0] || "";
 }
 
 // App vide (nouvelle installation, téléphone changé…) : proposer tout de suite de restaurer une sauvegarde
@@ -70,8 +63,7 @@ function semaineDetail(ctx, w, sem, auj) {
   const faites = sem.filter(s => ctx.saisie(s.id).fin), ts = faites.flatMap(s => ctx.saisie(s.id).tentatives || []), efforts = faites.map(s => ctx.saisie(s.id).effort).filter(x => x != null);
   const bilanSem = faites.length ? `${faites.length} séance${faites.length > 1 ? "s" : ""} faite${faites.length > 1 ? "s" : ""}${ts.length ? ` · ${ts.length} passage${ts.length > 1 ? "s" : ""}, ${ts.filter(reussi).length} réussi${ts.filter(reussi).length > 1 ? "s" : ""}` : ""}${efforts.length ? ` · effort moyen ${(efforts.reduce((a, b) => a + b, 0) / efforts.length).toFixed(1).replace(".", ",")}` : ""}` : "";
   return h`${si(bilanSem, h`<p class="bilan-sem">${bilanSem}</p>`)}${si(aFaire.length, () => h`<div class="a-faire"><b>À faire</b><div class="liste">${aFaire}</div></div>`)}<div class="jours">${jours.map(x => h`<div class="jour ${x.d === auj ? "auj" : ""}"><div class="jour-nom">${x.j.slice(0, 3)}<br><span class="petit">${x.d.slice(8, 10)}</span></div>
-      ${x.seances.map(s => { const e = etatSeance(s, ctx.saisie(s.id), auj); const a = activiteAffichee(s, ctx.saisie(s.id)), g = genreDominant(ctx, s); return h`<button class="pastille-seance etat-${e} ${g ? "genre-" + g : ""}" data-act="ouvrirSeance" data-id="${s.id}" data-activite="${a}" aria-label="${a}${g ? " · " + NOM_GENRE[g] : ""}">${ICONE[e] || a[0]}</button>`; })}</div>`)}</div>
-    ${(() => { const gs = [...new Set(jours.flatMap(x => x.seances.map(s => genreDominant(ctx, s))).filter(Boolean))]; return gs.length ? h`<p class="legende-genres">${["facile", "effort", "recup", "echauffement", "securite"].filter(g => gs.includes(g)).map(g => h`<span><i class="genre-${g}"></i>${NOM_GENRE[g]}</span>`)}</p>` : ""; })()}
+      ${x.seances.map(s => { const e = etatSeance(s, ctx.saisie(s.id), auj); const a = activiteAffichee(s, ctx.saisie(s.id)); return h`<button class="pastille-seance etat-${e}" data-act="ouvrirSeance" data-id="${s.id}" data-activite="${a}" aria-label="${a}">${ICONE[e] || a[0]}</button>`; })}</div>`)}</div>
     ${sem.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), t = sa.tentatives || [], et = etapesSeance(s, sa);
       const a = activiteAffichee(s, sa);
       return h`<div class="carte-seance-cadre"><button class="carte-seance etat-${e}" data-act="ouvrirSeance" data-id="${s.id}" data-activite="${a}">
