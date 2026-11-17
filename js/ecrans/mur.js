@@ -1,6 +1,6 @@
 // ecrans/mur.js — le mur d'une salle : les voies par secteur, en tuiles, rangées au doigt (glisser-déposer).
 import { h, si, brut, pictoProfil, ouvert, pli, liste as listeDeroulante, forcerOuvert, ecranVide } from "../html.js";
-import { salleDe, hexDe, texteSur, ranger, cotationDe, ordreNiveau as ordreNiv, profilHabituel, inclinaisonSecteur, passagesDe, supprimerVoies, couleursDe } from "../salles.js";
+import { salleDe, hexDe, texteSur, ranger, cotationDe, ordreNiveau as ordreNiv, profilHabituel, inclinaisonSecteur, passagesDe, supprimerVoies, couleursDe, cotApp } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, reussi, rang } from "../analyse.js";
 import { court } from "../dates.js";
 
@@ -17,7 +17,7 @@ export function rendre(ctx) {
   const groupes = [...s.secteurs.map(sec => ({ id: sec.id, nom: sec.nom, profil: inclinaisonSecteur(s, sec.id), voies: liste.filter(v => v.secteurId === sec.id) })), { id: "", nom: "Sans secteur", profil: "", voies: liste.filter(v => !v.secteurId || !s.secteurs.some(x => x.id === v.secteurId)) }];
   const classer = state.classer, ranger = state.ranger;
   const tuile = v => { const hv = voies.find(x => x.voieId === v.id), hex = hexDe(doc, v.couleur, s);
-    return h`<div class="tuile-voie glissable ${hex === "transparent" ? "sans-couleur" : ""} ${classer && classer.has(v.id) ? "selectionnee" : ""}" draggable="false" data-id="${v.id}" data-act="${classer ? "classerBascule" : "voieEditer"}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (v.profil && v.profil !== inclinaisonSecteur(s, v.secteurId || null) ? v.profil.toLowerCase() : "")}</span>${(e => e === "jamais" ? "" : h`<span class="marque ${e === "reussie" ? "ok" : "ko"}" aria-label="${e === "reussie" ? "réussie" : "projet"}">${e === "reussie" ? "✓" : "✗"}</span>`)(etatDe(v))}${si(v.statut === "demontee", h`<span class="tuile-histo">démontée ${v.demontee ? court(v.demontee) : ""}</span>`)}</div>`; };
+    return h`<div class="tuile-voie glissable ${hex === "transparent" ? "sans-couleur" : ""} ${classer && classer.has(v.id) ? "selectionnee" : ""}" draggable="false" data-id="${v.id}" data-act="${classer ? "classerBascule" : "voieEditer"}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${v.cotSalle && v.cot && String(v.cotSalle) !== String(v.cot) ? h`<small class="tuile-eq">≈ ${v.cot}</small>` : ""}${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (v.profil && v.profil !== inclinaisonSecteur(s, v.secteurId || null) ? v.profil.toLowerCase() : "")}</span>${(e => e === "jamais" ? "" : h`<span class="marque ${e === "reussie" ? "ok" : "ko"}" aria-label="${e === "reussie" ? "réussie" : "projet"}">${e === "reussie" ? "✓" : "✗"}</span>`)(etatDe(v))}${si(v.statut === "demontee", h`<span class="tuile-histo">démontée ${v.demontee ? court(v.demontee) : ""}</span>`)}</div>`; };
   if (classer) { const n = classer.size;
     const dis = n ? "" : "disabled", cotable = ["standard", "liste"].includes(cotationDe(s, filtre || (s.type === "Bloc" ? "Bloc" : "Voie")).mode);
     return { titre: h`<b>${s.nom}</b>`, infos: "Sélection", html: h`<p class="petit">Touche les ${motSalle(s)} à modifier ou supprimer ensemble.</p>
@@ -44,13 +44,19 @@ export function rendre(ctx) {
         <p class="compte-etats"><span class="ce ok">✓ ${T.reussie} réussi${disc === "Bloc" ? "" : "e"}${T.reussie > 1 ? "s" : ""}</span><span class="ce ko">✗ ${T.projet} projet${T.projet > 1 ? "s" : ""}</span><span class="ce jamais">${T.jamais} jamais essayé${disc === "Bloc" ? "" : "e"}${T.jamais > 1 ? "s" : ""}</span></p>
         <div class="batons">${ordre.map(k => { const actif = fCot && fCot.disc === disc && fCot.cot === k, e = E(G[k]), H = Math.round(8 + 64 * G[k].length / max), part = n => Math.round(H * n / G[k].length);
         return h`<button class="baton ${actif ? "choisi" : ""}" data-act="filtreCotMur" data-disc="${disc}" data-valeur="${k}" aria-label="Niveau ${nom(k)} : ${G[k].length} ${mot(G[k].length)}, ${e.reussie} réussis, ${e.projet} projets"><span class="baton-n">${G[k].length}</span>
-          <span class="baton-barre empile" style="height:${H}px;--c:${teinte(k)}">${si(e.jamais, h`<i class="seg jamais" style="flex:${e.jamais}"></i>`)}${si(e.projet, h`<i class="seg projet" style="flex:${e.projet}"></i>`)}${si(e.reussie, h`<i class="seg reussie" style="flex:${e.reussie}"></i>`)}</span><span class="baton-niv">${c.mode === "couleurs" ? "" : k}</span></button>`; })}</div></div>`; })}
+          <span class="baton-barre empile" style="height:${H}px;--c:${teinte(k)}">${si(e.jamais, h`<i class="seg jamais" style="flex:${e.jamais}"></i>`)}${si(e.projet, h`<i class="seg projet" style="flex:${e.projet}"></i>`)}${si(e.reussie, h`<i class="seg reussie" style="flex:${e.reussie}"></i>`)}</span><span class="baton-niv">${c.mode === "couleurs" ? "" : k}${c.mode === "liste" && cotApp(s, disc, k) && cotApp(s, disc, k) !== k ? h`<small>≈${cotApp(s, disc, k)}</small>` : ""}</span></button>`; })}</div></div>`; })}
     <p class="legende-etats"><span><i class="seg reussie"></i> réussis</span><span><i class="seg projet"></i> projets</span><span><i class="seg jamais"></i> jamais essayés</span></p>
     ${si(fCot, () => h`<p class="recap-filtre">Niv ${cotationDe(s, fCot.disc).mode === "couleurs" ? fCot.cot.toLowerCase() : fCot.cot} : ${(n => `${n} ${motVoie(fCot.disc, n)}`)(enPlace.filter(v => v.disc === fCot.disc && niveauDe(s, v) === fCot.cot).length)} <button class="lien" data-act="filtreCotMur" data-disc="${fCot.disc}" data-valeur="${fCot.cot}">✕ tout afficher</button></p>`)}
     <p class="petit">${s.secteurs.length} secteur${s.secteurs.length > 1 ? "s" : ""}${nDem ? ` · ${nDem} démontée${nDem > 1 ? "s" : ""}` : ""} · touche un bâton pour ne voir que ce niveau</p>`,
     { resume: [enPlace.filter(v => v.disc === "Voie").length && `${enPlace.filter(v => v.disc === "Voie").length} voies`, enPlace.filter(v => v.disc === "Bloc").length && `${enPlace.filter(v => v.disc === "Bloc").length} blocs`].filter(Boolean).join(" · "), classe: "carte recap-salle" });
   const nE = e => s.voies.filter(v => v.statut !== "demontee" && etatDe(v) === e).length;
-  const html = h`${si(!ranger && !demontees && enPlace.length, () => recap)}<div class="barre-mur">
+  // L'échelle de la salle : ses niveaux et leur équivalent dans l'échelle de l'app (officielle)
+  const echelle = ["Voie", "Bloc"].filter(d => s.type === "Bloc et voie" || s.type === d).map(d => { const c = cotationDe(s, d);
+    return h`<div class="echelle-disc"><b>${d}</b>${c.mode === "liste" && c.liste.length ? h`<table class="tableau echelle"><tr><th>${s.nom}</th><th>≈ échelle de l'app</th></tr>${c.liste.map(x => h`<tr><td><b>${x.salle}</b></td><td>${x.app || "—"}</td></tr>`)}</table>`
+      : c.mode === "couleurs" ? h`<table class="tableau echelle"><tr><th>Couleur</th><th>≈ échelle de l'app</th></tr>${c.liste.map(x => h`<tr><td><span class="pastille" style="background:${hexDe(doc, x.salle, s)}"></span> ${x.salle}</td><td>${x.app || "—"}</td></tr>`)}</table>`
+      : h`<p class="petit">${c.mode === "aucune" ? "Pas de cotation dans cette salle." : "Échelle officielle : la même que l'app."}</p>`}</div>`; });
+  const blocEchelle = pli(`echelle-${s.id}`, false, "Échelle de la salle", () => h`${echelle}<p class="petit">À modifier dans Plus › Salles › ${s.nom}. Partout dans l'app, une cotation s'écrit « salle · ≈ app ».</p>`, { classe: "carte", resume: "équivalences" });
+  const html = h`${si(!ranger && !demontees && enPlace.length, () => recap)}${si(!ranger && !demontees, () => blocEchelle)}<div class="barre-mur">
       ${si(!demontees && !ranger, h`<button class="petit-btn btn-ajout" data-act="voieNouvelle" data-secteur="${s.secteurs.some(x => x.id === state.dernierSecteur) ? state.dernierSecteur : ""}" data-disc="${discDefaut}">+ ${discDefaut === "Bloc" ? "Bloc" : "Voie"}</button>`)}
       ${si(!demontees, h`<button class="petit-btn btn-ajout" data-act="secteurNouveau">+ Secteur</button>`)}</div>
     ${si(s.voies.length && !ranger, () => h`<div class="barre-filtres">
@@ -128,7 +134,7 @@ export function apresRendu(ctx) {
 // ⋯ de l'en-tête sur le mur
 export function menuEcran(ctx) { const s = salleDe(ctx.doc, ctx.state.salleId); if (!s) return null; const dem = !!ctx.state.filtre.demontees;
   return { titre: s.nom, items: [
-    ...(dem ? [] : [{ label: `Inventaire rapide (nombre de ${motSalle(s)} par niveau)`, act: "inventaireOuvrir" }, { label: `+ Plusieurs ${motSalle(s)} d'un coup`, act: "ajoutRapideOuvrir" }]), { label: "+ Secteur", act: "secteurNouveau" },
+    ...(dem ? [] : [{ label: `Inventaire rapide (nombre de ${motSalle(s)} par niveau)`, act: "inventaireOuvrir" }, { label: `+ Plusieurs ${motSalle(s)} d'un coup`, act: "ajoutRapideOuvrir" }]),
     { label: `Sélectionner plusieurs ${motSalle(s)}`, act: "classerDebut" },
     { label: dem ? `Voir les ${motSalle(s)} en place` : `Voir les ${motSalle(s)} démonté${s.type === "Bloc" ? "s" : "es"}`, act: "filtreDemontees" }, { label: "✎ Modifier la salle", act: "salleEditer" }] }; }
 

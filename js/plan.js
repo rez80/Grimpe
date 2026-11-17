@@ -22,9 +22,14 @@ export const ROLES = {
   dure: { label: "Séance dure", activite: null, salle: true, dure: true },             // la discipline de l'objectif
   volume: { label: "Volume / plaisir (bloc)", activite: "Bloc", salle: true },
   voie: { label: "Voie (partenaire)", activite: "Voie", salle: true },
-  course: { label: "Course (bonus)", activite: "Course", bonus: true },
-  prevention: { label: "Prévention maison (bonus)", activite: "Maison", bonus: true },
+  course: { label: "Course", activite: "Course", bonus: true },
+  prevention: { label: "Prévention maison", activite: "Maison", bonus: true },
+  autre: { label: "Autre sport…", activite: "Autre sport", bonus: true },
 };
+// Séance bonus ou non : au choix pour chaque jour (plan.bonus) ; par défaut, course, prévention et autres sports le sont
+export const estBonus = (plan, jour) => plan.bonus && plan.bonus[jour] != null ? !!plan.bonus[jour] : !!(ROLES[plan.jours[jour]] || {}).bonus;
+// Un autre sport : plan.joursAutre[jour] = { nom, duree (min), intensite: "facile" | "soutenue" }
+export const autreDe = (plan, jour) => ({ nom: "Autre sport", duree: 45, intensite: "facile", ...((plan.joursAutre || {})[jour] || {}) });
 
 // --- Profils : ils ne changent que les valeurs proposées (tout reste modifiable) ---
 export const PROFILS = {
@@ -84,10 +89,12 @@ export const SECONDAIRES = {
   endurance: { label: "Endurance en voie", disc: "Voie", ou: "à la séance voie", titre: n => `Endurance en ${n}`, feu: n => [{ type: "memeJour", disc: "Voie", cot: n, min: 4 }] },
   avue: { label: "À vue", disc: "Voie", ou: "à la séance voie", titre: n => `À vue en ${n}`, feu: n => [{ type: "avue", disc: "Voie", cot: n, min: 3 }] },
   voie: { label: "Niveau en voie", disc: "Voie", ou: "à la séance voie", titre: n => `Voie ${n} consolidée`, feu: n => [{ type: "essais", disc: "Voie", cot: n, min: 8 }, { type: "taux", disc: "Voie", cot: n, min: 70 }, { type: "differents", disc: "Voie", cot: n, min: 3 }] },
+  autre: { label: "Autre (à définir)…", disc: null, ou: "dans la séance que tu choisis", titre: () => "Objectif à toi", feu: () => [] },
   gainage: { label: "Gainage", disc: null, ou: "à la prévention (jeudi)", titre: n => `Planche ${n} s`, feu: n => [{ type: "mesure", cle: "planche", min: +n || 90 }] },
 };
 export function niveauSecondaire(plan, type, E) {
   const d = plan.depart || {};
+  if (type === "autre") return "";
   if (type === "devers" || type === "dalle") return d.Bloc || "4";
   if (type === "voie") return monter(E, "Voie", d.Voie || "5a");
   if (type === "gainage") return 90;
@@ -98,6 +105,7 @@ const sec = (plan, type) => (plan.secondaires || []).find(x => x.type === type) 
 // --- Fils rouges : une appréhension ou un savoir-faire, travaillé un peu à chaque séance concernée ---
 export const FILS = {
   "": { label: "Aucun" },
+  autre: { label: "Autre (à définir)…", pourquoi: "Ton fil rouge à toi : une consigne dans les séances que tu choisis, et une case à cocher dans Progrès." },
   hauteur: { label: "Hauteur (appréhension en haut)", pourquoi: "En voie : désescalade, s'asseoir dans le baudrier, puis petits lâchers en moulinette.",
     feu: { titre: "Hauteur en voie", criteres: [{ type: "coche", label: "3 lâchers en moulinette sans appréhension" }] } },
   chute: { label: "Chute en bloc (réceptions)", pourquoi: "Au volume : désescalade quand c'est possible, sinon sauts contrôlés de plus en plus hauts.",
@@ -107,6 +115,18 @@ export const FILS = {
   tete: { label: "Découvrir la tête", pourquoi: "Avec un moniteur : la chute en tête s'apprend en cours, jamais seul. En attendant, tête simulée en moulinette.",
     feu: { titre: "Découvrir la tête", criteres: [{ type: "coche", label: "Cours de grimpe en tête suivi (moniteur)" }, { type: "coche", label: "5 voies en tête simulée sans erreur de mousquetonnage" }] } },
 };
+
+// --- Fourchettes conseillées par semaine (profil Débutant ; × facteur du profil pour les essais et le volume) ---
+const FOURCHETTES = {
+  essais: { base: [3, 8], construction: [10, 16], respiration: [4, 8], realisation: [8, 12], decharge: [0, 0] },
+  volume: { base: [12, 18], construction: [15, 22], respiration: [10, 14], realisation: [12, 16], decharge: [8, 12] },
+  devers: { base: [2, 4], construction: [3, 5], respiration: [0, 2], realisation: [2, 4], decharge: [0, 1] },
+  voies: { base: [1, 3], construction: [2, 4], respiration: [0, 1], realisation: [1, 3], decharge: [0, 0] },
+  course: { base: [20, 30], construction: [25, 40], respiration: [20, 30], realisation: [25, 35], decharge: [15, 25] },
+};
+export function fourchette(plan, k, col) { const t = plan.semaines[k].type, f = (PROFILS[plan.profil] || PROFILS.debutant).facteur, r = (FOURCHETTES[col] || {})[t]; if (!r) return null;
+  const m = col === "essais" ? f : col === "volume" ? Math.min(f, 1.2) : 1; return [Math.round(r[0] * m), Math.round(r[1] * m)]; }
+export const proposeSemaine = (plan, k, col) => (semainesParDefaut(plan.profil, plan.semaines.length)[k] || {})[col];
 
 // --- Le plan vide, et le modèle préparé avec Red (« Le 5 en bloc ») ---
 export function planVide({ nom = "B2", debut = 1, profil = "debutant", depart = { Voie: "5a", Bloc: "4" } } = {}) {
@@ -131,8 +151,11 @@ export function feuxParDefaut(plan) {
   const o = plan.objectif || {}, l = [];
   if (o.cot) l.push({ id: "objectif", role: "objectif", titre: `${o.disc} ${o.cot} consolidé`, criteres: [
     { type: "essais", disc: o.disc, cot: o.cot, min: 10 }, { type: "taux", disc: o.disc, cot: o.cot, min: 70 }, { type: "differents", disc: o.disc, cot: o.cot, min: 5 }] });
-  for (const x of plan.secondaires || []) { const S = SECONDAIRES[x.type]; if (S) l.push({ id: x.type, role: "secondaire", titre: S.titre(x.niveau), criteres: S.feu(x.niveau) }); }
-  const F = FILS[plan.fil]; if (F && F.feu) l.push({ id: plan.fil, role: "fil", titre: F.feu.titre, criteres: F.feu.criteres.map(c => ({ ...c })) });
+  (plan.secondaires || []).forEach((x, n) => { const S = SECONDAIRES[x.type]; if (!S) return;
+    if (x.type === "autre") l.push({ id: `autre${n}`, role: "secondaire", titre: x.titre || "Objectif à toi", criteres: x.valid === "seuil" && x.cot ? [{ type: x.mesure || "differents", disc: x.disc || "Bloc", cot: x.cot, min: x.min || 3 }] : [{ type: "coche", label: x.titre || "Objectif atteint" }] });
+    else l.push({ id: x.type, role: "secondaire", titre: S.titre(x.niveau), criteres: S.feu(x.niveau) }); });
+  if (plan.fil === "autre") { const a = plan.filAutre || {}; l.push({ id: "filAutre", role: "fil", titre: a.titre || "Fil rouge", criteres: [{ type: "coche", label: a.titre || "Fil rouge travaillé" }] }); }
+  else { const F = FILS[plan.fil]; if (F && F.feu) l.push({ id: plan.fil, role: "fil", titre: F.feu.titre, criteres: F.feu.criteres.map(c => ({ ...c })) }); }
   l.push({ id: "garde", role: "garde", titre: "Garde-fou doigts", criteres: [{ type: "douleur", max: 2, semaines: 4 }] });
   return l;
 }
@@ -248,7 +271,7 @@ function seanceDure(plan, k, E) {
     if ((PROFILS[plan.profil] || {}).suspensions && s.type === "construction") l.push("3× « Suspension active » · 10 s sur une grosse prise, épaules engagées {repos 2min} {effort}");
   }
   l.push(d === "Voie" ? `1× Voie facile · « Grimpe fluide » · retour au calme {voie ${plan.depart.Voie}} {facile}` : "1× « Traversée basse » · retour au calme {facile} {chrono 5min}", "> Retour au calme salle", "> Coudes après la séance");
-  if (d === "Voie" && plan.planB === "bloc") l.push(...planBBloc(plan, k, E));
+  if (d === "Voie" && plan.planB === "bloc") l.push(...planBBloc(plan, k, E, "dure"));
   return l.join("\n");
 }
 const oBloc = plan => plan.objectif.disc === "Bloc" ? plan.objectif.cot : null;
@@ -266,11 +289,18 @@ function seanceVolume(plan, k, E) {
   l.push("> Retour au calme salle", "> Coudes après la séance");
   return l.join("\n");
 }
-function planBBloc(plan, k, E) {
-  const s = plan.semaines[k], [V1, V2] = niveauxVolume(E, "Bloc", plan.depart.Bloc, oBloc(plan)), c = consigne(plan, k);
-  return ["## Remplacement bloc (pas de partenaire)", "> Échauffement bloc", `! Pas de partenaire : séance bloc modérée, sans maximum${plan.objectif.disc === "Bloc" ? " (la séance dure reste celle prévue)" : ""}.`,
-    `${s.type === "decharge" ? 5 : 8}× Bloc niveau ${V1} · « ${c} » {repos 2min} {bloc ${V1}}`, ...(s.type === "decharge" ? [] : [`2× Bloc niveau ${V2} · sans forcer {repos 3min} {bloc ${V2}}`]),
-    "1× « Traversée basse » · retour au calme {facile} {chrono 5min}", "> Coudes après la séance"];
+// Plan B (pas de partenaire) : la séance voie devient du bloc modéré, avec les équivalents en bloc de ce qui était prévu en voie
+function planBBloc(plan, k, E, role = "voie") {
+  const s = plan.semaines[k], [V1, V2] = niveauxVolume(E, "Bloc", plan.depart.Bloc, oBloc(plan)), c = consigne(plan, k), legere = s.type === "respiration" || s.type === "decharge";
+  const l = ["## Remplacement bloc (pas de partenaire)", "> Échauffement bloc", `! Pas de partenaire : séance bloc modérée, sans maximum${plan.objectif.disc === "Bloc" ? " (la séance dure reste celle prévue)" : ""}.`, `! Consigne de la semaine : « ${c} ».`, ...consignesPerso(plan, role, s.type)];
+  if (plan.fil === "hauteur" && !legere) l.push("! Hauteur, en bloc : redescends en « Désescalade » depuis le haut des blocs faciles, sans sauter.");
+  l.push(`${s.type === "decharge" ? 5 : 8}× Bloc niveau ${V1} · « ${c} » {repos 2min} {bloc ${V1}}`);
+  if (s.type !== "decharge") l.push(`2× Bloc niveau ${V2} · sans forcer {repos 3min} {bloc ${V2}}`);
+  if (!legere && s.voies > 0) l.push("! En voie, tu aurais travaillé « Repos bras tendu » et « Face puis profil » : en bloc, garde-les sur une longue traversée.", "1× « Traversée basse » · longue, « Repos bras tendu » et « Face puis profil » {facile} {chrono 8min}");
+  if (sec(plan, "endurance") && !legere) l.push("2× « Circuit » · 4 blocs faciles enchaînés, sans pause : l'équivalent de l'endurance en voie {repos 4min} {effort}");
+  if (sec(plan, "avue") && !legere) l.push(`1× Bloc jamais essayé niveau ${V1} · « Lecture avant de grimper » · une seule tentative, comme à vue {bloc ${V1}}`);
+  l.push("1× « Traversée basse » · retour au calme {facile} {chrono 5min}", "> Coudes après la séance");
+  return l;
 }
 function seanceVoie(plan, k, E) {
   const s = plan.semaines[k], V = plan.depart.Voie, nv = sec(plan, "voie"), V1 = nv ? nv.niveau : monter(E, "Voie", V), V2 = monter(E, "Voie", V1), ht = hauteur(plan, k), c = consigne(plan, k);
@@ -292,13 +322,35 @@ function seanceVoie(plan, k, E) {
   if (plan.planB === "bloc") l.push(...planBBloc(plan, k, E));
   return l.join("\n");
 }
-const seanceCourse = (plan, k) => ["> Course · avant", `1× ${plan.semaines[k].course} min de course · « Allure conversation » {chrono ${plan.semaines[k].course}min}`, "! Séance bonus : à faire si l'envie et la forme sont là.", "> Course · après"].join("\n");
-function seancePrevention(plan, k) {
+const seanceCourse = (plan, k, bonus) => ["> Course · avant", `1× ${plan.semaines[k].course} min de course · « Allure conversation » {chrono ${plan.semaines[k].course}min}`, ...(bonus ? ["! Séance bonus : à faire si l'envie et la forme sont là."] : []), "> Course · après"].join("\n");
+function seanceAutre(plan, k, jour, bonus) {
+  const a = autreDe(plan, jour), s = plan.semaines[k], soutenu = a.intensite === "soutenue", min = s.type === "decharge" ? Math.round(a.duree * 0.6) : a.duree;
+  return [`! ${a.nom} · ${soutenu ? "intensité soutenue" : "facile"}${bonus ? " · séance bonus" : ""}.`, ...(soutenu ? ["! Soutenu : attention à la fatigue. Forme « pas top » ? Passe-le en facile ou reporte-le."] : []),
+    ...(s.type === "decharge" ? ["! Semaine de décharge : plus court et facile."] : []), `1× ${a.nom} · ${min} min {chrono ${min}min} {${soutenu && s.type !== "decharge" ? "effort" : "facile"}}`].join("\n");
+}
+function seancePrevention(plan, k, bonus = true) {
   const s = plan.semaines[k], g = sec(plan, "gainage"), l = ["> Routine du jeudi"];
   if (g && s.type !== "decharge") l.push("> Gainage express");
   if (g && (k === (plan.premiere || 1) - 1 || s.type === "realisation")) l.push(`1× « Planche » · ton maximum, une seule fois (objectif ${g.niveau} s) {mesure planche}`);
-  l.push("! Séance bonus : 15 à 20 min, de préférence les jours sans grimpe.");
+  l.push(bonus ? "! Séance bonus : 15 à 20 min, de préférence les jours sans grimpe." : "! 15 à 20 min, de préférence les jours sans grimpe.");
   return l.join("\n");
+}
+
+// Objectifs secondaires et fil rouge « à toi » : une consigne dans les séances choisies (sauf en décharge)
+const ROLES_PERSO = { dure: "Séance dure", volume: "Volume", voie: "Voie", prevention: "Prévention maison" };
+export { ROLES_PERSO };
+function consignesPerso(plan, role, type) {
+  if (type === "decharge") return [];
+  const l = (plan.secondaires || []).filter(x => x.type === "autre" && x.titre && (x.ou || "volume") === role).map(x => `! Objectif secondaire : ${x.titre}.`);
+  if (plan.fil === "autre" && plan.filAutre && plan.filAutre.titre && (plan.filAutre.ou || ["volume"]).includes(role)) l.push(`! Fil rouge : ${plan.filAutre.titre}.`);
+  return l;
+}
+// Insère des consignes après l'échauffement (dans la première version d'une séance à versions)
+function injecter(contenu, lignes) {
+  if (!lignes.length) return contenu;
+  const l = contenu.split("\n"); let i = l.findIndex(x => x.startsWith("## ")); i = i < 0 ? 0 : i + 1;
+  while (i < l.length && l[i].startsWith(">")) i++;
+  l.splice(i, 0, ...lignes); return l.join("\n");
 }
 
 // --- Le bloc complet ---
@@ -309,9 +361,10 @@ export function genererBloc(plan, echelles) {
     const semaine = plan.debut + k - premiere;
     for (const jour of JOURS) {
       const role = plan.jours[jour]; if (!role || role === "repos") continue;
-      const R = ROLES[role], s = plan.semaines[k];
-      const contenu = role === "dure" ? seanceDure(plan, k, echelles) : role === "volume" ? seanceVolume(plan, k, echelles) : role === "voie" ? seanceVoie(plan, k, echelles) : role === "course" ? seanceCourse(plan, k) : seancePrevention(plan, k);
-      seances.push({ semaine, jour, activite: role === "dure" ? plan.objectif.disc : R.activite, phase: phases[k], contenu: appliquerExos(contenu, role, s.type, plan.exos), bonus: !!R.bonus, role });
+      const R = ROLES[role], s = plan.semaines[k], bonus = estBonus(plan, jour);
+      let contenu = role === "dure" ? seanceDure(plan, k, echelles) : role === "volume" ? seanceVolume(plan, k, echelles) : role === "voie" ? seanceVoie(plan, k, echelles) : role === "course" ? seanceCourse(plan, k, bonus) : role === "autre" ? seanceAutre(plan, k, jour, bonus) : seancePrevention(plan, k, bonus);
+      contenu = injecter(contenu, consignesPerso(plan, role, s.type));
+      seances.push({ semaine, jour, activite: role === "dure" ? plan.objectif.disc : R.activite, phase: phases[k], contenu: appliquerExos(contenu, role, s.type, plan.exos), bonus, role });
     }
   }
   return { id: plan.id || `${plan.nom}-${Date.now().toString(36)}`, nom: plan.nom, titre: plan.titre || `${plan.objectif.disc} ${plan.objectif.cot}`, debut: plan.debut, nb: plan.semaines.length - premiere,
@@ -338,6 +391,15 @@ export function alertesJours(plan) {
     if (idx[i] === "dure" && salle(idx[j])) a.push(`${JOURS[j]} : moins de 48 h après la séance dure du ${JOURS[i].toLowerCase()}. Les doigts récupèrent en 48 h.`);
     if (salle(idx[i]) && idx[j] === "dure") a.push(`${JOURS[j]} : la séance dure suit une séance en salle la veille. Mieux vaut arriver reposé.`); }
   const nSalle = idx.filter(salle).length; if (nSalle > 4) a.push(`${nSalle} séances en salle par semaine : prévois au moins 2 jours sans grimpe.`);
+  // Autres sports soutenus : la fatigue compte aussi
+  const soutenu = i => idx[i] === "autre" && autreDe(plan, JOURS[i]).intensite === "soutenue", charge = i => salle(idx[i]) || soutenu(i);
+  for (let i = 0; i < 7; i++) { const j = (i + 1) % 7;
+    if (soutenu(i) && idx[j] === "dure") a.push(`${JOURS[i]} : ${autreDe(plan, JOURS[i]).nom} soutenu la veille de la séance dure. Passe-le en facile ou change de jour.`);
+    if (idx[i] === "dure" && soutenu(j)) a.push(`${JOURS[j]} : ${autreDe(plan, JOURS[j]).nom} soutenu le lendemain de la séance dure : la récupération en pâtit.`);
+    if (charge(i) && charge(j) && (soutenu(i) || soutenu(j)) && idx[i] !== "dure" && idx[j] !== "dure") a.push(`${JOURS[i]} et ${JOURS[j].toLowerCase()} : deux jours soutenus d'affilée. Attention à la fatigue.`); }
+  const nCharge = idx.filter((_, i) => charge(i)).length, maxCharge = { debutant: 4, intermediaire: 5, avance: 6 }[plan.profil] || 4;
+  if (nCharge > maxCharge) a.push(`${nCharge} jours soutenus (grimpe et autres sports) : au-delà de ${maxCharge} pour ton profil, la fatigue s'accumule.`);
+  for (const j of JOURS) if (plan.jours[j] === "autre" && !((plan.joursAutre || {})[j] || {}).nom) a.push(`${j} : précise le sport (étape Disponibilités).`);
   if (plan.secondaires && plan.secondaires.some(x => SECONDAIRES[x.type] && SECONDAIRES[x.type].disc === "Voie") && !idx.includes("voie")) a.push("Un objectif secondaire en voie, mais aucune séance voie dans la semaine.");
   return a;
 }

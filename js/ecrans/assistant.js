@@ -8,7 +8,7 @@ import { lignesDe } from "../parseur.js";
 import { libelleCritere, finBloc, feuxBloc } from "../blocs.js";
 import { FAMILLES, NOMS_FAMILLES, sansAccent } from "./plus.js";
 import { PHASES, ORDRE_PHASES, ROLES, PROFILS, MODELES, modele, planVide, normaliser, semainesParDefaut, feuxParDefaut, genererBloc, crans,
-  TYPES_SEANCE, DUREES, SECONDAIRES, FILS, niveauSecondaire, exercicesProposes, consigne, consigneDevers, themesNouveaux, themesDevers, doublons, ligneAjout,
+  TYPES_SEANCE, DUREES, SECONDAIRES, FILS, ROLES_PERSO, estBonus, autreDe, fourchette, proposeSemaine, niveauSecondaire, exercicesProposes, consigne, consigneDevers, themesNouveaux, themesDevers, doublons, ligneAjout,
   alertesObjectif, alertesJours, alertesPhases, alertesFeux } from "../plan.js";
 
 const ETAPES = ["Départ", "Objectif", "Disponibilités", "Phases", "Séances", "Feux verts", "Récapitulatif"];
@@ -69,6 +69,9 @@ const puces = (chemin, options, actuel, { num = false, garder = false } = {}) =>
   return h`<button data-act="asValeur" data-chemin="${chemin}" data-valeur="${v}" ${num ? h`data-num="1"` : ""} ${garder ? h`data-garder="1"` : ""} class="${String(actuel) === String(v) ? "choisi" : ""}">${l}</button>`; })}</div>`;
 // − valeur + (chiffres)
 const pas = (chemin, val, { min = 0, max = 99, d = 1, suffixe = "" } = {}) => h`<span class="as-pas"><button data-act="asPas" data-chemin="${chemin}" data-d="${-d}" data-min="${min}" data-max="${max}" aria-label="moins">−</button><b>${val}${suffixe}</b><button data-act="asPas" data-chemin="${chemin}" data-d="${d}" data-min="${min}" data-max="${max}" aria-label="plus">+</button></span>`;
+// Liste déroulante (plus de 4 choix) : la valeur change sans refermer la ligne
+const deroulant = (chemin, options, valeur, vide = null) => liste("", options, valeur, { act: "asChamp", vide, data: { chemin } });
+const champTexte = (chemin, valeur, ph, max = 40) => h`<input type="text" class="as-texte" value="${valeur || ""}" placeholder="${ph}" data-act="asChamp" data-chemin="${chemin}" maxlength="${max}">`;
 const rangee = (label, contenu) => h`<div class="as-rangee"><span>${label}</span>${contenu}</div>`;
 const alertes = l => l.length ? h`${l.map(t => h`<div class="avert">${t}</div>`)}<p class="petit">Ce sont des conseils : tu peux continuer tel quel, c'est toi qui décides.</p>` : "";
 const hmc = m => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`;
@@ -110,28 +113,54 @@ function etapeDepart(ctx, A, P, E) {
 }
 
 // 2. Objectif
+const MESURES_SEC = [["differents", "Réussis différents"], ["essais", "Essais"], ["taux", "Réussite %"], ["avue", "À vue ou flash"]];
+function cadreAutre(x, n, E, P) {
+  const ch = `secondaires.${n}`;
+  return h`<label class="champ">Ton objectif</label>${champTexte(`${ch}.titre`, x.titre, "Fissures, dalle 6A, mobilité hanches…")}
+    <label class="champ">Travaillé à la séance</label>${deroulant(`${ch}.ou`, Object.entries(ROLES_PERSO), x.ou || "volume")}
+    <label class="champ">Validé par</label>${puces(`${ch}.valid`, [["coche", "Une case à cocher"], ["seuil", "Un seuil sur tes passages"]], x.valid || "coche", { garder: true })}
+    ${si(x.valid === "seuil", () => h`${puces(`${ch}.disc`, ["Bloc", "Voie"], x.disc || "Bloc", { garder: true })}
+      ${deroulant(`${ch}.cot`, plage(E, x.disc || "Bloc", P.depart[x.disc || "Bloc"], 3, 8), x.cot || "", "Cotation…")}
+      ${deroulant(`${ch}.mesure`, MESURES_SEC, x.mesure || "differents")}${rangee("Seuil", pas(`${ch}.min`, x.min || 3, { min: 1, max: 50 }))}`)}
+    <p class="petit">Une consigne « Objectif secondaire : … » est ajoutée à cette séance (sauf en décharge), avec son feu vert.</p>`;
+}
 function etapeObjectif(ctx, A, P, E) {
-  const o = P.objectif, secs = P.secondaires || [], libres = Object.keys(SECONDAIRES).filter(t => !secs.some(x => x.type === t));
+  const o = P.objectif, secs = P.secondaires || [], libres = Object.keys(SECONDAIRES).filter(t => t === "autre" || !secs.some(x => x.type === t));
   return h`${groupe("Objectif principal", h`${ligne(A, "disc", "Discipline", o.disc, () => puces("objectif.disc", ["Bloc", "Voie"], o.disc))}
-      ${ligne(A, "cot", "Cotation à consolider", o.cot || "à choisir", () => puces("objectif.cot", plage(E, o.disc, P.depart[o.disc], 1, 6), o.cot))}`)}
+      ${ligne(A, "cot", "Cotation à consolider", o.cot || "à choisir", () => deroulant("objectif.cot", plage(E, o.disc, P.depart[o.disc], 1, 6), o.cot, "Cotation…"))}`)}
     ${alertes(alertesObjectif(P, E))}
     ${groupe("Objectifs secondaires", h`${secs.map((x, n) => { const S = SECONDAIRES[x.type];
-        return ligne(A, `sec-${n}`, S.label, x.type === "gainage" ? `${x.niveau} s` : x.niveau, () => h`${x.type === "gainage" ? rangee("Planche visée", pas(`secondaires.${n}.niveau`, x.niveau, { min: 30, max: 300, d: 10, suffixe: " s" }))
-          : puces(`secondaires.${n}.niveau`, plage(E, S.disc, x.niveau, 3, 4), x.niveau)}<p class="petit">Travaillé ${S.ou}. Feu vert : ${S.feu(x.niveau).map(c => libelleCritere(c) + (c.min != null ? ` ≥ ${c.min}` : "")).join(" · ")}.</p>
+        return ligne(A, `sec-${n}`, x.type === "autre" ? (x.titre || "Objectif à toi") : S.label, x.type === "autre" ? (ROLES_PERSO[x.ou || "volume"] || "").toLowerCase() : x.type === "gainage" ? `${x.niveau} s` : x.niveau, () => h`${x.type === "autre" ? cadreAutre(x, n, E, P)
+          : x.type === "gainage" ? rangee("Planche visée", pas(`secondaires.${n}.niveau`, x.niveau, { min: 30, max: 300, d: 10, suffixe: " s" }))
+          : h`<label class="champ">Niveau</label>${deroulant(`secondaires.${n}.niveau`, plage(E, S.disc, x.niveau, 3, 4), x.niveau)}`}
+          ${si(x.type !== "autre", () => h`<p class="petit">Travaillé ${S.ou}. Feu vert : ${S.feu(x.niveau).map(c => libelleCritere(c) + (c.min != null ? ` ≥ ${c.min}` : "")).join(" · ")}.</p>`)}
           <button class="petit-btn danger" data-act="asSecRetirer" data-n="${n}">Retirer cet objectif</button>`); })}
-      ${si(secs.length < 2, () => ligne(A, "sec-ajout", "+ Ajouter un objectif", "", () => h`<div class="liste">${libres.map(t => h`<button class="item" data-act="asSecAjouter" data-type="${t}"><span><b>${SECONDAIRES[t].label}</b><br><span class="petit">${SECONDAIRES[t].ou}</span></span></button>`)}</div>`))}
+      ${si(secs.length < 2, () => h`<div class="as-ajout-sec">${liste("", libres.map(t => [t, `${SECONDAIRES[t].label}${t !== "autre" ? ` · ${SECONDAIRES[t].ou}` : ""}`]), "", { act: "asSecAjouter", vide: "+ Ajouter un objectif secondaire…" })}</div>`)}
       ${si(!secs.length, h`<p class="petit">Aucun pour l'instant.</p>`)}`, "(2 au plus)")}
-    ${groupe("Fil rouge", h`${ligne(A, "fil", "Fil rouge", FILS[P.fil || ""].label, () => h`<div class="liste">${Object.entries(FILS).map(([k, f]) => h`<button class="item ${(P.fil || "") === k ? "choisi" : ""}" data-act="asValeur" data-chemin="fil" data-valeur="${k}"><span><b>${f.label}</b>${f.pourquoi ? h`<br><span class="petit">${f.pourquoi}</span>` : ""}</span></button>`)}</div>`)}
-      ${si(P.fil && FILS[P.fil], () => h`<p class="petit">${FILS[P.fil].pourquoi || ""}</p>`)}`)}`;
+    ${groupe("Fil rouge", h`${deroulant("fil", Object.entries(FILS).map(([k, f]) => [k, f.label]), P.fil || "")}
+      ${si(P.fil && FILS[P.fil], () => h`<p class="petit">${FILS[P.fil].pourquoi || ""}</p>`)}
+      ${si(P.fil === "autre", () => { const fa = P.filAutre || {}, ou = fa.ou || ["volume"];
+        return h`<div class="fiche-contenu as-cadre"><label class="champ">Ton fil rouge</label>${champTexte("filAutre.titre", fa.titre, "Respirer en grimpant, regarder les pieds…")}
+          <label class="champ">Dans les séances</label><div class="choix as-puces">${Object.entries(ROLES_PERSO).map(([r, l]) => h`<button data-act="asFilOu" data-role="${r}" class="${ou.includes(r) ? "choisi" : ""}">${l}</button>`)}</div>
+          <p class="petit">Une consigne « Fil rouge : … » dans ces séances (sauf en décharge), et une case à cocher dans Progrès.</p></div>`; })}`)}`;
 }
 
 // 3. Disponibilités
+const DUREES_AUTRE = [20, 30, 45, 60, 75, 90, 120].map(m => [String(m), hm(m * 60)]);
 function etapeJours(ctx, A, P) {
   const roles = Object.entries(ROLES).map(([k, r]) => [k, k === "dure" ? `Séance dure (${P.objectif.disc.toLowerCase()})` : r.label]), lab = k => (roles.find(r => r[0] === k) || [, "Repos"])[1];
-  return h`${groupe("Semaine type", JOURS.map(j => ligne(A, `j-${j}`, j, lab(P.jours[j] || "repos"), () => puces(`jours.${j}`, roles, P.jours[j] || "repos"))))}
+  const valeur = j => { const r = P.jours[j] || "repos"; if (r === "repos") return "Repos"; const a = autreDe(P, j);
+    return `${r === "autre" ? `${(P.joursAutre || {})[j] && P.joursAutre[j].nom ? a.nom : "Autre sport"} · ${a.intensite}` : lab(r).replace(/…$/, "")}${estBonus(P, j) ? " · bonus" : ""}`; };
+  return h`${groupe("Semaine type", JOURS.map(j => ligne(A, `j-${j}`, j, valeur(j), () => { const r = P.jours[j] || "repos", a = autreDe(P, j);
+      return h`${deroulant(`jours.${j}`, roles, r)}
+        ${si(r === "autre", () => h`<label class="champ">Sport</label>${champTexte(`joursAutre.${j}.nom`, (P.joursAutre || {})[j] ? P.joursAutre[j].nom : "", "Vélo, natation, yoga…", 30)}
+          <label class="champ">Durée</label>${deroulant(`joursAutre.${j}.duree`, DUREES_AUTRE, String(a.duree))}
+          <label class="champ">Intensité</label>${puces(`joursAutre.${j}.intensite`, [["facile", "Facile"], ["soutenue", "Soutenue"]], a.intensite, { garder: true })}
+          ${si(a.intensite === "soutenue", h`<p class="petit">Soutenue : elle compte dans les alertes de fatigue (veille ou lendemain de la séance dure, jours soutenus d'affilée).</p>`)}`)}
+        ${si(r !== "repos", () => h`<label class="as-case"><input type="checkbox" ${estBonus(P, j) ? "checked" : ""} data-act="asBonus" data-jour="${j}"> Séance bonus <span class="petit">(jamais « manquée », hors avancement du bloc)</span></label>`)}`; })))}
     ${alertes(alertesJours(P))}
     ${groupe("Réglages", h`${ligne(A, "planB", "Sans partenaire, la voie devient", P.planB === "bloc" ? "du bloc modéré" : "rien", () => h`${puces("planB", [["bloc", "Bloc modéré (plan B)"], ["", "Rien (séance sautée)"]], P.planB)}<p class="petit">Le plan B est écrit dans chaque séance voie : tu choisis la version au moment de commencer.</p>`)}
-      ${ligne(A, "dureeS", "Durée d'une séance en salle", hm(P.duree * 60), () => puces("duree", [60, 90, 120, 150, 180].map(m => [String(m), hm(m * 60)]), String(P.duree), { num: true }))}`)}`;
+      ${ligne(A, "dureeS", "Durée d'une séance en salle", hm(P.duree * 60), () => deroulant("duree", [60, 90, 120, 150, 180].map(m => [String(m), hm(m * 60)]), String(P.duree)))}`)}`;
 }
 
 // 4. Phases
@@ -140,7 +169,7 @@ function etapePhases(ctx, A, P) {
   return h`<div class="carte as-groupe"><div class="as-graphe">${P.semaines.map((s, k) => h`<div class="as-barre ${k < p0 ? "passee" : ""}"><i class="ph-${s.type}" style="height:${Math.round(100 * s.charge / max)}%"></i><span>S${k + 1}</span></div>`)}</div>
       <p class="petit">Charge en % de la semaine la plus dure.</p></div>
     ${groupe("Semaines", P.semaines.map((s, k) => k < p0 ? h`<div class="fiche-ligne passee"><span>S${k + 1}</span><span class="val">déjà faite</span></div>`
-      : ligne(A, `ph-${k}`, h`S${k + 1} <span class="petit">sem. ${P.debut + k - p0}</span>`, `${PHASES[s.type].label} · ${s.charge}`, () => h`${puces(`semaines.${k}.type`, ORDRE_PHASES.map(t => [t, PHASES[t].label]), s.type, { garder: true })}
+      : ligne(A, `ph-${k}`, h`S${k + 1} <span class="petit">sem. ${P.debut + k - p0}</span>`, `${PHASES[s.type].label} · ${s.charge}`, () => h`${deroulant(`semaines.${k}.type`, ORDRE_PHASES.map(t => [t, PHASES[t].label]), s.type)}
         <p class="petit">${PHASES[s.type].pourquoi}</p>${rangee("Charge", pas(`semaines.${k}.charge`, s.charge, { min: 20, max: 150, d: 5 }))}`)))}
     ${alertes(alertesPhases(P))}`;
 }
@@ -162,7 +191,8 @@ function etapeSeances(ctx, A, P, E) {
       ${aj.map((a, n) => h`<div class="as-exo ajout"><span>+ ${ligneAjout(a).replace(/\s*\{[^}]*\}/g, "").replace(/[«»]/g, "").replace(/\s+/g, " ")}${a.phase ? h` <span class="petit">(${PHASES[a.phase].label} seulement)</span>` : ""}</span><span class="as-exo-act"><button class="petit-btn danger" data-act="asExoAjoutRetirer" data-type="${t}" data-n="${n}">Retirer</button></span></div>`)}</div>
       <button class="petit-btn btn-ajout" data-act="asExoFenetre" data-mode="ajout" data-type="${t}">+ Ajouter un exercice</button>`; };
   const devers = secs.includes("devers"), bloc = genererBloc(P, E), wA = Math.max(A.apercu, p0), duJour = bloc.seances.filter(s => s.semaine === P.debut + wA - p0);
-  return h`${alertes(doublons(bloc))}${groupe("Chiffres par semaine", P.semaines.map((s, k) => k < p0 ? "" : ligne(A, `sem-${k}`, h`<b>S${k + 1}</b> <span class="petit">${PHASES[s.type].label}</span>`, resume(s), () => col.map(([c, l, , mx]) => rangee(l, pas(`semaines.${k}.${c}`, s[c], { max: mx })))))
+  return h`${alertes(doublons(bloc))}<p class="as-note">Ces chiffres viennent de ton profil (${PROFILS[P.profil].label}) et de la phase de la semaine, pas de ta cotation : ils montent en Construction, baissent en Respiration et en Décharge. Touche une semaine pour voir le détail et les fourchettes conseillées.</p>${groupe("Chiffres par semaine", P.semaines.map((s, k) => k < p0 ? "" : ligne(A, `sem-${k}`, h`<b>S${k + 1}</b> <span class="petit">${PHASES[s.type].label}</span>`, resume(s), () => col.map(([c, l, , mx]) => { const f = fourchette(P, k, c), pr = proposeSemaine(P, k, c), hors = f && (s[c] < f[0] || s[c] > f[1]);
+        return h`<div class="as-chiffre">${rangee(l, pas(`semaines.${k}.${c}`, s[c], { max: mx }))}<p class="petit">${OU_CHIFFRE[c]} · proposé : ${pr ?? "—"}${f ? ` · conseillé en ${PHASES[s.type].label.toLowerCase()} : ${f[0] === f[1] ? f[0] : `${f[0]} à ${f[1]}`}` : ""}</p>${si(hors, h`<div class="avert">Hors de la fourchette conseillée : c'est possible, mais surveille la fatigue et les doigts.</div>`)}</div>`; })))
       , "un appui pour régler")}
     ${groupe("Exercices", types.map(t => ligne(A, `ex-${t}`, TYPES_SEANCE[t], resumeExos(t), () => exosType(t))))}
     ${groupe("Consignes de la semaine", h`${P.semaines.map((s, k) => k < p0 ? "" : ligneFenetre(h`S${k + 1} <span class="petit">${PHASES[s.type].label}</span>`, consigne(P, k), "asExoFenetre", { mode: "consigne", k }))}
@@ -174,17 +204,39 @@ function etapeSeances(ctx, A, P, E) {
       <p class="petit">Après la création, chaque séance se modifie comme les autres (⋯ › Modifier le plan).</p>`)}`;
 }
 
+const OU_CHIFFRE = { essais: "Essais sur l'objectif, à la séance dure", volume: "Nombre de blocs au volume (sous ton objectif)", devers: "Blocs en dévers ou en dalle, au volume", voies: "Voies un cran au-dessus de ton niveau, à la séance voie", course: "Minutes de course (bonus)" };
 // 6. Feux verts
 const ROLES_FEU = { objectif: "objectif", secondaire: "secondaire", fil: "fil rouge", garde: "garde-fou", libre: "à toi" };
+const CONSEIL_CRITERE = {
+  essais: "Essais : les échecs comptent aussi, ils montrent que tu t'es mesuré au niveau.",
+  taux: "70 % : le seuil d'un niveau consolidé (7 réussites sur 10).",
+  differents: "Plusieurs blocs ou voies différents : on ne valide pas un niveau sur un seul passage travaillé.",
+  coche: "Case à cocher dans Progrès, quand c'est fait pour de vrai.",
+  douleur: "Le garde-fou passe avant tout : au-delà, on allège et on consulte si ça dure.",
+  memeJour: "Le même jour : c'est l'endurance qui est mesurée.", avue: "À vue ou flash : réussi au premier essai, sans répétition.", mesure: "Mesuré dans la routine (planche, etc.).",
+};
+// Seuils peu cohérents ou irréalistes : des conseils, rien n'est bloqué
+function alertesSeuils(feux, P, E) {
+  const a = [], bloc = genererBloc(P, E), prevus = {};
+  for (const s of bloc.seances) for (const l of lignesDe(s.contenu.split("\n## Remplacement")[0])) if (l.type === "action" && l.grimpe && l.grimpe.cot) { const k = `${l.grimpe.disc}|${l.grimpe.cot}`; prevus[k] = (prevus[k] || 0) + l.n; }
+  for (const f of feux) { const c = t => f.criteres.find(x => x.type === t), e = c("essais"), d = c("differents"), t = c("taux");
+    if (e && d && e.min < d.min) a.push(`${f.titre} : moins d'essais exigés (${e.min}) que de ${e.disc === "Voie" ? "voies" : "blocs"} différents (${d.min}).`);
+    if (e && prevus[`${e.disc}|${e.cot}`] != null && e.min > prevus[`${e.disc}|${e.cot}`]) a.push(`${f.titre} : ${e.min} essais exigés, mais le plan n'en prévoit que ${prevus[`${e.disc}|${e.cot}`]} en ${e.cot}.`);
+    if (t && t.min > 90) a.push(`${f.titre} : ${t.min} % de réussite, c'est très exigeant ; 70 % suffit pour dire « consolidé ».`);
+    if (d && d.min > 6 && P.profil === "debutant") a.push(`${f.titre} : ${d.min} différents en un bloc d'entraînement, c'est beaucoup pour un débutant.`); }
+  return a;
+}
 function etapeFeux(ctx, A, P) {
+  const E = ctx.data.echelles;
   const feux = P.feux || feuxParDefaut(P);
   return h`${feux.map((f, n) => h`<div class="carte as-groupe"><div class="as-feu-tete"><h3 class="as-sous">${f.titre}</h3><span class="petit">${ROLES_FEU[f.role] || ""}</span></div>
       ${f.criteres.map((c, m) => c.type === "coche" ? h`<div class="fiche-ligne"><span>${c.label}</span><span class="val">à cocher dans Progrès</span></div>`
         : c.type === "douleur" ? ligne(A, `fc-${n}-${m}`, libelleCritere(c), `≤ ${c.max ?? 2}/10`, () => rangee("Douleur maximale", pas(`feux.${n}.criteres.${m}.max`, c.max ?? 2, { max: 10, suffixe: "/10" })))
         : ligne(A, `fc-${n}-${m}`, c.label || libelleCritere(c), `≥ ${c.min ?? 0}${c.type === "taux" ? " %" : c.type === "mesure" ? " s" : ""}`, () => rangee("Seuil", pas(`feux.${n}.criteres.${m}.min`, c.min ?? 0, { max: c.type === "taux" ? 100 : c.type === "mesure" ? 600 : 50, d: c.type === "taux" ? 5 : c.type === "mesure" ? 10 : 1, suffixe: c.type === "taux" ? " %" : "" }))))}
+      <p class="petit as-conseil-feu">${[...new Set(f.criteres.map(c => CONSEIL_CRITERE[c.type]).filter(Boolean))].join(" ")}</p>
       <button class="petit-btn danger as-retirer" data-act="asFeuRetirer" data-n="${n}">Retirer ce feu</button></div>`)}
     <div class="as-boutons"><button class="petit-btn btn-ajout" data-act="asFeuFenetre">+ Ajouter un feu vert</button>${si(P.feux, h`<button class="petit-btn" data-act="asFeuxDefaut">Rétablir les feux proposés</button>`)}</div>
-    ${alertes(alertesFeux(feux))}
+    ${alertes([...alertesFeux(feux), ...alertesSeuils(feux, P, E)])}
     <p class="petit">Comptés depuis le début du bloc. Garde-fou : douleur maximale notée sur les 4 dernières semaines.</p>`;
 }
 
@@ -262,7 +314,9 @@ function appliquer(ctx, A, c, v) {
   else if (c === "profil") { const types = P.semaines.map(s => s.type); P.profil = v; P.semaines = semainesParDefaut(v, types.length).map((s, k) => ({ ...s, type: types[k] || s.type })); }
   else if (c === "objectif.disc") { P.objectif = { disc: v, cot: "" }; }
   else if (c === "nom") P.nom = String(v).trim() || P.nom;
-  else { if (c.startsWith("feux.")) feuxDe(P); fixer(P, c, v); }
+  else if (/^jours\.[^.]+$/.test(c) && v === "autre") { fixer(P, c, v); const j = c.split(".")[1]; P.joursAutre = P.joursAutre || {}; P.joursAutre[j] = { nom: "", duree: 45, intensite: "facile", ...(P.joursAutre[j] || {}) }; }
+  else if (/^secondaires\.\d+\.disc$/.test(c)) { fixer(P, c, v); fixer(P, c.replace(/disc$/, "cot"), ""); }
+  else { if (c.startsWith("feux.")) feuxDe(P); fixer(P, c, /(^duree|\.duree|\.min|\.charge)$/.test(c) ? +v : v); }
   if (/^(objectif|secondaires|fil|depart)/.test(c) && !P.feuxModifies) P.feux = null;
 }
 export const actions = {
@@ -279,8 +333,12 @@ export const actions = {
   asChamp: (ctx, d, el) => { const A = ctx.state.assistant; appliquer(ctx, A, d.chemin, el.value); ctx.rendre(); },
   asPas: (ctx, d) => { const A = ctx.state.assistant, P = A.plan; if (d.chemin.startsWith("feux.")) feuxDe(P);
     const v = Math.max(+d.min, Math.min(+d.max, (+lire(P, d.chemin) || 0) + +d.d)); appliquer(ctx, A, d.chemin, v); ctx.rendre(); },
-  asSecAjouter: (ctx, d) => { const A = ctx.state.assistant, P = A.plan; P.secondaires = [...(P.secondaires || []), { type: d.type, niveau: niveauSecondaire(P, d.type, ctx.data.echelles) }].slice(0, 2);
+  asSecAjouter: (ctx, d, el) => { const A = ctx.state.assistant, P = A.plan, type = d.type || (el && el.value); if (!type) return;
+    P.secondaires = [...(P.secondaires || []), type === "autre" ? { type, titre: "", ou: "volume", valid: "coche", disc: "Bloc", cot: "", mesure: "differents", min: 3 } : { type, niveau: niveauSecondaire(P, type, ctx.data.echelles) }].slice(0, 2);
     if (!P.feuxModifies) P.feux = null; A.section = `sec-${P.secondaires.length - 1}`; ctx.rendre(); },
+  asFilOu: (ctx, d) => { const P = ctx.state.assistant.plan; P.filAutre = P.filAutre || { titre: "", ou: ["volume"] }; const ou = new Set(P.filAutre.ou || ["volume"]);
+    if (ou.has(d.role)) ou.delete(d.role); else ou.add(d.role); P.filAutre.ou = [...ou]; ctx.rendre(); },
+  asBonus: (ctx, d, el) => { const P = ctx.state.assistant.plan; P.bonus = { ...(P.bonus || {}), [d.jour]: !!el.checked }; ctx.rendre(); },
   asSecRetirer: (ctx, d) => { const A = ctx.state.assistant, P = A.plan; P.secondaires = P.secondaires.filter((_, n) => n !== +d.n); if (!P.feuxModifies) P.feux = null; A.section = null; ctx.rendre(); },
   // Exercices
   asExoRetirer: (ctx, d) => { const X = ctx.state.assistant.plan.exos = ctx.state.assistant.plan.exos || {}; X.retires = X.retires || {}; X.retires[d.type] = [...new Set([...(X.retires[d.type] || []), d.nom])]; ctx.rendre(); },

@@ -43,6 +43,20 @@ export function cotApp(salle, disc, cotSalle, couleur) {
   if (c.mode === "couleurs") return (c.liste.find(x => x.salle === couleur) || {}).app || "";
   return "";
 }
+// L'inverse : la (ou les) valeur(s) de la salle pour une cotation de l'app (« 5 » → « 3 » à Verviers)
+export function cotSalleDe(salle, disc, cot) {
+  if (!salle || !cot) return ""; const c = cotationDe(salle, disc);
+  if (c.mode === "standard") return String(cot);
+  if (c.mode === "liste" || c.mode === "couleurs") return c.liste.filter(x => String(x.app) === String(cot)).map(x => x.salle).join(" / ");
+  return "";
+}
+// Les deux cotations, toujours dans le même ordre : « salle · ≈ app » (une seule si elles sont identiques ou si l'une manque)
+export function deuxCot(salle, disc, cotSalle, cot) {
+  const c = cotationDe(salle, disc);
+  if (!salle || c.mode === "standard" || c.mode === "aucune") return String(cot || cotSalle || "");
+  const sa = cotSalle || cotSalleDe(salle, disc, cot), ap = cot || cotApp(salle, disc, cotSalle);
+  return sa && ap && String(sa) !== String(ap) ? `${sa} · ≈ ${ap}` : String(sa || ap || "");
+}
 export const libelleVoie = v => [v.cotSalle || v.cot || "?", v.couleur ? v.couleur.toLowerCase() : "", v.nom].filter(Boolean).join(" ");
 
 export const voiesEnPlace = (salle, disc) => salle ? salle.voies.filter(v => v.statut !== "demontee" && (!disc || v.disc === disc)).sort((a, b) => (a.secteurId || "") < (b.secteurId || "") ? -1 : (a.secteurId || "") > (b.secteurId || "") ? 1 : (a.ordre ?? 0) - (b.ordre ?? 0)) : [];

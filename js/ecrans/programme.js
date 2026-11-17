@@ -119,8 +119,8 @@ function semaineDetail(ctx, w, sem, auj) {
     <div class="outils-semaine"><button class="petit-btn" data-act="mesuresOuvrir" data-w="${w}">${ico("regle")} Mesures${mesures ? " ✓" : ""}</button><button class="petit-btn" data-act="pauseOuvrir" data-w="${w}">${ico("pause")} Faire une pause</button><button class="petit-btn" data-act="copieSemaineOuvrir" data-w="${w}">Copier · répéter</button></div>`;
 }
 
-export function menuEcran() { return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "+ Nouveau bloc (assistant)", act: "assistantOuvrir" },
-  { label: "Passages hors séance", act: "ouvrirVue", data: { vue: "historique" } }, { label: "Aller à cette semaine", act: "semaineAujourdhui" }] }; }
+export function menuEcran(ctx) { const carte = !!document.querySelector("#ecran [data-act=assistantOuvrir]");   // pas de doublon avec la page
+  return { titre: "Programme", items: [...(carte ? [] : [{ label: "+ Nouveau bloc (assistant)", act: "assistantOuvrir" }]), { label: "Passages hors séance", act: "ouvrirVue", data: { vue: "historique" } }] }; }
 
 export const actions = {
   semaine: (ctx, d) => { ctx.state.semaineVue = ctx.state.semaineVue === +d.w ? null : +d.w; ctx.rendre();

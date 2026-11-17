@@ -7,7 +7,7 @@ import { avertissements, reussi, forme, parVoie, projets, causePrincipale, anony
 import { court, hm, hhmm, mmss, duree as dureeTexte, semaineDe, ajouterJours } from "../dates.js";
 // Le passage lui-même, daté comme dans les calculs : il ne doit compter ni comme « avant lui » ni comme une réussite précédente
 export const refPassage = (ctx, seanceId, t) => { const s = ctx.seance(seanceId), sa = ctx.saisie(seanceId); return t && { ...t, date: sa.dateReelle || (s && s.date) }; };
-import { salleDe, profilHabituel, salleParDefautPour, retenirSalle, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe, trierNiveaux } from "../salles.js";
+import { salleDe, profilHabituel, salleParDefautPour, retenirSalle, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe, trierNiveaux, cotSalleDe, deuxCot } from "../salles.js";
 
 export const GENRES = { echauffement: "Échauffement", securite: "Sécurité", facile: "Facile", effort: "Effort", recup: "Récupération" };
 export const RES_LABEL = { ok: "Réussi", sec: "Avec sec", ko: "Échec" };
@@ -133,10 +133,12 @@ function boutonsEtape(ctx, s, sa, e, grands) {
     ${si(grands && doc.reglages.raccourciRepos && e.type === "action" && (e.repos || e.grimpe) && repos > 0, h`<a class="bouton" href="shortcuts://run-shortcut?name=${encodeURIComponent(doc.reglages.raccourciRepos)}&input=text&text=${repos}">${ico("cloche")} iPhone</a>`)}`;
 }
 
+// Une cible « bloc 5 » affiche aussi son équivalent dans la salle du jour : « 3 · ≈ 5 »
+function badgeCot(ctx, g) { const s = courant(ctx), sa = s ? ctx.saisie(s.id) : {}, salle = s ? salleCourante(ctx, s, sa, g.disc) : null; return deuxCot(salle, g.disc, "", g.cot); }
 const titreDe = e => e.type === "routine" ? e.nom : titreAction(e);
 function detailEtape(ctx, e) { const { data } = ctx;
   return e.type === "routine" ? h`<ol class="routine">${data.routines.filter(r => r.routine === e.nom).map(r => h`<li><b>${r.etape}</b>${r.duree ? h` <span class="petit">${hm(r.duree)}</span>` : ""}<div class="petit">${lier(r.quoi, data.exercices)}</div></li>`)}</ol>`
-    : h`<div class="texte">${e.n > 1 ? h`<b>${e.n}×</b> ` : ""}${lier(e.texte, data.exercices)}${e.grimpe && e.grimpe.cot ? h` <span class="badge">${e.grimpe.cot}</span>` : ""}${e.feu ? feuBadge(ctx, e.feu) : ""}</div>`; }
+    : h`<div class="texte">${e.n > 1 ? h`<b>${e.n}×</b> ` : ""}${lier(e.texte, data.exercices)}${e.grimpe && e.grimpe.cot ? h` <span class="badge">${badgeCot(ctx, e.grimpe)}</span>` : ""}${e.feu ? feuBadge(ctx, e.feu) : ""}</div>`; }
 function ligneEtape(ctx, s, sa, e, num, actuelle, enCours) {
   const { data, state } = ctx, ouverte = state.ouverts.has("e" + e.k), finie = etapeFinie(sa, e);
   const genre = e.type === "routine" ? e.genre || "echauffement" : e.genre, titre = e.type === "routine" ? e.nom : titreAction(e), duree = dureeEtape(e, s, data, ctx.doc.reglages);
@@ -151,7 +153,7 @@ function ligneEtape(ctx, s, sa, e, num, actuelle, enCours) {
     </div>
     ${si(ouverte, h`<div class="etape-detail">
       ${e.type === "routine" ? h`<ol class="routine">${data.routines.filter(r => r.routine === e.nom).map(r => h`<li><b>${r.etape}</b>${r.duree ? h` <span class="petit">${hm(r.duree)}</span>` : ""}<div class="petit">${lier(r.quoi, data.exercices)}</div></li>`)}</ol>`
-        : h`<div class="texte">${e.n > 1 ? h`<b>${e.n}×</b> ` : ""}${lier(e.texte, data.exercices)}${e.grimpe && e.grimpe.cot ? h` <span class="badge">${e.grimpe.cot}</span>` : ""}${e.feu ? feuBadge(ctx, e.feu) : ""}</div>`}
+        : h`<div class="texte">${e.n > 1 ? h`<b>${e.n}×</b> ` : ""}${lier(e.texte, data.exercices)}${e.grimpe && e.grimpe.cot ? h` <span class="badge">${badgeCot(ctx, e.grimpe)}</span>` : ""}${e.feu ? feuBadge(ctx, e.feu) : ""}</div>`}
       <div class="actions-etape">${boutonsEtape(ctx, s, sa, e, false)}${si(enCours && !actuelle, h`<button data-act="allerA" data-k="${e.k}">J'en suis là</button>`)}</div></div>`)}
   </div>`;
 }
@@ -184,7 +186,7 @@ function cotationsRapides(ctx, etapes, disc) {
 }
 // --- La carte des voies, courte : la salle · « + Noter un passage » · tes cibles · voie déjà faite (cotations, un appui) · aujourd'hui, par voie · le mur ---
 const tuileVoie = (ctx, salle, v, auj, voies) => { const hv = voies.find(x => x.voieId === v.id), t = auj.filter(x => x.voieId === v.id), hex = hexDe(ctx.doc, v.couleur, salle), sec = secteurDe(salle, v);
-  return h`<button class="tuile-voie ${hex === "transparent" ? "sans-couleur" : ""} ${t.length ? (t.some(reussi) ? "ok-auj" : "ko-auj") : ""}" data-act="voieRapide" data-appui="projetOuvrir" data-salle="${salle.id}" data-id="${v.id}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (sec ? sec.nom : "") || (v.profil || "").toLowerCase()}</span>
+  return h`<button class="tuile-voie ${hex === "transparent" ? "sans-couleur" : ""} ${t.length ? (t.some(reussi) ? "ok-auj" : "ko-auj") : ""}" data-act="voieRapide" data-appui="projetOuvrir" data-salle="${salle.id}" data-id="${v.id}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${v.cotSalle && v.cot && String(v.cotSalle) !== String(v.cot) ? h`<small class="tuile-eq">≈ ${v.cot}</small>` : ""}${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (sec ? sec.nom : "") || (v.profil || "").toLowerCase()}</span>
     ${hv && hv.essais ? h`<span class="marque ${hv.reussies ? "ok" : "ko"}">${hv.reussies ? "✓" : "✗"}</span>` : ""}<span class="tuile-histo">${hv ? reperes(hv) : "jamais"}${t.length ? ` · auj. ${t.map(x => x.res === "ok" ? "✓" : x.res === "sec" ? "s" : "✗").join("")}` : ""}</span></button>`; };
 // Cibles : ★ à essayer puis projets, encore en place
 function ciblesDe(ctx, salle, disc) {
@@ -207,7 +209,7 @@ function carteVoies(ctx, s, sa, etapes, disc) {
     <button class="gros principal" data-act="noterOuvrir">+ Noter un passage</button>
     ${si(C && C.cibles.length, () => h`<h3>Tes cibles <span class="petit">★ à essayer, projets</span></h3><div class="tuiles cibles">${C.cibles.slice(0, 6).map(v => tuileVoie(ctx, salle, v, sa.tentatives || [], C.voies))}</div>`)}
     <h3>${disc === "Bloc" ? "Bloc déjà fait" : "Voie déjà faite"}, sans la chercher <span class="petit">un appui = un passage</span></h3>
-    <div class="cot-rapide compacte">${cots.map(c => h`<div class="cot-ligne"><b>${c}</b><button class="ok" data-act="noterRapide" data-cot="${c}" data-res="ok" aria-label="Réussi en ${c}">✓</button>${si(disc === "Voie", h`<button class="sec" data-act="noterRapide" data-cot="${c}" data-res="sec">sec</button>`)}<button class="ko" data-act="noterRapide" data-cot="${c}" data-res="ko" aria-label="Pas réussi en ${c}">✗</button></div>`)}</div>
+    <div class="cot-rapide compacte">${cots.map(c => h`<div class="cot-ligne"><b>${deuxCot(salle, disc, "", c)}</b><button class="ok" data-act="noterRapide" data-cot="${c}" data-res="ok" aria-label="Réussi en ${c}">✓</button>${si(disc === "Voie", h`<button class="sec" data-act="noterRapide" data-cot="${c}" data-res="sec">sec</button>`)}<button class="ko" data-act="noterRapide" data-cot="${c}" data-res="ko" aria-label="Pas réussi en ${c}">✗</button></div>`)}</div>
     ${si(n, () => h`<h3>Aujourd'hui <span class="petit">${ok} réussi${ok > 1 ? "s" : ""} sur ${n}</span></h3><div class="jour-passages">${groupes.map(g => h`<div class="groupe-passages"><span class="gp-voie"><span class="pastille" style="background:${hexDe(doc, g.t.couleur, salleDe(doc, g.t.salle))}"></span> ${libelleVoie(g.t)}${anonyme(g.t) ? h` <span class="petit">${g.t.nouvelle ? "nouvelle" : "déjà faite"}</span>` : ""}</span>
         <span class="gp-res">${g.l.map(([t, i]) => h`<button class="tentative res res-${t.res}" data-act="resultatEditer" data-appui="resultatEditer" data-i="${i}" aria-label="Corriger ce passage">${t.res === "sec" ? `${t.sec} sec` : resLabel(t)}${t.aisance === "facile" ? " facile" : ""}${t.approx ? " ~" : ""}</button>`)}<button class="encore" data-act="encore" data-i="${g.l[g.l.length - 1][1]}" aria-label="Encore un passage sur cette voie">+ encore</button></span></div>`)}</div><p class="petit">Touche un résultat pour le corriger.</p>`)}
     ${si(salle, () => h`<button class="lien" data-act="murOuvrir" data-id="${salle.id}">Voir tout le mur de ${salle.nom} ›</button>`)}`,
@@ -227,7 +229,7 @@ export function fenetreNoter(ctx, M) {
     ${enPlace.length ? h`<label class="champ">${disc === "Bloc" ? "Quel bloc" : "Quelle voie"} ? <span class="petit">filtre par couleur, état, niveau</span></label>
       <div class="pastilles filtre-couleurs">${couleurs.map(c => h`<button class="pastille ${M.fCouleur === c ? "choisi" : ""}" style="background:${hexDe(ctx.doc, c, salle)}" data-act="noterFiltre" data-k="fCouleur" data-valeur="${c}" aria-label="${c}" title="${c}"></button>`)}</div>
       <div class="barre-filtres">${listeDeroulante("noter-etat", [["projet", `✗ Projets (${nE("projet")})`], ["jamais", `Jamais essayé${disc === "Bloc" ? "s" : "es"} (${nE("jamais")})`], ["reussie", `✓ Réussi${disc === "Bloc" ? "s" : "es"} (${nE("reussie")})`]], M.fEtat || "", { act: "noterFiltreListe", vide: "Tous les états", data: { k: "fEtat" } })}
-        ${listeDeroulante("noter-niveau", cotes.map(c => [c, `${c} (${enPlace.filter(v => String(v.cotSalle || v.cot) === c).length})`]), M.fCot || "", { act: "noterFiltreListe", vide: "Tous les niveaux", data: { k: "fCot" } })}</div>
+        ${listeDeroulante("noter-niveau", cotes.map(c => [c, `${deuxCot(salle, disc, c, "")} (${enPlace.filter(v => String(v.cotSalle || v.cot) === c).length})`]), M.fCot || "", { act: "noterFiltreListe", vide: "Tous les niveaux", data: { k: "fCot" } })}</div>
       ${si(filtre, h`<button class="lien" data-act="noterFiltre" data-k="tout">✕ enlever les filtres</button>`)}
       <div class="tuiles">${l.slice(0, max).map(v => tuileVoie(ctx, salle, v, auj, voies))}</div>
       ${si(l.length > max, h`<p class="petit">${l.length - max} autres : filtre par couleur ou cotation.</p>`)}${si(!l.length, h`<p class="petit">Aucune voie ne correspond : « + ${disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"} ».</p>`)}`
@@ -330,7 +332,7 @@ export const actions = {
   nouvelleVoieOuvrir: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), salle = salleCourante(ctx, s, sa, disc), c = cotationDe(salle, disc);
     ctx.ouvrirModal({ type: "nouvelleVoie", seanceId: s.id, salleId: salle.id, disc, couleur: "", cotSalle: "", chiffre: "", nom: "", profil: profilHabituel(salle, ctx.state.dernierSecteur || null), secteurId: ctx.state.dernierSecteur || "", mode: c.mode }); },
   resultat: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discipline(s, sa), dernier = (sa.tentatives || []).slice(-1)[0];
-    ctx.ouvrirModal({ type: "resultat", seanceId: s.id, k: cleRattachement(ctx, s, sa, disc), disc, cot: dernier ? dernier.cot : "", profil: "Vertical", res: "", sec: 1, style: "", couleur: "", nom: "", cause: "", salle: sa.salle || "" }); },
+    ctx.ouvrirModal({ type: "resultat", seanceId: s.id, k: cleRattachement(ctx, s, sa, disc), disc, cot: dernier ? dernier.cot : "", profil: "Vertical", res: "", sec: 1, style: "", couleur: "", nom: "", cause: "", salle: sa.salle || "", salleEch: (salleCourante(ctx, s, sa, disc) || {}).id || "" }); },
   resultatEditer: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), t = sa.tentatives[+d.i]; ctx.ouvrirModal({ type: "resultat", seanceId: s.id, edit: +d.i, ...t, refTentative: refPassage(ctx, s.id, t), comment: undefined, sec: t.sec || 1, profil: t.profil || "Vertical", style: t.style || "" }); },
   douleurOuvrir: ctx => ctx.ouvrirModal({ type: "douleur", seanceId: courant(ctx).id, zone: "", niveau: 3 }),
   sauterOuvrir: ctx => ctx.ouvrirModal({ type: "sauter", seanceId: courant(ctx).id, raison: "" }),
@@ -348,7 +350,7 @@ export const actions = {
   hierRouvrir: ctx => { try { localStorage.removeItem(CLE_PLUS_TARD); } catch { /* ignore */ } ctx.rendre(); },
   etoileVoie: (ctx, d) => { ctx.modifier("voie à essayer", doc => { const v = salleDe(doc, d.salle).voies.find(x => x.id === d.id); if (v.etoile) delete v.etoile; else v.etoile = ctx.aujourdhui(); }); ctx.rendre(); },
   feuVu: (ctx, d) => { ctx.modifier("feu vert vu", doc => { doc.feuxVus[d.id] = ctx.aujourdhui(); }, { annulable: false }); ctx.rendre(); },
-  menu: ctx => ctx.ouvrirModal({ type: "menu", seanceId: courant(ctx).id }),
+  menu: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id); ctx.ouvrirModal({ type: "menu", seanceId: s.id, surPage: true, avant: !sa.debut && !sa.fin }); },  // depuis la séance : pas ce que la page montre déjà
   supprimerLibre: ctx => { const s = courant(ctx); if (!confirm("Supprimer cette séance et ses saisies ?")) return;
     ctx.modifier("suppression de séance", d => { d.ops = d.ops.filter(o => o.cible !== s.id); delete d.seances[s.id]; }); ctx.state.seanceId = null; ctx.ouvrir("programme"); },
   prec: ctx => naviguer(ctx, -1), suiv: ctx => naviguer(ctx, 1),
