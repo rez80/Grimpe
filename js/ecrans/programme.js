@@ -14,7 +14,7 @@ export function rendre(ctx) {
   const semaines = [...new Set(P.map(s => s.semaine))].sort((a, b) => a - b), wNow = semaineDe(debut, auj);
   if (state.semaineVue !== null && !semaines.includes(state.semaineVue)) state.semaineVue = semaines.includes(wNow) ? wNow : semaines[0];   // null = tout replié
   const phases = []; for (const w of semaines) { const ph = (P.find(s => s.semaine === w) || {}).phase || ""; const bloc = ph.split(" · ")[0]; if (!phases.length || phases[phases.length - 1].bloc !== bloc) phases.push({ bloc, semaines: [] }); phases[phases.length - 1].semaines.push(w); }
-  let out = h`${carteRestaurer(ctx)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn btn-ajout" data-act="creationOuvrir">+ Séance</button><button class="petit-btn btn-ajout" data-act="passageAncienOuvrir">+ Hors séance</button></div>`;
+  let out = h`${carteRestaurer(ctx)}${carteModele(ctx, wNow)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn btn-ajout" data-act="creationOuvrir">+ Séance</button><button class="petit-btn btn-ajout" data-act="passageAncienOuvrir">+ Hors séance</button></div>`;
   // Les blocs du programme (B1, B2…) : des cartes repliables ; le bloc en cours est ouvert, les autres repliés avec leur avancement
   for (const ph of phases) {
     const semB = P.filter(s => ph.semaines.includes(s.semaine)), faitesB = semB.filter(s => ctx.saisie(s.id).fin).length, enCours = ph.semaines.includes(wNow);
@@ -44,6 +44,15 @@ function carteRestaurer(ctx) {
     <div class="ed-rangee"><button class="principal" data-act="copierOuExporter">Restaurer…</button><button data-act="departVide">Non, je commence</button></div></div>`;
 }
 
+// Le bloc 1 refait ensemble (modèle « Le 5 en bloc ») : proposé une fois, jusqu'à ce qu'il soit créé ou écarté
+const CLE_MODELE = "grimpe-modele-cinq-bloc-vu";
+function carteModele(ctx, wNow) {
+  let vu = false; try { vu = !!localStorage.getItem(CLE_MODELE); } catch { /* ignore */ }
+  if (vu || wNow > 8 || (ctx.doc.blocs || []).some(b => b.plan && b.plan.modele === "cinq-bloc")) return "";
+  return h`<div class="carte carte-modele"><b>Ton bloc 1 refait est prêt</b><p class="petit">« Le 5 en bloc » remplace les semaines 2 à 8 : objectif bloc 5 consolidé, dévers facile, hauteur en voie. Les séances déjà faites restent.</p>
+    <div class="ed-rangee"><button class="principal" data-act="assistantOuvrir" data-modele="cinq-bloc" data-recap="1">Voir et créer</button><button data-act="modeleEcarter">Plus tard</button></div></div>`;
+}
+
 // La carte du haut : la séance du jour (un appui pour l'ouvrir), sinon la prochaine
 function carteAujourdhui(ctx, auj) {
   const P = ctx.programme, du = P.filter(s => s.date === auj && etatSeance(s, ctx.saisie(s.id), auj) !== "sautee");
@@ -60,7 +69,7 @@ function semaineDetail(ctx, w, sem, auj) {
   // À faire (semaine en cours) : les séances à régler et les mesures, sans reproche
   const aFaire = [];
   if (w === wNow) {
-    ctx.programme.filter(s => s.date < auj && s.date >= ajouterJours(lundi, -7) && ["abilan", "encours", "passee"].includes(etatSeance(s, ctx.saisie(s.id), auj)))
+    ctx.programme.filter(s => s.date < auj && s.date >= ajouterJours(lundi, -7) && (s.bonus ? ["abilan", "encours"] : ["abilan", "encours", "passee"]).includes(etatSeance(s, ctx.saisie(s.id), auj)))
       .forEach(s => aFaire.push(h`<button class="item" data-act="ouvrirSeance" data-id="${s.id}"><span>${court(s.date)} · ${activiteAffichee(s, ctx.saisie(s.id))}</span><span class="petit">${etatSeance(s, ctx.saisie(s.id), auj) === "passee" ? "faite ? sautée ?" : "bilan"} ›</span></button>`));
     const j = jourSemaine(auj), sansMesures = x => !(doc.mesures[x] && Object.keys(doc.mesures[x]).length);
     if (j >= 5 && sansMesures(w)) aFaire.push(h`<button class="item" data-act="mesuresOuvrir" data-w="${w}"><span>Mesures de la semaine</span><span class="petit">week-end ›</span></button>`);
@@ -77,12 +86,14 @@ function semaineDetail(ctx, w, sem, auj) {
     ${sem.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), t = sa.tentatives || [], et = etapesSeance(s, sa);
       const a = activiteAffichee(s, sa);
       return h`<div class="carte-seance-cadre"><button class="carte-seance etat-${e}" data-act="ouvrirSeance" data-appui="seanceMenu" data-id="${s.id}" data-activite="${a}">
-        <span class="cs-gauche"><b>${a}</b><span class="petit">${court(s.date)}${s.dateFixee ? " (déplacée)" : ""} · ≈ ${hm(dureeSeance(s, et, data, doc.reglages))}</span></span>
+        <span class="cs-gauche"><b>${a}${s.bonus ? h` <span class="tag-bonus">bonus</span>` : ""}</b><span class="petit">${court(s.date)}${s.dateFixee ? " (déplacée)" : ""} · ≈ ${hm(dureeSeance(s, et, data, doc.reglages))}</span></span>
         <span class="cs-droite">${e === "faite" ? h`✓ ${sa.effort ? `effort ${sa.effort}` : ""}${t.length ? ` · ${t.filter(reussi).length}/${t.length}` : ""}` : e === "abilan" ? "✓ bilan ?" : e === "sautee" ? "✗ sautée" : e === "encours" ? "● en cours" : e === "passee" ? "? passée" : e === "aujourdhui" ? "aujourd'hui" : ""}</span></button><button class="cs-menu" data-act="seanceMenu" data-id="${s.id}" aria-label="Options de la séance">⋯</button></div>`; })}
     <div class="outils-semaine"><button class="petit-btn" data-act="mesuresOuvrir" data-w="${w}">${ico("regle")} Mesures${mesures ? " ✓" : ""}</button><button class="petit-btn" data-act="pauseOuvrir" data-w="${w}">${ico("pause")} Faire une pause</button><button class="petit-btn" data-act="copieSemaineOuvrir" data-w="${w}">Copier · répéter</button></div>`;
 }
 
-export function menuEcran() { return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "+ Passage hors séance", act: "passageAncienOuvrir" }, { label: "Passages hors séance (la liste)", act: "ouvrirVue", data: { vue: "historique" } }, { label: "Aller à cette semaine", act: "semaineAujourdhui" }] }; }
+export function menuEcran(ctx) { const blocs = ctx.doc.blocs || [];
+  return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "+ Nouveau bloc (assistant)", act: "assistantOuvrir" },
+    ...blocs.flatMap(b => [{ label: `Modifier ${b.nom} · ${b.titre} (assistant)`, act: "assistantOuvrir", data: { bloc: b.id } }, { label: `Retirer ${b.nom} · ${b.titre}`, act: "blocRetirer", data: { id: b.id }, danger: true }]), { label: "+ Passage hors séance", act: "passageAncienOuvrir" }, { label: "Passages hors séance (la liste)", act: "ouvrirVue", data: { vue: "historique" } }, { label: "Aller à cette semaine", act: "semaineAujourdhui" }] }; }
 
 export const actions = {
   semaine: (ctx, d) => { ctx.state.semaineVue = ctx.state.semaineVue === +d.w ? null : +d.w; ctx.rendre();
@@ -91,6 +102,9 @@ export const actions = {
   ouvrirSeance: (ctx, d) => ctx.ouvrir("seance", { seanceId: d.id, origine: "programme" }),          // la flèche ‹ ramènera ici
   copieSemaineOuvrir: (ctx, d) => ctx.ouvrirModal({ type: "copieSemaine", w: +d.w, mode: "repeter", dest: +d.w + 1, n: 1 }),
   progres: ctx => ctx.ouvrir("progres"),
+  modeleEcarter: ctx => { try { localStorage.setItem(CLE_MODELE, "1"); } catch { /* ignore */ } ctx.rendre(); ctx.toast("Retrouve-le dans Options › + Nouveau bloc"); },
+  blocRetirer: (ctx, d) => { const b = (ctx.doc.blocs || []).find(x => x.id === d.id); if (!b) return;
+    ctx.modifier(`bloc ${b.nom} retiré`, x => { x.blocs = x.blocs.filter(y => y.id !== d.id); }); ctx.toast(`${b.nom} · ${b.titre} retiré : le programme d'avant revient`, () => ctx.agir("annuler")); },
   departVide: ctx => { try { localStorage.setItem(CLE_VIDE, "1"); } catch { /* ignore */ } ctx.rendre(); },
   seanceMenu: (ctx, d) => { ctx.state.seanceId = d.id; ctx.ouvrirModal({ type: "menu", seanceId: d.id }); },
   passageHorsSeance: ctx => ctx.ouvrirModal({ type: "passageAncien", date: ctx.aujourdhui(), dateInconnue: false, disc: "Voie", cot: "", chiffre: "", profil: "Vertical", res: "", n: 1, couleur: "", nom: "", salle: "" }),

@@ -1,4 +1,5 @@
 // programme.js — le programme effectif : séances fournies (data.js) + opérations faites dans l'app.
+import { appliquerBlocs } from "./blocs.js";
 // Chaque séance a un identifiant stable (attribué par l'outil Python, ou « l-… » pour une séance créée ici) :
 // déplacer, décaler ou réécrire une séance ne change jamais ce qui a été saisi dessus.
 //
@@ -15,9 +16,12 @@ import { etapesDe, decouper, texteDe, titreAction } from "./parseur.js";
 export function programmeEffectif(data, doc) {
   const debut = doc.reglages.dateDebut || data.dateDebut;
   const deja = new Set(data.modifsAppliquees || []);
-  let P = data.seances.map(s => ({ ...s, libre: false, modifie: false }));
+  // Les blocs construits dans l'app : ils remplacent les séances de base sur leurs semaines, puis les modifications s'appliquent à tout
+  const { P: avecBlocs, retirees } = appliquerBlocs(data.seances.map(s => ({ ...s, libre: false, modifie: false })), doc);
+  let P = avecBlocs;
   for (const o of doc.ops) {
     if (deja.has(o.id)) continue;                                   // déjà intégrée à Programme.xlsx par l'outil
+    if (retirees.has(o.cible)) continue;                            // séance de base remplacée par un bloc
     if (o.op === "pause") P.forEach(s => { if (o.ids ? o.ids.includes(s.id) : s.semaine >= o.depuis) s.semaine += o.n; });
     else if (o.op === "del") P = P.filter(s => s.id !== o.cible);
     else if (o.op === "set") {

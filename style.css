@@ -634,3 +634,39 @@ html.sombre .tuile-voie.sans-couleur { background: #3a3732 !important; color: #e
 .phrases .conseil { margin: 0 0 6px; }
 .secteur-tete { min-width: 0; } .secteur-plier { min-width: 0; overflow: hidden; } .secteur-tete .ed-outils { flex: 0 0 auto; }
 .outils-semaine { display: flex; flex-wrap: wrap; gap: 6px; } .outils-semaine button { flex: 1 1 auto; white-space: nowrap; }
+
+/* ===== 8.17 : assistant « Construire un bloc », blocs construits, export CSV ===== */
+.as-etapes { display: flex; gap: 6px; justify-content: center; margin: 4px 0 10px; }
+.as-pt { width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; font-weight: 600; font-size: 14px; }
+.as-pt.fait { background: color-mix(in srgb, var(--accent) 22%, var(--carte)); border-color: var(--accent); }
+.as-pt.actif { background: var(--accent); color: var(--accent-txt); border-color: var(--accent); }
+.as-carte h2.as-titre { margin: 2px 0 4px; font-size: 21px; }
+.as-pourquoi { background: color-mix(in srgb, var(--accent) 9%, var(--carte)); border-radius: 10px; padding: 10px 12px; font-size: 14px; margin: 6px 0 10px; }
+.as-champ { margin: 10px 0; } .as-champ .liste, .as-texte { width: 100%; }
+.as-texte { min-height: 44px; font-size: 16px; padding: 8px 10px; border: 1px solid var(--trait); border-radius: 10px; background: var(--carte); color: var(--texte); box-sizing: border-box; }
+.as-nb { width: 58px; min-height: 40px; font-size: 16px; text-align: center; border: 1px solid var(--trait); border-radius: 8px; background: var(--carte); color: var(--texte); }
+.as-pied { display: flex; gap: 10px; justify-content: space-between; margin: 12px 0 24px; } .as-pied button { flex: 1; min-height: 48px; font-size: 16px; }
+.as-modeles .item { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.as-jours { display: grid; gap: 6px; } .as-jour { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 8px; }
+.as-table td, .as-table th { vertical-align: middle; } .as-table .liste { min-height: 40px; width: 100%; } .as-table tr.passee { opacity: .45; }
+.as-graphe { display: flex; align-items: flex-end; gap: 6px; height: 110px; margin: 8px 0 12px; padding: 0 2px; border-bottom: 1px solid var(--trait); }
+.as-barre { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; font-size: 11px; color: var(--texte-2); }
+.as-barre i { display: block; width: 100%; border-radius: 6px 6px 0 0; background: var(--accent); } .as-barre.passee { opacity: .35; }
+.as-barre i.ph-base { background: #6FA8C9; } .as-barre i.ph-construction { background: var(--accent); } .as-barre i.ph-respiration { background: #8CC5A2; } .as-barre i.ph-realisation { background: #C0563E; } .as-barre i.ph-decharge { background: #B9B2A4; }
+.as-apercu { margin: 6px 0; border: 1px solid var(--trait); border-radius: 10px; padding: 8px 10px; } .as-apercu summary { cursor: pointer; min-height: 32px; } .as-apercu pre { white-space: pre-wrap; font-size: 13px; }
+h3.as-sous { font-size: 16px; margin: 16px 0 6px; }
+.as-exo { display: grid; grid-template-columns: 1fr minmax(120px, 46%); gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--trait); }
+.as-exo .liste { min-height: 40px; width: 100%; } .as-exo.retire span { color: var(--texte-2); } .as-exo.ajout { grid-template-columns: 1fr auto; color: #2E7D57; }
+.as-ajout { display: grid; gap: 8px; margin: 10px 0; padding: 10px; border: 1px dashed var(--trait); border-radius: 10px; }
+.as-ajout .liste { width: 100%; min-height: 44px; } .as-rangee { display: flex; gap: 8px; align-items: center; } .as-rangee .liste { flex: 1; }
+.as-case { display: flex; gap: 8px; align-items: center; font-size: 14px; } .as-case input { width: 22px; height: 22px; }
+.as-feu { border: 1px solid var(--trait); border-radius: 10px; padding: 8px 10px; margin: 8px 0; }
+.as-feu-tete { display: flex; gap: 8px; align-items: baseline; } .as-feu-tete b { flex: 1; }
+.as-crit { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; font-size: 14px; }
+.as-liste { margin: 4px 0 8px 18px; padding: 0; font-size: 14px; }
+.carte-modele { border-left: 5px solid var(--accent); } .carte-modele .ed-rangee button { flex: 1; min-height: 44px; }
+.tag-bonus { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--texte) 10%, transparent); color: var(--texte-2); vertical-align: 2px; }
+.crit.crit-coche { grid-template-columns: 1fr auto; } .case-feu { min-height: 36px; padding: 4px 12px; font-size: 14px; } .case-feu.ok { background: #2E9E6B; color: #fff; border-color: #2E9E6B; }
+.as-saisie { table-layout: fixed; } .as-saisie th:first-child, .as-saisie td:first-child { width: 78px; } .as-saisie th { font-size: 10px; letter-spacing: 0; padding: 4px 2px; } .as-saisie td { padding: 4px 2px; }
+.as-saisie .as-nb { width: 100%; min-width: 0; padding: 0 2px; box-sizing: border-box; }
+.as-seuil { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; } .as-crit .as-nb { width: 64px; }

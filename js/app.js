@@ -16,11 +16,11 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.16";
+export const APP_VERSION = "8.17";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
-const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
-const SOUS_ECRANS = ["biblio", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
+const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", assistant: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
+const SOUS_ECRANS = ["biblio", "salle", "historique", "assistant", "calendrier", "reglages", "aide", "sauvegarde"];
 
 const state = { vue: "seance", seanceId: null, semaineVue: null, ouverts: new Set(), modal: null, scroll: {}, pile: [], salleId: null, toast: null, filtre: {}, dernierSecteur: "",
   origine: null,          // « programme » : la séance a été ouverte depuis le programme → la flèche ‹ y ramène
@@ -42,7 +42,7 @@ const ctx = {
   rendre, ouvrir, ouvrirModal: m => { state.modal = m; rendre(false); }, fermerModal: () => { state.modal = null; rendre(false); },
   toast: (texte, annuler, bouton) => { state.toast = { texte, annuler, bouton, t: Date.now() }; rendreToast(); },    // bouton : { label, action } (ex. « Nouvelle voie »)
   minuteur,
-  agir: (act, data = {}) => { const f = ACTIONS[act]; if (f) f(ctx, data); else console.warn("action inconnue", act); },
+  agir: (act, data = {}) => { const f = ACTIONS[act]; if (f) return f(ctx, data); console.warn("action inconnue", act); },
   // Sauvegarde GitHub : silencieuse en automatique, bavarde à la demande
   async synchroniser(motif, bavard = false) {
     const cfg = store.doc.reglages.sync || {}, jeton = lireJeton();
@@ -64,7 +64,7 @@ function ouvrir(vue, params = {}) {
   rendre(true);
 }
 // Aide à la bonne section selon l'écran affiché
-const SECTION_AIDE = { seance: "seance", programme: "programme", progres: "progres", salle: "salles", salles: "salles", historique: "programme", sauvegarde: "donnees", reglages: "seance" };
+const SECTION_AIDE = { seance: "seance", programme: "programme", assistant: "bloc", progres: "progres", salle: "salles", salles: "salles", historique: "programme", sauvegarde: "donnees", reglages: "seance" };
 function retour() { const pile = state.pile, v = pile.pop() || ONGLET_DE[state.vue] || "seance"; state.pile = []; state.parRetour = true; ouvrir(v); state.pile = pile; }
 
 function rendre(enHaut = false) {
@@ -146,6 +146,9 @@ const ACTIONS = {
   toastAnnuler: () => { if (state.toast && state.toast.annuler) state.toast.annuler(); state.toast = null; rendreToast(); rendre(false); },
   annuler: () => { const l = store.annulable; if (store.annuler()) ctx.toast(`Annulé : ${l}`); rendre(false); },
   // La nouvelle version attend (« waiting ») : c'est à ELLE qu'on demande de prendre la main ; le rechargement suit (controllerchange)
+  // L'assistant « Construire un bloc » n'est chargé qu'à la demande (l'ouverture de l'app reste légère)
+  assistantOuvrir: async (c, d) => { try { const m = await import("./ecrans/assistant.js"); ECRANS.assistant = m; Object.assign(ACTIONS, m.actions);
+      state.assistant = m.initial(ctx, d); ouvrir("assistant"); } catch (e) { console.error(e); ctx.toast("L'assistant n'a pas pu s'ouvrir"); } },
   majApp: () => { if (enregistrement && enregistrement.waiting) enregistrement.waiting.postMessage("mettre-a-jour"); else location.reload(); },
   ...minuteur.actions, ...seance.actions, ...programme.actions, ...progres.actions, ...plus.actions, ...mur.actions, ...fenetres.actions,
 };
@@ -240,6 +243,7 @@ const majEcranAllume = () => ecranAllume(!!store.doc.reglages.ecranAllume && sea
   { const enCours = ctx.programme.find(s => { const sa = store.doc.seances[s.id]; return sa && sa.debut && !sa.fin; });
     if (enCours) { state.vue = "seance"; state.seanceId = enCours.id; state.origine = "programme"; } else state.vue = "programme"; }
   rendre(true); majEcranAllume();
+  ctx.ouverture = Math.round(performance.now());                                   // temps jusqu'au premier écran (affiché dans Plus)
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     const proposer = () => { if (navigator.serviceWorker.controller) $("bandeau").style.display = "block"; };
     navigator.serviceWorker.register("./sw.js").then(reg => { if (!reg) return; enregistrement = reg;

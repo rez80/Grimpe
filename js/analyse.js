@@ -4,6 +4,7 @@
 // Entrées : data (data.js), doc (document de l'app), programme (programmeEffectif), aujourdhui (AAAA-MM-JJ).
 
 import { ecartJours, semaineDe, ajouterJours, lundiDe } from "./dates.js";
+import { blocEnCours, feuxBloc } from "./blocs.js";
 
 export const DEVERS = ["Léger dévers", "Dévers", "Surplomb", "Fort dévers", "Toit"];
 export const enDevers = p => DEVERS.includes(p);
@@ -43,7 +44,7 @@ export function avecEssaisDeclares(ts) {
     h.echecs = 0; });
   return out;
 }
-const dateDe = (s, doc) => ((doc.seances || {})[s.id] || {}).dateReelle || s.date;      // le jour où la séance a vraiment été faite
+export const dateDe = (s, doc) => ((doc.seances || {})[s.id] || {}).dateReelle || s.date;      // le jour où la séance a vraiment été faite
 export const differentes = l => new Set(l.map((t, n) => identite(t, n))).size;
 export const taux = l => l.length ? l.filter(reussi).length / l.length : 0;
 
@@ -193,10 +194,12 @@ export function avertissements(s, programme, doc) {
 export function bilan({ data, doc, programme, aujourdhui }) {
   const params = { ...data.params, ...(doc.reglages.params || {}) }, dateDebut = doc.reglages.dateDebut || data.dateDebut;
   const ts = tentatives(programme, doc), tsCalc = avecEssaisDeclares(ts);
-  const feux = feuxVerts(tsCalc, programme, doc, params, data.echelles, aujourdhui, dateDebut);
+  // Feux verts : ceux du bloc en cours s'il a été construit dans l'app, sinon les feux de base
+  const bloc = blocEnCours(doc, dateDebut, aujourdhui);
+  const feux = bloc && (bloc.feux || []).length ? feuxBloc(bloc, { programme, doc, aujourdhui, dateDebut }) : feuxVerts(tsCalc, programme, doc, params, data.echelles, aujourdhui, dateDebut);
   const sig = signalements(programme, doc), ep = episodes(sig, params, aujourdhui), charge = chargeSemaines(programme, doc, dateDebut, aujourdhui);
   const formeJour = derniereForme(programme, doc, aujourdhui, params);
-  return { aujourdhui, dateDebut, params, nbTentatives: ts.length, feux, consolides: niveauxConsolides(tsCalc, data.echelles, params), signalements: sig, episodes: ep,
+  return { aujourdhui, dateDebut, params, nbTentatives: ts.length, feux, bloc: bloc ? { id: bloc.id, nom: bloc.nom, titre: bloc.titre } : null, consolides: niveauxConsolides(tsCalc, data.echelles, params), signalements: sig, episodes: ep,
            charge, formeJour, pointsFaibles: pointsFaibles(tsCalc, data.conseils, params, aujourdhui),
            vigilance: vigilance({ programme, doc, params, aujourdhui, formeJour, episodesEnCours: ep.filter(e => !e.fin), charge, feux }),
            meilleures: meilleuresParSemaine(ts, data.echelles, dateDebut) };
@@ -274,7 +277,8 @@ export function phrases({ bilan: B, ts, programme, doc, aujourdhui, echelles, pr
 export function bilanComplet(args) {
   const B = bilan(args), { data, doc, programme, aujourdhui } = args, params = B.params;
   const ts = tentatives(programme, doc), avant = ajouterJours(aujourdhui, -28);
-  const feuxAvant = feuxVerts(avecEssaisDeclares(ts.filter(t => t.date <= avant)), programme, doc, params, data.echelles, avant, B.dateDebut);
+  const blocC = B.bloc && blocEnCours(doc, B.dateDebut, aujourdhui);
+  const feuxAvant = blocC ? feuxBloc(blocC, { programme, doc, aujourdhui: avant, dateDebut: B.dateDebut }) : feuxVerts(avecEssaisDeclares(ts.filter(t => t.date <= avant)), programme, doc, params, data.echelles, avant, B.dateDebut);
   const projectionFeux = projection(B.feux, feuxAvant), recul = ecartJours(B.dateDebut, aujourdhui) >= 28;     // « à ce rythme » seulement après 4 semaines
   return { ...B, recul, voies: parVoie(ts), projection: projectionFeux, nouveauxFeux: nouveauxFeux(B.feux, doc.feuxVus),
            phrases: phrases({ bilan: B, ts, programme, doc, aujourdhui, echelles: data.echelles, projectionFeux }) };

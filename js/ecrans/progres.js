@@ -42,8 +42,10 @@ export function rendre(ctx) {
   if (proj.length) out = h`${out}${pli("pg-projets", true, "Projets", () => h`<p class="petit">Essayés, pas encore réussis (✗ sur le mur). Touche un projet pour sa fiche (ajouter un passage, corriger).</p>${proj.map(v => h`<button class="ligne-res ligne-bouton" data-act="${v.voieId ? "projetOuvrir" : ""}" data-id="${v.voieId}" data-salle="${v.salle}"><span><span class="pastille" style="background:${hexDe(doc, v.couleur)}"></span> ${v.disc === "Bloc" ? "Bloc" : "Voie"} ${v.cotSalle || v.cot || "?"}${v.nom ? " · " + v.nom : ""} <span class="petit">${(v.profil || "").toLowerCase()}${(sl => sl ? ` · ${sl.nom}` : "")(ctx.doc.salles.find(x => x.id === v.salle || x.voies.some(y => y.id === v.voieId)))}</span></span><span class="petit"><span class="ce ko">✗</span> ${v.essais} essai${v.essais > 1 ? "s" : ""}${v.premiere && v.premiere !== v.derniere ? ` depuis ${court(v.premiere)}` : v.derniere ? ` · ${court(v.derniere)}` : ""}</span></button>`)}`, { resume: String(proj.length), classe: "carte" })}`;
 
   // Feux verts avec projection
-  out = h`${out}${pli("pg-feux", true, "Feux verts", () => h`${info("feux")}${B.feux.map(f => { const p = B.projection[f.id]; return h`<div class="feu ${f.ok ? "ok" : ""}"><div class="feu-titre">${f.info && !f.ok ? h`<span class="feu-info">${ico("info")}</span>` : h`<span class="feu-pt ${f.ok ? "ok" : ""}"></span>`} ${f.titre}</div>
-    ${f.criteres.map(c => h`<div class="crit"><span>${c.t}</span>${barre(c.val, c.cible, c.ok ? "ok" : "")}<b>${c.val}${c.pct ? " %" : ""} / ${c.cible}${c.pct ? " %" : ""}</b></div>`)}
+  out = h`${out}${pli("pg-feux", true, B.bloc ? `Feux verts · ${B.bloc.nom}${B.bloc.titre ? " " + B.bloc.titre : ""}` : "Feux verts", () => h`${info("feux")}${B.feux.map(f => { const p = B.projection[f.id]; return h`<div class="feu ${f.ok ? "ok" : ""}"><div class="feu-titre">${f.info && !f.ok ? h`<span class="feu-info">${ico("info")}</span>` : h`<span class="feu-pt ${f.ok ? "ok" : ""}"></span>`} ${f.titre}</div>
+    ${f.criteres.map(c => c.coche ? h`<div class="crit crit-coche"><span>${c.t}</span><button class="case-feu ${c.ok ? "ok" : ""}" data-act="feuCoche" data-bloc="${f.bloc}" data-cle="${c.coche}" aria-pressed="${c.ok ? "true" : "false"}">${c.ok ? "✓ Fait" : "À cocher"}</button></div>`
+      : c.detail ? h`<div class="crit"><span>${c.t}</span>${barre(c.val, c.cible, c.ok ? "ok" : "")}<b>${c.detail}</b></div>`
+      : h`<div class="crit"><span>${c.t}</span>${barre(c.val, c.cible, c.ok ? "ok" : "")}<b>${c.val}${c.pct ? " %" : ""} / ${c.cible}${c.pct ? " %" : ""}</b></div>`)}
     ${si(p && B.recul, () => h`<p class="petit">${p.semaines ? `À ce rythme : ${p.semaines > 26 ? "plus de six mois" : p.semaines === 1 ? "une semaine" : p.semaines + " semaines"}.` : p.val > 0 ? "Pas d'avancée sur quatre semaines." : ""}</p>`)}</div>`; })}`, { resume: `${B.feux.filter(f => f.ok).length} / ${B.feux.filter(f => !f.info).length}`, classe: "carte" })}`;
 
   out = h`${out}${pli("pg-niveau", false, "Niveau consolidé", () => h`${info("niveau")}<p class="petit">≥ ${Math.round(B.params.consolide_taux * 100)} % de réussite sur ≥ ${B.params.consolide_essais} essais.</p>
@@ -75,6 +77,7 @@ export function rendre(ctx) {
   return { html: out, titre: h`<b>Progrès</b>` };
 }
 export const actions = {
+  feuCoche: (ctx, d) => ctx.modifier("feu coché", x => { const b = (x.blocs || []).find(y => y.id === d.bloc); if (!b) return; b.coches = b.coches || {}; if (b.coches[d.cle]) delete b.coches[d.cle]; else b.coches[d.cle] = true; }),
   // Un projet → sa fiche de voie (historique, ajouter, corriger)
   projetOuvrir: (ctx, d) => { const sl = salleDe(ctx.doc, d.salle) || ctx.doc.salles.find(x => x.voies.some(v => v.id === d.id)); const v = sl && sl.voies.find(x => x.id === d.id);
     if (!v) return ctx.toast("Cette voie n'est plus dans tes salles."); ctx.ouvrirModal({ type: "voie", salleId: sl.id, ...v, chiffre: (v.cotSalle || "")[0] || "" }); },

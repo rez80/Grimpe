@@ -35,7 +35,7 @@ function menu(ctx) {
     </div><h3 class="titre-groupe">L'app</h3><div class="menu-plus">
     <button class="tuile" data-act="ouvrirVue" data-vue="reglages"><span class="ico">${ico("reglages")}</span><span><b>Réglages</b><br><span class="petit">repos, affichage, minuteur</span></span></button>
     <button class="tuile" data-act="ouvrirVue" data-vue="aide"><span class="ico">${ico("aide")}</span><span><b>Aide</b><br><span class="petit">principe, syntaxe, données</span></span></button>
-    </div><p class="petit centre">Annuler le dernier geste : « Options » en haut, sur chaque écran.</p><p class="petit centre">Grimpe ${ctx.APP_VERSION} · programme du ${data.dateDebut} généré le ${data.genereLe} · document v${doc.version}</p>` };
+    </div><p class="petit centre">Annuler le dernier geste : « Options » en haut, sur chaque écran.</p><p class="petit centre">Grimpe ${ctx.APP_VERSION} · programme du ${data.dateDebut} généré le ${data.genereLe} · document v${doc.version}${ctx.ouverture ? ` · ouverture : ${(ctx.ouverture / 1000).toFixed(1).replace(".", ",")} s` : ""}</p>` };
 }
 
 function sauvegarde(ctx) {
@@ -55,6 +55,10 @@ function sauvegarde(ctx) {
       <p class="petit">${doc.dernierExport ? `Dernier export : ${new Date(doc.dernierExport).toLocaleString("fr-BE")}` : "Jamais exporté."}</p>
       <label class="gros contour fichier">Restaurer depuis un fichier…<input type="file" accept=".json,.txt,application/json,text/plain" data-act="importFichier"></label>
       <button class="gros contour" data-act="collerOuvrir">Restaurer en collant le texte…</button>`, { classe: "carte", resume: doc.dernierExport ? "export " + new Date(doc.dernierExport).toLocaleDateString("fr-BE") : "" })}
+    ${pli("sv-analyse", false, "Pour analyse · CSV", () => h`<p class="petit">Un zip de 5 tableaux (passages, séances, voies, mesures, douleurs), à ouvrir dans Excel ou LibreOffice, ou avec <code>grimpe.py csv</code> sur PC. Il est fabriqué sur ce téléphone : rien ne passe par Internet, et le jeton GitHub n'y est jamais. Pour restaurer l'app, garde le fichier JSON ci-dessus.</p>
+      <div class="ligne-reg"><span>Inclure les notes<br><span class="petit">textes libres des séances et des passages</span></span><button class="bascule ${ctx.state.filtre.csvSansNotes ? "" : "on"}" data-act="csvNotes" aria-label="Inclure les notes"></button></div>
+      <button class="gros principal" data-act="exporterCSV">${ico("envoyer")} Exporter pour analyse (CSV)</button>
+      <p class="petit">Sur iPhone : « Enregistrer dans Fichiers ».</p>`, { classe: "carte" })}
     ${pli("sv-effacer", false, "Tout effacer", () => h`<p class="petit">Efface toutes les saisies, salles et réglages de ce téléphone.</p><button class="gros contour danger" data-act="reinitTout">Effacer toutes les données</button>`, { classe: "carte" })}` };
 }
 
@@ -172,6 +176,17 @@ function textesAide(ctx) {
       <p><b>Outils d'une semaine.</b> Mesures (ⓘ pour les tests) · Faire une pause : repousse la semaine et les suivantes de 1 à 4 semaines, la fenêtre montre les nouvelles dates · Copier · répéter (une semaine commencée n'est jamais écrasée).</p>
       <p><b>Une séance.</b> ⋯ à droite de chaque séance, un appui long sur elle, ou Options dans une séance ouverte : bilan, modifier le plan (les saisies suivent leur ligne), déplacer, copier vers une autre date, sautée ; une séance que tu as créée ou copiée peut être supprimée.</p>
       <p><b>Passages hors séance</b> (Options du Programme) : ce que tu as grimpé sans séance et sans voie de salle connue. Pour une voie d'une salle, passe par sa fiche › Historique.</p>`,
+    bloc: h`<p><b>L'assistant.</b> Programme › Options › « + Nouveau bloc (assistant) » : 7 étapes (départ, objectif, disponibilités, phases, séances, feux verts, récapitulatif). Chaque étape a son « Pourquoi ? ». Les alertes sont des conseils : tu peux toujours continuer, c'est toi qui décides. Le bloc créé remplace les semaines choisies (les séances déjà faites restent) ou s'ajoute après le programme ; Options › Modifier ou Retirer le bloc, et « Annuler » le défait aussitôt.</p>
+      <p><b>1. Point de départ.</b> Le niveau consolidé (≥ 5 essais à ≥ 70 % sur une cotation), pas le meilleur jour.</p>
+      <p><b>2. Technique avant force.</b> Au début, on progresse surtout par les pieds, le placement et la lecture. La force des doigts vient après, lentement.</p>
+      <p><b>3. Les doigts et les 48 h.</b> Tendons et poulies s'adaptent plus lentement que les muscles : 48 h entre deux séances dures, pas de séance en salle la veille d'une séance dure. Pas de poutre pour un débutant.</p>
+      <p><b>4. Trois réglages de charge.</b> Le nombre d'essais, le volume, la difficulté. Un seul à la fois, et pas plus de 10 points d'une semaine à l'autre.</p>
+      <p><b>5. Des phases.</b> Base, Construction, Respiration (une semaine légère au milieu), Construction, Réalisation, Décharge. On progresse pendant la récupération : la décharge n'est pas facultative.</p>
+      <p><b>6. Une semaine type, une seule séance dure.</b> Pour un débutant : une séance dure, une séance volume / plaisir, une séance voie (ou son plan B en bloc si pas de partenaire). Course et prévention sont des bonus : jamais « manquées ».</p>
+      <p><b>7. Le squelette d'une séance.</b> Échauffement, contrôle des doigts, pyramide (2 faciles, 2 moyens, puis l'objectif), partie principale avec règles d'arrêt et plan B, retour au calme.</p>
+      <p><b>8. Un objectif, mesurable.</b> Un feu vert dit quand c'est atteint (essais, taux, cotations différentes), plus un garde-fou douleur.</p>
+      <p><b>9. Noter et ajuster.</b> Effort au-dessus de la cible deux fois de suite : alléger. Doigt à 2/10 : ni objectif ni dévers ; à 3/10 : voir un professionnel. Forme « pas top » : volume facile. Une séance manquée ne se rattrape pas.</p>
+      <p><b>Profils.</b> Débutant, Intermédiaire, Avancé ne changent que les valeurs proposées (essais, volume, suspensions) : tout reste modifiable. À l'étape Séances, tu peux retirer, remplacer ou ajouter des exercices par type de séance, et choisir la consigne de chaque semaine.</p>`,
     progres: h`<p>En haut, quelques phrases : la semaine, le niveau acquis, le point faible, le prochain cap. « À ce rythme… » n'apparaît qu'après 4 semaines de programme, quand il y a de quoi estimer.</p>
       <p>Dessous, en sections repliables (l'app retient ce que tu as ouvert) : les projets, les feux verts, le niveau consolidé, à travailler, la charge, les douleurs (et les signalements, pour supprimer une erreur), les mesures. ⓘ explique chaque calcul. Toucher un projet ouvre la fiche de la voie.</p>`,
     salles: h`<p><b>Une salle</b> garde ses voies par secteur, leur couleur, leur niveau et ton historique sur chacune. Façon de coter : comme l'app, ses propres niveaux, par couleurs, ou aucune.</p>
@@ -207,7 +222,7 @@ Planche (s) {mesure planche}</pre>
   };
   return S;
 }
-const SECTIONS_AIDE = [["seance", "Séance"], ["programme", "Programme"], ["progres", "Progrès"], ["salles", "Salles"], ["principe", "Principe"], ["syntaxe", "Syntaxe"], ["donnees", "Données"]];
+const SECTIONS_AIDE = [["seance", "Séance"], ["programme", "Programme"], ["bloc", "Construire un bloc"], ["progres", "Progrès"], ["salles", "Salles"], ["principe", "Principe"], ["syntaxe", "Syntaxe"], ["donnees", "Données"]];
 // Aide : comme la Bibliothèque — une recherche, puis des sections repliables ; le « ? » d'un écran met sa section en tête, ouverte
 function aide(ctx) {
   const r = ctx.state.filtre.aideRecherche || "";
@@ -231,6 +246,9 @@ const manqueSync = ctx => { const c = ctx.doc.reglages.sync || {}; return !c.own
 const cotationVide = () => ({ Voie: { mode: "standard", liste: [] }, Bloc: { mode: "standard", liste: [] } });
 export const actions = {
   ouvrirVue: (ctx, d) => ctx.ouvrir(d.vue),
+  csvNotes: ctx => { ctx.state.filtre.csvSansNotes = !ctx.state.filtre.csvSansNotes; ctx.rendre(); },
+  exporterCSV: async ctx => { try { const m = await import("../csv.js"), fichiers = m.tables({ programme: ctx.programme, doc: ctx.doc, aujourdhui: ctx.aujourdhui(), notes: !ctx.state.filtre.csvSansNotes });
+      if (await m.partagerZip(m.zip(fichiers), m.nomZip(ctx.aujourdhui()))) ctx.toast("Export pour analyse prêt"); } catch (e) { console.error(e); ctx.toast(`Export CSV impossible : ${e.message}`); } },
   ouvrirAide: (ctx, d) => { ctx.state.filtre.aide = d.k; forcerOuvert(`aide-${d.k}`); if (ctx.state.vue !== "aide") ctx.ouvrir("aide"); else ctx.rendre(); },
   aideRecherche: (ctx, d, el) => { ctx.state.filtre.aideRecherche = el.value; const z = document.getElementById("aide-liste"); if (z) z.innerHTML = String(listeAide(ctx, el.value)); },
   exporter: async ctx => { const ex = construireExport({ data: ctx.data, doc: ctx.doc, programme: ctx.programme, bilan: ctx.bilan });
