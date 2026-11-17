@@ -16,7 +16,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.13";
+export const APP_VERSION = "8.14";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
@@ -225,9 +225,10 @@ const majEcranAllume = () => ecranAllume(!!store.doc.reglages.ecranAllume && sea
   rendre(true); majEcranAllume();
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     const proposer = () => { if (navigator.serviceWorker.controller) $("bandeau").style.display = "block"; };
-    navigator.serviceWorker.register("./sw.js").then(reg => { enregistrement = reg;
+    navigator.serviceWorker.register("./sw.js").then(reg => { if (!reg) return; enregistrement = reg;
       if (reg.waiting) proposer();                                           // une version trouvée lors d'une ouverture précédente attend déjà
-      reg.addEventListener("updatefound", () => { const w = reg.installing; w && w.addEventListener("statechange", () => { if (w.state === "installed") proposer(); }); }); });
+      reg.addEventListener("updatefound", () => { const w = reg.installing; w && w.addEventListener("statechange", () => { if (w.state === "installed") proposer(); }); }); })
+      .catch(() => { /* navigation privée, ou hors ligne refusé : l'app marche quand même, sans mise à jour en arrière-plan */ });
     let avaitControleur = !!navigator.serviceWorker.controller;          // première installation : pas de rechargement
     navigator.serviceWorker.addEventListener("controllerchange", () => { if (avaitControleur) location.reload(); avaitControleur = true; });
   }

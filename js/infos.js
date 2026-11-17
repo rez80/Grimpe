@@ -2,7 +2,7 @@
 export const INFOS = {
   feux: ["Feux verts", [
     "Un feu vert dit qu'une étape suivante est raisonnable : un projet en 5c, un premier essai en 6a, un projet de bloc 6A, plus de volume.",
-    "Chaque feu a ses critères (barres) ; il passe au vert quand tous sont atteints. Les feux ℹ️ (dévers) indiquent seulement quoi travailler.",
+    "Chaque feu a ses critères (barres) ; il passe au vert quand tous sont atteints. Les feux marqués ⓘ (dévers) indiquent seulement quoi travailler.",
     "« Voies différentes » : une voie de salle compte une fois, quel que soit le nombre de passages. Un passage noté sur une ligne de cotation, sans voie, compte comme une voie déjà faite (sauf si tu l'as marqué « nouvelle voie »).",
     "Les taux tiennent compte des essais que tu indiques après une réussite (« réussie au 4ᵉ essai » = 3 échecs), sans compter deux fois ceux déjà notés.",
     "« À ce rythme » compare avec il y a quatre semaines ; il n'apparaît qu'après quatre semaines de programme."]],

@@ -1,12 +1,11 @@
 // ecrans/editeur.js — l'éditeur de séance pour le téléphone : des étapes et des sélecteurs, jamais une grammaire à taper.
 // Le texte à marqueurs reste le format de stockage (et le « mode texte » pour qui le préfère).
-import { h, si, choix } from "../html.js";
+import { h, si, choix, liste } from "../html.js";
 import { lignesDe, contenuDe, analyserLigne, texteDuree } from "../parseur.js";
 import { nouvelId, correspondanceCles, remapperSaisie } from "../programme.js";
-import { semaineDe, nomJour } from "../dates.js";
+import { semaineDe, nomJour, duree as dureeTexte } from "../dates.js";
 
 const M = ctx => ctx.state.modal;
-const lisible = v => v < 60 ? `${v} s` : v >= 3600 && v % 60 === 0 ? `${Math.floor(v / 3600)} h${v % 3600 ? String((v % 3600) / 60).padStart(2, "0") : ""}` : `${Math.floor(v / 60)} min${v % 60 ? " " + String(v % 60).padStart(2, "0") : ""}`;
 const REPOS = [30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 420, 480, 600];
 const CHRONOS = [10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300, 420, 600, 900, 1200, 1800, 2700, 3600];
 const FRACTIONS = [15, 30, 45, 60, 90, 120, 180, 240, 300, 360, 420, 480, 600, 900];
@@ -26,7 +25,7 @@ export function rendre(ctx) {
   const pas = (i, champ, valeur, texte, pasMoins, pasPlus) => h`<span class="compteur"><button data-act="edNum" data-i="${i}" data-champ="${champ}" data-pas="${pasMoins}">−</button><span>${texte}</span><button data-act="edNum" data-i="${i}" data-champ="${champ}" data-pas="${pasPlus}">+</button></span>`;
   // Durées : une liste déroulante (plus de 4 choix), la valeur actuelle toujours présente
   const duree = (i, champ, valeur, valeurs, vide) => { const l = [...new Set([...valeurs, ...(valeur ? [+valeur] : [])])].sort((a, b) => a - b);
-    return h`<select class="ed-duree" data-act="edDuree" data-i="${i}" data-champ="${champ}" aria-label="${champ}">${vide ? h`<option value="" ${!valeur ? "selected" : ""}>${vide}</option>` : ""}${l.map(v => h`<option value="${v}" ${+valeur === v ? "selected" : ""}>${lisible(v)}</option>`)}</select>`; };
+    return h`<select class="ed-duree" data-act="edDuree" data-i="${i}" data-champ="${champ}" aria-label="${champ}">${vide ? h`<option value="" ${!valeur ? "selected" : ""}>${vide}</option>` : ""}${l.map(v => h`<option value="${v}" ${+valeur === v ? "selected" : ""}>${dureeTexte(v)}</option>`)}</select>`; };
   const ligne = (e, i) => { const n = nature(e);
     return h`<div class="ed-ligne ${e.type === "version" ? "ed-version" : ""}"><div class="ed-tete"><select data-act="edNature" data-i="${i}">${Object.entries(NATURES).map(([k, l]) => h`<option value="${k}" ${k === n ? "selected" : ""}>${l}</option>`)}</select>
         <span class="ed-outils"><button data-act="edBouger" data-i="${i}" data-pas="-1" ${i === 0 ? "disabled" : ""}>↑</button><button data-act="edBouger" data-i="${i}" data-pas="1" ${i === m.lignes.length - 1 ? "disabled" : ""}>↓</button><button data-act="edSuppr" data-i="${i}">✕</button></span></div>
@@ -45,10 +44,10 @@ export function rendre(ctx) {
           ${si(e.erreurs && e.erreurs.length, h`<p class="petit rouge-txt">${e.erreurs.join(" · ")}</p>`)}
         </div>`}</div>`; };
   return h`<h2>${m.cible ? "Modifier le plan" : "Nouvelle séance"}</h2>
-    ${si(!m.cible, h`<div class="ed-rangee"><input type="date" data-champ="date" value="${m.date}">${choix("mChamp", data.listes.Activités || ["Voie", "Bloc", "Maison", "Course"], m.activite, { data: { champ: "activite" }, classe: "compact" })}</div>`)}
+    ${si(!m.cible, h`<div class="ed-rangee"><input type="date" data-champ="date" value="${m.date}">${liste("activite", data.listes.Activités || ["Voie", "Bloc", "Maison", "Course"], m.activite, { vide: null })}</div>`)}
     ${m.texte ? h`<textarea data-champ="contenu" rows="12" class="code">${m.contenu}</textarea><p class="petit"><button class="lien" data-act="ouvrirAide" data-k="syntaxe">Syntaxe</button></p>`
       : h`<div class="ed-lignes">${m.lignes.map(ligne)}${si(!m.lignes.length, h`<p class="petit">Aucune étape. Ajoute-en une ci-dessous.</p>`)}</div>
-        <div class="choix compact ed-ajout">${Object.entries(NATURES).map(([k, l]) => h`<button data-act="edAjout" data-n="${k}">+ ${l}</button>`)}</div>`}
+        <div class="choix compact ed-ajout">${Object.entries(NATURES).map(([k, l]) => h`<button class="btn-ajout" data-act="edAjout" data-n="${k}">+ ${l}</button>`)}</div>`}
     <div class="actions"><button data-act="edMode">${m.texte ? "Formulaire" : "Texte"}</button><button data-act="mFermer">Annuler</button><button class="principal" data-act="edOk">Enregistrer</button></div>`;
 }
 

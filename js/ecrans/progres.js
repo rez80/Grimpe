@@ -1,5 +1,5 @@
 // ecrans/progres.js — d'abord trois phrases, ensuite le détail pour les curieux. Rien n'est calculé ici.
-import { h, si, lier, pli, info } from "../html.js";
+import { h, si, lier, pli, info, ico } from "../html.js";
 import { court } from "../dates.js";
 import { hexDe, salleDe } from "../salles.js";
 
@@ -9,7 +9,7 @@ const barre = (val, max, classe = "") => h`<span class="barre ${classe}"><span s
 export function rendre(ctx) {
   const B = ctx.bilan, { data, doc, state } = ctx;
   let out = h``;
-  for (const f of B.nouveauxFeux) out = h`${out}<div class="carte feu-carte"><div><b>🟢 Feu vert : ${f.titre}</b><br><span class="petit">${f.criteres.map(c => `${c.t} : ${c.val}${c.pct ? " %" : ""}`).join(" · ")}</span></div><button data-act="feuVu" data-id="${f.id}">Vu !</button></div>`;
+  for (const f of B.nouveauxFeux) out = h`${out}<div class="carte feu-carte"><div><b><span class="feu-pt ok"></span> Feu vert : ${f.titre}</b><br><span class="petit">${f.criteres.map(c => `${c.t} : ${c.val}${c.pct ? " %" : ""}`).join(" · ")}</span></div><button data-act="feuVu" data-id="${f.id}">Vu !</button></div>`;
 
   // Les phrases
   out = h`${out}<div class="carte phrases carte-liseree">${B.phrases.length ? B.phrases.map(p => h`<p class="${p.cle}">${p.texte}</p>`) : h`<p>Pas encore de quoi dire quelque chose : grimpe, note deux ou trois voies, et reviens.</p>`}
@@ -21,13 +21,13 @@ export function rendre(ctx) {
   if (proj.length) out = h`${out}${pli("pg-projets", true, "Projets", () => h`<p class="petit">Tentés, pas encore enchaînés. Touche un projet pour sa fiche (ajouter un passage, corriger).</p>${proj.map(v => h`<button class="ligne-res ligne-bouton" data-act="${v.voieId ? "projetOuvrir" : ""}" data-id="${v.voieId}" data-salle="${v.salle}"><span><span class="pastille" style="background:${hexDe(doc, v.couleur)}"></span> ${v.disc === "Bloc" ? "Bloc" : "Voie"} ${v.cotSalle || v.cot || "?"}${v.nom ? " · " + v.nom : ""} <span class="petit">${(v.profil || "").toLowerCase()}</span></span><span class="petit">${v.essais} essai${v.essais > 1 ? "s" : ""}${v.premiere && v.premiere !== v.derniere ? ` depuis ${court(v.premiere)}` : v.derniere ? ` · ${court(v.derniere)}` : ""}</span></button>`)}`, { resume: String(proj.length), classe: "carte" })}`;
 
   // Feux verts avec projection
-  out = h`${out}${pli("pg-feux", true, "Feux verts", () => h`${info("feux")}${B.feux.map(f => { const p = B.projection[f.id]; return h`<div class="feu ${f.ok ? "ok" : ""}"><div class="feu-titre">${f.ok ? "🟢" : f.info ? "ℹ️" : "⚪"} ${f.titre}</div>
+  out = h`${out}${pli("pg-feux", true, "Feux verts", () => h`${info("feux")}${B.feux.map(f => { const p = B.projection[f.id]; return h`<div class="feu ${f.ok ? "ok" : ""}"><div class="feu-titre">${f.info && !f.ok ? h`<span class="feu-info">${ico("info")}</span>` : h`<span class="feu-pt ${f.ok ? "ok" : ""}"></span>`} ${f.titre}</div>
     ${f.criteres.map(c => h`<div class="crit"><span>${c.t}</span>${barre(c.val, c.cible, c.ok ? "ok" : "")}<b>${c.val}${c.pct ? " %" : ""} / ${c.cible}${c.pct ? " %" : ""}</b></div>`)}
     ${si(p && B.recul, () => h`<p class="petit">${p.semaines ? `À ce rythme : ${p.semaines > 26 ? "plus de six mois" : p.semaines === 1 ? "une semaine" : p.semaines + " semaines"}.` : p.val > 0 ? "Pas d'avancée sur quatre semaines." : ""}</p>`)}</div>`; })}`, { resume: `${B.feux.filter(f => f.ok).length} / ${B.feux.filter(f => !f.info).length}`, classe: "carte" })}`;
 
   out = h`${out}${pli("pg-niveau", false, "Niveau consolidé", () => h`${info("niveau")}<p class="petit">≥ ${Math.round(B.params.consolide_taux * 100)} % de réussite sur ≥ ${B.params.consolide_essais} essais.</p>
     <div class="grille-niv">${Object.values(B.consolides).map(c => h`<div class="niv"><span class="petit">${c.disc} · ${c.groupe}</span>${c.niveau ? h`<span class="niv-tag niv-cot niv-${c.disc === "Bloc" ? "bloc" : "voie"}">${c.niveau}</span>` : h`<b>—</b>`}</div>`)}</div>
-    ${pli("pg-niveau-detail", false, "Détail par cotation", () => Object.values(B.consolides).filter(c => c.detail.length).map(c => h`<p class="petit"><b>${c.disc} · ${c.groupe}</b></p>${c.detail.map(d => h`<div class="crit"><span>${d.cot}</span>${barre(d.taux, 1, d.taux >= B.params.consolide_taux ? "ok" : "")}<b>${Math.round(d.taux * 100)} % · ${d.essais}</b></div>`)}`))}`, { resume: Object.values(B.consolides).map(c => c.niveau).filter(Boolean).join(" · "), classe: "carte" })}`;
+    ${pli("pg-niveau-detail", false, "Détail par cotation", () => Object.values(B.consolides).filter(c => c.detail.length).map(c => h`<p class="petit"><b>${c.disc} · ${c.groupe}</b></p>${c.detail.map(d => h`<div class="crit"><span>${d.cot}</span>${barre(d.taux, 1, d.taux >= B.params.consolide_taux ? "ok" : "")}<b>${Math.round(d.taux * 100)} % · ${d.essais}</b></div>`)}`))}`, { resume: Object.values(B.consolides).filter(c => c.niveau).map(c => `${c.disc}${c.groupe === "Dévers" ? " dévers" : ""} ${c.niveau}`).join(" · "), classe: "carte" })}`;
 
   const pf = B.pointsFaibles;
   if (pf.profil || pf.cause || pf.carac) out = h`${out}${pli("pg-travailler", false, "À travailler", () => h`<p class="petit">${B.params.faible_semaines ?? 8} dernières semaines.</p>

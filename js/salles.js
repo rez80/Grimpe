@@ -49,7 +49,8 @@ export const voiesEnPlace = (salle, disc) => salle ? salle.voies.filter(v => v.s
 
 // Salle du jour par défaut : la dernière salle choisie (quelle que soit la discipline) si elle accepte cette discipline, sinon l'ancienne préférence par discipline
 export function salleParDefautPour(doc, disc) { const r = doc.reglages || {}, ok = id => { const s = id && (doc.salles || []).find(x => x.id === id); return s && (s.type === disc || s.type === "Bloc et voie") ? id : ""; };
-  return ok(r.salleDuJour) || ok((r.salleParDefaut || {})[disc]) || ""; }
+  const seules = (doc.salles || []).filter(s => s.type === disc || s.type === "Bloc et voie");      // une seule salle propose cette discipline : c'est elle
+  return ok(r.salleDuJour) || ok((r.salleParDefaut || {})[disc]) || (seules.length === 1 ? seules[0].id : ""); }
 // Retenir le choix de salle du jour (« Salle inconnue » vaut pour la séance seulement)
 export function retenirSalle(doc, disc, id) { if (!id) return; doc.reglages.salleDuJour = id; doc.reglages.salleParDefaut = { ...(doc.reglages.salleParDefaut || {}), [disc]: id }; }
 // Couleur de fond de la carte d'une salle : choisie, sinon une teinte douce selon sa place dans la liste

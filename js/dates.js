@@ -28,4 +28,7 @@ export const jourMois = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 export const court = iso => `${nomJour(iso).slice(0, 3)}. ${jourMois(iso)}`;
 export const hhmm = ms => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
 export const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+// Une durée, toujours écrite pareil : « 45 s », « 1 min 30 », « 20 min », « 1 h 22 »
+export const duree = sec => { sec = Math.round(+sec || 0); if (sec < 60) return `${sec} s`; if (sec < 3600) { const m = Math.floor(sec / 60), r = sec % 60; return r ? `${m} min ${String(r).padStart(2, "0")}` : `${m} min`; }
+  const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`; };
 export const hm = sec => { const m = Math.round(sec / 60); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`; };

@@ -1,13 +1,13 @@
 // ecrans/plus.js — l'onglet Plus et ses sous-écrans : sauvegarde (fichier et GitHub), salles, passages hors séance, calendrier, bibliothèque, réglages, aide.
-import { h, si, lier, pli, brut, forcerOuvert, liste } from "../html.js";
+import { h, si, lier, pli, brut, forcerOuvert, liste, ico } from "../html.js";
 const DUREES_REPOS = [0, 30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 420, 480, 600];
 const themeActuel = () => { try { return localStorage.getItem("grimpe-theme") || "auto"; } catch { return "auto"; } };
 import { construireExport, nomFichier, partager, lireFichier, verifierImport, copierTexte, lireTexte, tailleKo } from "../export.js";
 import { reussi, tentatives as toutesTentatives } from "../analyse.js";
 import { lireJeton, ecrireJeton, configValide, creerSync } from "../sync.js";
 import { fondSalle, hexDe } from "../salles.js";
-import { court, mmss, semaineDe } from "../dates.js";
-import { RES_LABEL } from "./seance.js";
+import { court, mmss, duree as dureeTexte, semaineDe } from "../dates.js";
+import { RES_LABEL, resLabel } from "./seance.js";
 
 export function rendre(ctx) {
   switch (ctx.state.vue) {
@@ -27,12 +27,12 @@ function menu(ctx) {
   const etatSauvegarde = sync && sync.ok && configValide(doc.reglages.sync) ? `GitHub · ${court(sync.quand.slice(0, 10))}` : sync && !sync.ok ? "GitHub en erreur" : dernier ? `export il y a ${jours} j` : "jamais sauvegardé";
   const alerte = !(sync && sync.ok && (Date.now() - new Date(sync.quand)) < 8 * 864e5) && (jours === null || jours > 7);
   return { titre: h`<b>Plus</b>`, html: h`<div class="menu-plus">
-    <button class="tuile ${alerte ? "attention" : ""}" data-act="ouvrirVue" data-vue="sauvegarde"><span class="ico">⬆</span><span><b>Sauvegarde</b><br><span class="petit">${etatSauvegarde}</span></span></button>
-    <button class="tuile" data-act="ouvrirVue" data-vue="salles"><span class="ico">🧗</span><span><b>Salles</b><br><span class="petit">${doc.salles.length} salle${doc.salles.length > 1 ? "s" : ""} · ${doc.salles.reduce((n, s) => n + s.voies.filter(v => v.statut !== "demontee").length, 0)} voies en place</span></span></button>
-    <button class="tuile" data-act="ouvrirVue" data-vue="calendrier"><span class="ico">📅</span><span><b>Calendrier</b><br><span class="petit">le programme dans l'iPhone</span></span></button>
-    <button class="tuile" data-act="ouvrirVue" data-vue="biblio"><span class="ico">📖</span><span><b>Bibliothèque</b><br><span class="petit">${data.exercices.length} exercices · ${new Set(data.routines.map(r => r.routine)).size} routines</span></span></button>
-    <button class="tuile" data-act="ouvrirVue" data-vue="reglages"><span class="ico">⚙</span><span><b>Réglages</b><br><span class="petit">repos, affichage, minuteur</span></span></button>
-    <button class="tuile" data-act="ouvrirVue" data-vue="aide"><span class="ico">?</span><span><b>Aide</b><br><span class="petit">principe, syntaxe, données</span></span></button>
+    <button class="tuile ${alerte ? "attention" : ""}" data-act="ouvrirVue" data-vue="sauvegarde"><span class="ico">${ico("envoyer")}</span><span><b>Sauvegarde</b><br><span class="petit">${etatSauvegarde}</span></span></button>
+    <button class="tuile" data-act="ouvrirVue" data-vue="salles"><span class="ico">${ico("prise")}</span><span><b>Salles</b><br><span class="petit">${doc.salles.length} salle${doc.salles.length > 1 ? "s" : ""} · ${doc.salles.reduce((n, s) => n + s.voies.filter(v => v.statut !== "demontee").length, 0)} voies en place</span></span></button>
+    <button class="tuile" data-act="ouvrirVue" data-vue="calendrier"><span class="ico">${ico("calendrier")}</span><span><b>Calendrier</b><br><span class="petit">le programme dans l'iPhone</span></span></button>
+    <button class="tuile" data-act="ouvrirVue" data-vue="biblio"><span class="ico">${ico("livre")}</span><span><b>Bibliothèque</b><br><span class="petit">${data.exercices.length} exercices · ${new Set(data.routines.map(r => r.routine)).size} routines</span></span></button>
+    <button class="tuile" data-act="ouvrirVue" data-vue="reglages"><span class="ico">${ico("reglages")}</span><span><b>Réglages</b><br><span class="petit">repos, affichage, minuteur</span></span></button>
+    <button class="tuile" data-act="ouvrirVue" data-vue="aide"><span class="ico">${ico("aide")}</span><span><b>Aide</b><br><span class="petit">principe, syntaxe, données</span></span></button>
     </div><p class="petit centre">Annuler le dernier geste : « Options » en haut, sur chaque écran.</p><p class="petit centre">Grimpe ${ctx.APP_VERSION} · programme du ${data.dateDebut} généré le ${data.genereLe} · document v${doc.version}</p>` };
 }
 
@@ -45,10 +45,10 @@ function sauvegarde(ctx) {
       <label class="champ">Jeton (fine-grained, « Contents : Read and write » sur ce seul dépôt)</label><input type="text" class="secret" value="${jeton}" placeholder="github_pat_…" data-frappe="syncJeton" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
       <div class="ligne-reg"><span>Pousser après chaque séance</span><button class="bascule ${cfg.auto !== false ? "on" : ""}" data-act="syncAuto" aria-label="Automatique"></button></div>
       <p class="petit">${sync ? (sync.ok ? `Dernier envoi : ${new Date(sync.quand).toLocaleString("fr-BE")} ✓` : `Échec le ${new Date(sync.quand).toLocaleString("fr-BE")} : ${sync.erreur}`) : "Jamais envoyé."}</p>
-      <div class="actions"><button data-act="syncRecuperer">⬇ Récupérer</button><button class="principal" data-act="syncPousser">⬆ Enregistrer et tester</button></div>`, { classe: "carte", resume: sync ? (sync.ok ? "✓ " + new Date(sync.quand).toLocaleDateString("fr-BE") : "échec") : "non configurée" })}
+      <div class="actions"><button data-act="syncRecuperer">${ico("recevoir")} Récupérer</button><button class="principal" data-act="syncPousser">${ico("envoyer")} Enregistrer et tester</button></div>`, { classe: "carte", resume: sync ? (sync.ok ? "✓ " + new Date(sync.quand).toLocaleDateString("fr-BE") : "échec") : "non configurée" })}
     ${pli("sv-fichier", false, "Fichier", () => h`<p class="petit">Le même document en JSON : ${n} séance${n > 1 ? "s" : ""}, réglages, salles, bilan calculé. Sauvegarde et entrée de l'outil PC (<code>grimpe.py rapport fichier.json</code>).</p>
-      <button class="gros principal" data-act="exporter">⬆ Exporter le fichier</button>
-      <button class="gros contour" data-act="copierDonnees">⧉ Copier les données <span class="petit">(à coller dans Notes ou un mail)</span></button>
+      <button class="gros principal" data-act="exporter">${ico("envoyer")} Exporter le fichier</button>
+      <button class="gros contour" data-act="copierDonnees">${ico("copier")} Copier les données <span class="petit">(à coller dans Notes ou un mail)</span></button>
       <p class="petit">Taille de la sauvegarde : ${tailleKo(construireExport({ data: ctx.data, doc, programme: ctx.programme, bilan: ctx.bilan }))} ko. Dans Mail, vérifie que la pièce jointe « Grimpe-sauvegarde-….json » est bien là avant d'envoyer.</p>
       <p class="petit">${doc.dernierExport ? `Dernier export : ${new Date(doc.dernierExport).toLocaleString("fr-BE")}` : "Jamais exporté."}</p>
       <label class="gros contour fichier">Restaurer depuis un fichier…<input type="file" accept=".json,.txt,application/json,text/plain" data-act="importFichier"></label>
@@ -61,7 +61,7 @@ function biblio(ctx) {
   const compte = n => data.exercices.filter(x => !n || x.niveau === n).length;
   return { titre: h`<b>Bibliothèque</b>`, html: h`<input type="search" class="recherche" placeholder="Rechercher un exercice, une routine…" value="${r}" data-frappe="biblioRecherche" aria-label="Rechercher">
     <div class="filtres-biblio"><div class="choix compact segmente">${["", "Débutant", "Intermédiaire", "Avancé"].map(n => h`<button data-act="niveauExo" data-valeur="${n}" class="${niv === n ? "choisi" : ""}">${n ? n.slice(0, n === "Intermédiaire" ? 5 : 8) + (n === "Intermédiaire" ? "." : "") : "Tous"} <span class="petit">${compte(n)}</span></button>`)}</div>
-      <button class="petit-btn ${sem ? "choisi" : ""}" data-act="semaineExo">📅 Cette semaine</button></div>
+      <button class="petit-btn ${sem ? "choisi" : ""}" data-act="semaineExo">${ico("calendrier")} Cette semaine</button></div>
     <div id="biblio-liste">${listeBiblio(ctx, r)}</div>` };
 }
 // Routines : leurs étapes, leur durée, leur genre
@@ -90,7 +90,7 @@ function listeBiblio(ctx, recherche) {
   if (niv) { tous = tous.filter(x => x.niveau === niv); routines = []; }                                     // les routines n'ont pas de niveau
   if (S) { tous = tous.filter(x => S.exercices.has(x.nom.toLowerCase())); routines = routines.filter(r => S.routines.has(r.nom.toLowerCase())); }
   const item = x => h`<button class="item item-cat" style="--cat:${couleurCategorie(x.categorie)}" data-act="ficheExo" data-k="${x.k}"><span>${doc.favoris.includes(x.nom) ? h`<span class="etoile-fav">★</span> ` : ""}${x.nom}</span><span class="petit">${q || S ? h`<span class="cat-chip">${x.categorie}</span> ` : ""}${etiquetteNiveau(x.niveau)}</span></button>`;
-  const itemR = r => h`<button class="item item-cat" style="--cat:${COULEUR_ROUTINES}" data-act="ficheRoutine" data-nom="${r.nom}"><span>${doc.favoris.includes(r.nom) ? h`<span class="etoile-fav">★</span> ` : ""}${r.nom}</span><span class="petit">${q || S ? h`<span class="cat-chip">Routine</span> ` : ""}${GENRES_ROUTINE[r.genre] || ""}${r.duree ? " · " + mmss(r.duree) : ""}</span></button>`;
+  const itemR = r => h`<button class="item item-cat" style="--cat:${COULEUR_ROUTINES}" data-act="ficheRoutine" data-nom="${r.nom}"><span>${doc.favoris.includes(r.nom) ? h`<span class="etoile-fav">★</span> ` : ""}${r.nom}</span><span class="petit">${q || S ? h`<span class="cat-chip">Routine</span> ` : ""}${GENRES_ROUTINE[r.genre] || ""}${r.duree ? " · " + dureeTexte(r.duree) : ""}</span></button>`;
   const vide = h`<p class="petit">${S ? `Rien de la bibliothèque n'est cité dans les séances de la semaine ${S.w}${niv ? " à ce niveau" : ""}.` : "Aucun exercice à ce niveau."}</p>`;
   if (q) { const l = tous.filter(x => sansAccent([x.nom, x.categorie, x.but, x.comment].join(" ")).includes(q)), lr = routines.filter(r => sansAccent([r.nom, ...r.etapes.map(e => e.etape + " " + e.quoi)].join(" ")).includes(q));
     return l.length || lr.length ? h`<div class="liste">${lr.map(itemR)}${l.map(item)}</div>` : h`<p class="petit">Rien pour « ${recherche} »${niv || S ? " avec ces filtres" : ""}.</p>`; }
@@ -118,15 +118,15 @@ function salles(ctx) {
 function historique(ctx) {
   const { doc } = ctx, l = doc.passagesAnciens.filter(p => !p.voieId).sort((a, b) => (a.date || "0") < (b.date || "0") ? 1 : -1), dates = [...new Set(l.map(p => p.date || ""))];
   return { titre: h`<b>Passages hors séance</b>`, html: h`<p class="petit">Ce que tu as grimpé sans séance dans l'app et sans voie de salle connue (avant le programme, en extérieur…). Pour une voie d'une salle : sa fiche › Historique › + Ajouter. Sans date, un passage compte dans les niveaux, les feux verts et les projets, pas dans la charge ni dans le bilan de la semaine.</p>
-    <button class="gros contour" data-act="passageAncienOuvrir">+ Passage hors séance</button>
-    ${dates.map(d => h`<div class="carte compacte"><b>${d ? court(d) : "Date inconnue"}</b>${l.filter(p => (p.date || "") === d).map(p => h`<div class="ligne-res"><span><span class="pastille" style="background:${hexDe(doc, p.couleur)}"></span> ${p.disc} ${p.cot || "?"}${p.nom ? " · " + p.nom : ""} <span class="petit">${(p.profil || "").toLowerCase()}</span></span><span><span class="res res-${p.res}">${RES_LABEL[p.res]}</span> <button class="lien" data-act="passageAncienSuppr" data-id="${p.id}">✕</button></span></div>`)}</div>`)}` };
+    <button class="gros btn-ajout" data-act="passageAncienOuvrir">+ Passage hors séance</button>
+    ${dates.map(d => h`<div class="carte compacte"><b>${d ? court(d) : "Date inconnue"}</b>${l.filter(p => (p.date || "") === d).map(p => h`<div class="ligne-res"><span><span class="pastille" style="background:${hexDe(doc, p.couleur)}"></span> ${p.disc} ${p.cot || "?"}${p.nom ? " · " + p.nom : ""} <span class="petit">${(p.profil || "").toLowerCase()}</span></span><span><span class="res res-${p.res}">${resLabel(p)}</span> <button class="lien" data-act="passageAncienSuppr" data-id="${p.id}">✕</button></span></div>`)}</div>`)}` };
 }
 
 function calendrier(ctx) {
   const base = location.href.replace(/[#?].*$/, "").replace(/[^/]*$/, ""), http = base.startsWith("http") ? base : "", webcal = http ? http.replace(/^https?:/, "webcal:") + "programme.ics" : "";
-  return { titre: h`<b>Calendrier</b>`, html: h`<div class="carte"><h2>Le programme dans ton calendrier</h2>
+  return { titre: h`<b>Calendrier</b>`, html: h`<div class="carte carte-liseree" style="--lis:var(--voie)"><h2>Le programme dans ton calendrier</h2>
     <p>L'outil PC écrit <code>programme.ics</code> à côté de <code>data.js</code> à chaque génération : une séance = un événement, avec le plan en description. Abonne-toi une fois : pauses, déplacements et nouvelles séances suivent à la régénération suivante, et les rappels viennent du calendrier de l'iPhone, ce qu'une app web ne sait pas faire seule.</p>
-    ${webcal ? h`<p><a class="bouton" href="${webcal}">📅 S'abonner (webcal)</a></p><p class="petit">Si le lien ne s'ouvre pas : Réglages iOS › Calendrier › Comptes › Ajouter › Autre › Abonnement, avec l'adresse <code>${http}programme.ics</code>.</p>` : h`<p class="petit">L'adresse d'abonnement apparaîtra ici quand l'app sera servie depuis GitHub Pages.</p>`}
+    ${webcal ? h`<p><a class="bouton" href="${webcal}">${ico("calendrier")} S'abonner (webcal)</a></p><p class="petit">Si le lien ne s'ouvre pas : Réglages iOS › Calendrier › Comptes › Ajouter › Autre › Abonnement, avec l'adresse <code>${http}programme.ics</code>.</p>` : h`<p class="petit">L'adresse d'abonnement apparaîtra ici quand l'app sera servie depuis GitHub Pages.</p>`}
     <p class="petit">Heures et durées par défaut : 18 h, 90 min en salle, 30 min à la maison, 45 min de course ; modifiables dans Paramètres de Programme.xlsx (<code>heure_voie</code>, <code>duree_voie</code>…). Les alarmes d'un calendrier abonné sont désactivées par défaut sur iPhone : dans le compte de l'abonnement, décoche « Supprimer les alarmes ».</p></div>` };
 }
 
@@ -137,12 +137,12 @@ function reglages(ctx) {
     ${(() => { const L = acts.filter(a => a !== "Repos"), a = L.includes(ctx.state.filtre.reposAct) ? ctx.state.filtre.reposAct : L[0], val = a2 => (r.repos || {})[a2] ?? 0;
       return pli("reg-repos", false, "Repos par défaut", () => h`<p class="petit">Utilisé quand la ligne du plan n'indique pas de repos. Choisis l'activité, puis sa durée.</p>
       <div class="ligne-reg"><span>Activité</span>${liste("repos-activite", L, a, { act: "reglageReposActivite", vide: null })}</div>
-      <div class="ligne-reg"><span>Repos</span>${liste(`repos-${a}`, DUREES_REPOS.map(x => [x, x ? mmss(x) : "Pas de repos"]), String(val(a)), { act: "reglageReposListe", vide: null, data: { a } })}</div>
-      <p class="petit">${L.map(x => `${x} ${val(x) ? mmss(val(x)) : "—"}`).join(" · ")}</p>
-      ${bascule("reposAuto", "Repos automatique", "lance le repos dès qu'un passage est noté")}`, { classe: "carte", resume: L.filter(x => val(x)).map(x => `${x} ${mmss(val(x))}`).slice(0, 2).join(" · ") }); })()}
+      <div class="ligne-reg"><span>Repos</span>${liste(`repos-${a}`, DUREES_REPOS.map(x => [x, x ? dureeTexte(x) : "Pas de repos"]), String(val(a)), { act: "reglageReposListe", vide: null, data: { a } })}</div>
+      <p class="petit">${L.map(x => `${x} ${val(x) ? dureeTexte(val(x)) : "—"}`).join(" · ")}</p>
+      ${bascule("reposAuto", "Repos automatique", "lance le repos dès qu'un passage est noté")}`, { classe: "carte", resume: L.filter(x => val(x)).map(x => `${x} ${dureeTexte(val(x))}`).slice(0, 2).join(" · ") }); })()}
     ${pli("reg-minuteur", false, "Minuteur", () => h`${bascule("son", "Sons", "quand l'app est à l'écran ; écran verrouillé, une app web ne sonne pas")}
       <label class="champ">Minuteur natif de l'iPhone via un Raccourci <span class="petit">(facultatif)</span></label><input type="text" value="${r.raccourciRepos || ""}" placeholder="Nom du raccourci, ex. Repos" data-act="reglageRaccourci">
-      <p class="petit">Crée dans Raccourcis un raccourci nommé ainsi : « Obtenir les nombres dans l'entrée » → « Démarrer le minuteur » (secondes). Un bouton 🔔 iPhone apparaît à côté du repos ; il sonne même écran verrouillé, mais quitte l'app une seconde.</p>`, { classe: "carte", resume: r.son ? "sons" : "sans son" })}
+      <p class="petit">Crée dans Raccourcis un raccourci nommé ainsi : « Obtenir les nombres dans l'entrée » → « Démarrer le minuteur » (secondes). Un bouton « iPhone » (cloche) apparaît à côté du repos ; il sonne même écran verrouillé, mais quitte l'app une seconde.</p>`, { classe: "carte", resume: r.son ? "sons" : "sans son" })}
     ${pli("reg-programme", false, "Programme", () => h`<div class="ligne-reg"><span>Date de début<br><span class="petit">un lundi · ${data.dateDebut} dans Programme.xlsx</span></span><input type="date" value="${r.dateDebut || data.dateDebut}" data-act="reglageDate"></div>`, { classe: "carte", resume: court(r.dateDebut || data.dateDebut) })}` };
 }
 
@@ -157,7 +157,7 @@ function textesAide(ctx) {
       <p><b>Naviguer.</b> Glisse vers la gauche ou la droite pour passer à la séance suivante ou précédente (pas pendant une séance en cours). Ouverte depuis le programme, la flèche « ‹ Programme » t'y ramène.</p>`,
     programme: h`<p><b>Aujourd'hui.</b> L'app s'ouvre ici ; la carte du haut ouvre la séance du jour en un appui (ou la prochaine). Une séance en cours s'ouvre directement.</p>
       <p>Les semaines par bloc ; touche une semaine pour ses jours et ses séances. La semaine en cours montre un encadré <b>À faire</b> (séances à régler, mesures du week-end) et, dès qu'une séance est faite, son bilan.</p>
-      <p><b>Outils d'une semaine.</b> 📏 Mesures (ⓘ pour les tests) · ⏸ Faire une pause : repousse la semaine et les suivantes de 1 à 4 semaines, la fenêtre montre les nouvelles dates · Copier · répéter (une semaine commencée n'est jamais écrasée).</p>
+      <p><b>Outils d'une semaine.</b> Mesures (ⓘ pour les tests) · Faire une pause : repousse la semaine et les suivantes de 1 à 4 semaines, la fenêtre montre les nouvelles dates · Copier · répéter (une semaine commencée n'est jamais écrasée).</p>
       <p><b>Une séance.</b> ⋯ à droite de chaque séance, un appui long sur elle, ou Options dans une séance ouverte : bilan, modifier le plan (les saisies suivent leur ligne), déplacer, copier vers une autre date, sautée ; une séance que tu as créée ou copiée peut être supprimée.</p>
       <p><b>Passages hors séance</b> (Options du Programme) : ce que tu as grimpé sans séance et sans voie de salle connue. Pour une voie d'une salle, passe par sa fiche › Historique.</p>`,
     progres: h`<p>En haut, quelques phrases : la semaine, le niveau acquis, le point faible, le prochain cap. « À ce rythme… » n'apparaît qu'après 4 semaines de programme, quand il y a de quoi estimer.</p>

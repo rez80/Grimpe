@@ -1,5 +1,5 @@
 // ecrans/programme.js — le programme semaine par semaine, la semaine dépliée, les outils de semaine.
-import { h, si, classes } from "../html.js";
+import { h, si, classes, ico } from "../html.js";
 import { etatSeance, etapesSeance, dureeSeance, activiteAffichee } from "../programme.js";
 import { semaineDe, dateSeance, ajouterJours, jourMois, court, hm, JOURS, nomJour, jourSemaine } from "../dates.js";
 import { reussi } from "../analyse.js";
@@ -69,7 +69,7 @@ function semaineDetail(ctx, w, sem, auj) {
       return h`<div class="carte-seance-cadre"><button class="carte-seance etat-${e}" data-act="ouvrirSeance" data-appui="seanceMenu" data-id="${s.id}" data-activite="${a}">
         <span class="cs-gauche"><b>${a}</b><span class="petit">${court(s.date)}${s.dateFixee ? " (déplacée)" : ""} · ≈ ${hm(dureeSeance(s, et, data, doc.reglages))}</span></span>
         <span class="cs-droite">${e === "faite" ? h`✓ ${sa.effort ? `effort ${sa.effort}` : ""}${t.length ? ` · ${t.filter(reussi).length}/${t.length}` : ""}` : e === "abilan" ? "✓ bilan ?" : e === "sautee" ? "sautée" : e === "encours" ? "▸ en cours" : e === "passee" ? "passée" : e === "aujourdhui" ? "aujourd'hui" : ""}</span></button><button class="cs-menu" data-act="seanceMenu" data-id="${s.id}" aria-label="Options de la séance">⋯</button></div>`; })}
-    <div class="outils-semaine"><button class="petit-btn" data-act="mesuresOuvrir" data-w="${w}">📏 Mesures${mesures ? " ✓" : ""}</button><button class="petit-btn" data-act="pauseOuvrir" data-w="${w}">⏸ Faire une pause</button><button class="petit-btn" data-act="copieSemaineOuvrir" data-w="${w}">Copier · répéter</button></div>`;
+    <div class="outils-semaine"><button class="petit-btn" data-act="mesuresOuvrir" data-w="${w}">${ico("regle")} Mesures${mesures ? " ✓" : ""}</button><button class="petit-btn" data-act="pauseOuvrir" data-w="${w}">${ico("pause")} Faire une pause</button><button class="petit-btn" data-act="copieSemaineOuvrir" data-w="${w}">Copier · répéter</button></div>`;
 }
 
 export function menuEcran() { return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "Passages hors séance (sans voie connue)", act: "ouvrirVue", data: { vue: "historique" } }, { label: "Aller à cette semaine", act: "semaineAujourdhui" }] }; }
