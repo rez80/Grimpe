@@ -1,4 +1,4 @@
-# Grimpe 8.21 — l'app d'escalade
+# Grimpe 8.22 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,17 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.22** (assistant plus souple, équivalences de cotation partout).
+- **Assistant de bloc** : objectif secondaire et fil rouge « Autre (à définir)… » (titre, séance, validation par case à cocher ou seuil) ; disponibilités par jour en liste déroulante avec « Autre sport… » (nom, durée, intensité facile/soutenue) ; case « séance bonus » par jour ; durée de séance et phase de chaque semaine en liste déroulante.
+- **Fatigue** : un autre sport « soutenu » déclenche des alertes (veille ou lendemain de la séance dure, deux jours chargés d'affilée, trop de jours chargés pour le profil) et un conseil dans Progrès si la forme est basse.
+- **Étape 5** : chaque chiffre explique d'où il vient (profil et phase), avec la valeur proposée, la fourchette conseillée et un avertissement hors fourchette. **Étape 6** : chaque feu vert a un conseil, et des alertes (non bloquantes) sur les seuils incohérents.
+- **Plan B** (voie → bloc) : consignes équivalentes en bloc, plus les consignes de la voie.
+- **Équivalences salle ↔ app** partout : tableau « Échelle de la salle » sur le mur, cibles de séance « 3 · ≈ 5 », Nouvelle voie, saisie des passages (lignes rapides, filtres, résultat « sans voie précise » sur l'échelle de la salle).
+- **Progrès** : tuile « Escalade cette semaine » (heures de grimpe, hors course et autres sports) ; le conseil n'a un bouton que s'il mène ailleurs (prochaine séance dure) ; la ligne Forme est colorée.
+- **Options allégé** : plus rien n'y double un bouton de la page (Programme : « + Séance » et « Aller à cette semaine » retirés, l'assistant seulement si sa carte est écartée ; séance : « Bilan » et « Séance sautée » retirés quand ils sont déjà sur l'écran ; mur : « + Secteur » retiré).
+- **Cohérence** : barre fixe en haut de la Bibliothèque (recherche + « + ») et des Passages hors séance ; liens « ▸ Pourquoi ? ».
+- Les blocs construits sont réécrits automatiquement à l'ouverture ; les séances déjà notées gardent leurs saisies.
 
 **Nouveautés 8.21** (après la vérification de ta sauvegarde).
 - **Correction** : un exercice ajouté aux séances voie (ex. « Mousquetonnage efficace (tête) » dans B2 et B3) était aussi recopié avant « ## Voie », donc en double dans la voie et présent dans le plan B. Les blocs concernés sont réécrits automatiquement à l'ouverture (ou après une restauration) ; les séances déjà notées gardent leurs saisies.
