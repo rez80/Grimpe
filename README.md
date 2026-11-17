@@ -1,4 +1,4 @@
-# Grimpe 8.15 — l'app d'escalade
+# Grimpe 8.16 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -13,7 +13,18 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
-**Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier, Passages hors séance), L'app (Réglages, Aide).
+**Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.16.**
+- **Programme** : chaque bloc (Bloc 1, Bloc 2…) est une carte repliable avec une jauge d'avancement (« 3/48 ») ; le bloc en cours est ouvert, ses phases (« S1-2 Consolider le 5b »…) en sous-titres. **« + Hors séance »** est dans la barre du Programme ; ces passages apparaissent dans leur semaine (« Hors séance · 2 passages ») et la liste complète est dans Options du Programme. Repères d'état partout : ✓ faite, ✗ sautée, ● en cours ou aujourd'hui, ? passée sans nouvelles.
+- **Progrès** : un tableau de bord de 4 tuiles (Niveau avec ↑, Feux verts, Charge de la semaine comparée à la moyenne, Projets) ; un appui ouvre la section. Une douleur récente (en cours ou de moins de 14 jours) s'affiche au-dessus en bandeau rouge. Dessous, une seule ligne « Conseil ».
+- **Bibliothèque** : 6 familles repliables (Routines, Technique, Méthode, Endurance, Renfort, Soin) au lieu de 23 catégories ; les catégories deviennent des sous-titres.
+- **Salles** : cartes compactes (nom, et « 8 voies · 2 blocs ») ; secteurs sur une seule ligne (« Mur 2 vertical ……… 7 blocs · 1 → 9 »), sans pastilles de couleur.
+- **Inventaire rapide** : un rond de couleur par niveau ; les voies créées prennent cette couleur.
+- **Voie sans couleur** : fond gris clair, bord en pointillés, lisible en clair comme en sombre.
+- **Fenêtres** : chaque titre repliable est en gras sur sa ligne, son contenu ouvert dans un cadre à liseré ocre (Nouvelle voie, fiche, bilan). Pied de fenêtre : Annuler à gauche, le bouton principal à droite ; Supprimer à part, dessous.
+- **Listes de niveaux** dans l'ordre de la salle, avec le nombre de voies (« 5a (3) »).
+- **Barre du haut** : Options collé au bord droit ; dans une séance, la flèche « ‹ » seule ramène au Programme. Listes et champs à 44 px de haut.
 
 **Programme.** L'app s'ouvre sur le programme. La carte « Aujourd'hui » (ou « Prochaine séance ») est un bouton teinté de la couleur de son activité : un appui ouvre la séance. Si une séance est en cours, l'app s'ouvre directement dessus. Les semaines se déplient. Les pastilles des jours et les cartes de séance sont teintées, en transparence, de la couleur de l'activité (la même que le bandeau de la séance). En haut, le rappel de la séance précédente pas encore réglée : Faite → bilan, Sautée ou Plus tard. Chaque séance a son menu ⋯ :
 - bilan ;
