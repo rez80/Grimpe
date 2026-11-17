@@ -1,4 +1,4 @@
-# Grimpe 8.20 — l'app d'escalade
+# Grimpe 8.21 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,9 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.21** (après la vérification de ta sauvegarde).
+- **Correction** : un exercice ajouté aux séances voie (ex. « Mousquetonnage efficace (tête) » dans B2 et B3) était aussi recopié avant « ## Voie », donc en double dans la voie et présent dans le plan B. Les blocs concernés sont réécrits automatiquement à l'ouverture (ou après une restauration) ; les séances déjà notées gardent leurs saisies.
 
 **Nouveautés 8.20** (après le test du bloc 3).
 - **Niveau consolidé en bloc avec « + »** : en bloc, 5+ est un niveau à part entière (cotation Fontainebleau) ; en voie, 5b+ compte toujours comme 5b. Le bilan de fin de bloc et Progrès affichent donc « 5 → 5+ ».
