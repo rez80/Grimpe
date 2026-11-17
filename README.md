@@ -1,4 +1,4 @@
-# Grimpe 8.17 — l'app d'escalade
+# Grimpe 8.19 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,27 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.19** (après l'audit).
+- **Programme en trois niveaux** : le bloc est une carte dont l'état se voit (en cours : bord ocre ; terminé : atténué, avec « feux 3/4 » ; à venir : pointillés), avec son titre et son objectif. Une ligne par semaine, la phase en pastille de couleur (Base bleu, Construction ocre, Respiration vert, Réalisation rouge, Décharge gris). « Modifier le bloc · Retirer » en bas de la carte.
+- **Bilan de fin de bloc** : pendant 2 semaines après la fin d'un bloc construit, une carte montre les séances faites, le niveau avant → après et les feux atteints, avec « Construire le bloc suivant ».
+- **Assistant : « Partir de B1 · … »** : mêmes jours, réglages et exercices ; niveaux mis à jour ; objectif suivant s'il est atteint, sinon le même ; consignes nouvelles.
+- **Progrès** : la carte Conseil (icône, phrase, barre vers le prochain cap, « Voir le feu vert ») ; la forme sur sa ligne ; la tuile « Cette semaine » donne le temps grimpé sur le temps prévu (fini le « 0 ↓ moyenne 1363 »).
+- **Corrections** : feux verts « 1/3 » dans la section alors que la tuile disait « 0/3 » (le garde-fou était compté) ; jauge des blocs sans les séances bonus ; la carte « Aujourd'hui » marque les séances bonus et montre aussi la prochaine vraie séance ; noms de secteur longs sur deux lignes ; les messages ne cachent plus les boutons du bas.
+- **Export CSV** : 7 tableaux (en plus : blocs et leurs feux verts, tes fiches d'exercice).
+- **Harmonie** : les actions sont des boutons (ajouter en ocre, retirer en rouge), les liens servent à naviguer ; petits titres en minuscules (sauf les groupes de Plus).
+
+**Nouveautés 8.18.**
+- **Assistant au style de l'app** : les 7 étapes restent en haut, Précédent / Suivant en bas. Chaque réglage est une ligne « libellé ……… valeur › » ; un appui ouvre ses choix (puces, − / +) dans un cadre ocre, choisir referme. Les chiffres de chaque semaine se règlent en touchant la semaine.
+- **Objectif** : toutes les cotations, « + » compris (5+, 6A+, 5c+…). La pyramide et le volume restent sous l'objectif (objectif 5+ : pyramide 4+ puis 5, volume en 4+ et 5).
+- **Jusqu'à 2 objectifs secondaires** : dévers, dalle / adhérence, endurance en voie, à vue, niveau en voie, gainage. Chacun ajoute son contenu dans la bonne séance et son feu vert (titre au bon niveau : « Dévers en 5 »).
+- **Fils rouges** : hauteur, réceptions en bloc, mouvements dynamiques, **découvrir la tête** (cours avec un moniteur, tête simulée en moulinette en attendant, deux cases à cocher).
+- **Exercices** : une fenêtre avec recherche et filtres (famille, niveau) pour ajouter (fois, quand, facile / effort, précision), remplacer ou choisir une consigne. Les consignes dévers ne sont plus mélangées aux exercices : elles ont leur propre liste, une par semaine.
+- **Consignes de la semaine** sur toutes les semaines du bloc, et « Proposer des thèmes nouveaux » (exercices de technique pas encore utilisés dans tes blocs).
+- **Feu vert libre** : « + Ajouter un feu vert » (un seuil sur tes passages — réussis différents, essais, réussite %, à vue — ou une case à cocher).
+- **Programme** : Options n'a plus que 4 lignes ; Modifier et Retirer sont sur la carte du bloc construit. Le récapitulatif d'un bloc ajouté n'affiche plus « 0 → … ».
+- **Programme** : la barre « Cette semaine · + Séance · + Hors séance » reste visible en faisant défiler ; « Cette semaine » ouvre le bon bloc même si un autre est déplié.
+- **Bibliothèque modifiable** : « + Nouvel exercice », « Modifier » sur chaque fiche, « Rétablir la fiche d'origine », « Supprimer » pour tes fiches. `grimpe.py rapport` les reporte dans la feuille Exercices de Programme.xlsx (et renomme la fiche dans les séances qui la citent).
 
 **Nouveautés 8.17.**
 - **Construire un bloc** (Programme › Options › « + Nouveau bloc (assistant) ») : 7 étapes — Départ, Objectif, Disponibilités, Phases, Séances, Feux verts, Récapitulatif. Chaque étape a son « Pourquoi ? » ; le guide complet est dans Aide › Construire un bloc. Les alertes (objectif à plus d'un cran, moins de 48 h après la séance dure, charge qui monte de plus de 10 points, pas de décharge, pas de garde-fou…) sont des **conseils** : « Suivant » et « Créer » restent toujours possibles, c'est toi qui décides.
@@ -235,6 +256,8 @@ python outil/grimpe.py csv Grimpe-analyse-2026-11-17-14h30.zip
 
 **Blocs construits dans l'app.** Un bloc créé avec l'assistant vit dans le document de l'app (sauvegardé avec lui), pas dans Programme.xlsx : `rapport` ne reporte pas ses séances dans Programme.xlsx. Programme.xlsx reste la voie avancée pour écrire un programme à la main.
 
+**Fiches d'exercice créées ou modifiées dans l'app.** `rapport` les reporte dans la feuille Exercices (mise à jour de la ligne d'origine, ou nouvelle ligne) ; une fiche renommée l'est aussi dans le contenu des séances de la feuille Programme. data.js est alors régénéré.
+
 **Suivi.xlsx** met en page le bilan calculé par l'app, sans rien recalculer. Il contient :
 - les séances et les tentatives (avec aisance, essais avant réussite, premier essai ; « inconnue » pour un passage sans date) ;
 - les voies ;
@@ -309,6 +332,7 @@ js/
   dates.js      dates « AAAA-MM-JJ », semaines du programme
   parseur.js    grammaire d'une séance ↔ étapes structurées
   programme.js  programme effectif (data.js + blocs construits + opérations), durées, états, clôture automatique
+  bibliotheque.js  la bibliothèque affichée : celle du programme + tes fiches (doc.exos)
   blocs.js      blocs construits dans l'app (doc.blocs) : séances remplacées ou ajoutées, feux verts du bloc
   plan.js       générateur de blocs, modèles, alertes (chargé avec l'assistant seulement)
   csv.js        export « pour analyse » : 5 CSV dans un zip (chargé à la demande)
