@@ -1,4 +1,4 @@
-# Grimpe 8.16 — l'app d'escalade
+# Grimpe 8.17 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,19 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.17.**
+- **Construire un bloc** (Programme › Options › « + Nouveau bloc (assistant) ») : 7 étapes — Départ, Objectif, Disponibilités, Phases, Séances, Feux verts, Récapitulatif. Chaque étape a son « Pourquoi ? » ; le guide complet est dans Aide › Construire un bloc. Les alertes (objectif à plus d'un cran, moins de 48 h après la séance dure, charge qui monte de plus de 10 points, pas de décharge, pas de garde-fou…) sont des **conseils** : « Suivant » et « Créer » restent toujours possibles, c'est toi qui décides.
+  - Profil **Débutant / Intermédiaire / Avancé** : il ne change que les valeurs proposées (essais, volume, suspensions courtes à partir d'Intermédiaire) ; tout reste modifiable.
+  - Étape Séances : un tableau par semaine (essais à la séance dure, volume, dévers, voies, course), l'aperçu des séances, et les **exercices** par type de séance (dure, volume, voie, plan B) : retirer, remplacer par un exercice de la bibliothèque, ajouter (nombre de fois, précision, toutes les semaines ou une seule phase). La consigne technique de chaque semaine se choisit aussi.
+  - Chaque séance voie contient son **plan B sans partenaire** (« Remplacement bloc ») : une séance bloc modérée, sans maximum.
+  - Le bloc **remplace** les semaines choisies (les séances déjà commencées ou faites restent) ou s'ajoute **après** le programme. Options › Modifier (assistant) ou Retirer ; « Annuler » défait la création. Les séances du bloc se modifient ensuite comme les autres (⋯ › Modifier le plan).
+  - Le récapitulatif compare, semaine par semaine, ce qui était prévu et le nouveau bloc (séances, temps estimé, essais sur l'objectif).
+- **Ton bloc 1 refait** (« Le 5 en bloc ») est prêt : une carte en haut du Programme propose de le créer. Il remplace les semaines 2 à 8 ; la semaine 1 reste. Mar. course (bonus) · Mer. voie (plan B bloc) · Jeu. prévention (bonus) · Ven. séance dure · Dim. volume et dévers.
+- **Feux verts du bloc** : Progrès suit les feux du bloc en cours (« Feux verts · B1 Le 5 en bloc ») : bloc 5 consolidé (≥ 10 essais, ≥ 70 %, ≥ 5 blocs différents), dévers facile (5 blocs 4 différents en dévers), hauteur (une case à cocher dans Progrès), garde-fou douleur ≤ 2/10 sur 4 semaines. Comptés depuis le début du bloc.
+- **Séances bonus** : marquées « bonus », jamais dans « À faire » quand elles sont passées.
+- **Export pour analyse (CSV)** : Plus › Sauvegarde › « Pour analyse · CSV ». Un zip de 5 tableaux (passages, séances, voies, mesures, douleurs), séparateur « ; », accents lisibles dans Excel. Fabriqué sur le téléphone (rien ne passe par Internet), notes incluses ou non, jamais le jeton GitHub. Sur PC : `python outil/grimpe.py csv Grimpe-analyse-….zip` → **Analyse.xlsx** (une synthèse par cotation + un onglet par tableau). La sauvegarde à restaurer reste le JSON.
+- **Ouverture plus rapide** : la page vient tout de suite du cache, sans attendre le réseau (avant : jusqu'à 3 s). Le temps d'ouverture s'affiche en bas de Plus (« ouverture : 0,4 s »). L'assistant et l'export CSV ne sont chargés qu'à la demande.
 
 **Nouveautés 8.16.**
 - **Programme** : chaque bloc (Bloc 1, Bloc 2…) est une carte repliable avec une jauge d'avancement (« 3/48 ») ; le bloc en cours est ouvert, ses phases (« S1-2 Consolider le 5b »…) en sous-titres. **« + Hors séance »** est dans la barre du Programme ; ces passages apparaissent dans leur semaine (« Hors séance · 2 passages ») et la liste complète est dans Options du Programme. Repères d'état partout : ✓ faite, ✗ sautée, ● en cours ou aujourd'hui, ? passée sans nouvelles.
@@ -188,6 +201,8 @@ Pour restaurer : « Restaurer depuis un fichier » ou « Restaurer en collant le
 
 Quand l'app est vide (nouvelle installation), le Programme propose tout de suite de restaurer. Sans sauvegarde GitHub, un rappel « Sauvegarder » apparaît en fin de séance si la dernière sauvegarde a plus de 7 jours. L'app demande aussi à l'iPhone de ne pas effacer son stockage de lui-même.
 
+**Pour analyse · CSV.** Un zip de 5 fichiers CSV à ouvrir dans Excel ou LibreOffice, ou à passer à `grimpe.py csv`. Option « Inclure les notes ». Ce n'est pas une sauvegarde : pour restaurer, garde le JSON.
+
 **Tout effacer.** Efface toutes les données de ce téléphone.
 
 ---
@@ -202,7 +217,7 @@ Les alarmes d'un calendrier abonné sont désactivées par défaut : dans le com
 
 ## 5. L'outil PC et Programme.xlsx
 
-Installe d'abord la bibliothèque : `pip install openpyxl`. Ensuite, deux commandes :
+Installe d'abord la bibliothèque : `pip install openpyxl`. Ensuite, trois commandes :
 
 ```
 python outil/grimpe.py app
@@ -213,7 +228,12 @@ python outil/grimpe.py rapport --github proprietaire/depot/chemin/grimpe.json
     export de l'app → Suivi.xlsx ; reporte dans Programme.xlsx les séances modifiées ou créées dans l'app ;
     régénère data.js, sw.js et programme.ics aux dates réelles.
     Avec --github : GRIMPE_TOKEN=github_pat_… dans l'environnement (ou GRIMPE_GITHUB=… pour le chemin).
+
+python outil/grimpe.py csv Grimpe-analyse-2026-11-17-14h30.zip
+    export « pour analyse » de l'app → Analyse.xlsx : une synthèse (passages, réussis, taux par cotation) et un onglet par tableau.
 ```
+
+**Blocs construits dans l'app.** Un bloc créé avec l'assistant vit dans le document de l'app (sauvegardé avec lui), pas dans Programme.xlsx : `rapport` ne reporte pas ses séances dans Programme.xlsx. Programme.xlsx reste la voie avancée pour écrire un programme à la main.
 
 **Suivi.xlsx** met en page le bilan calculé par l'app, sans rien recalculer. Il contient :
 - les séances et les tentatives (avec aisance, essais avant réussite, premier essai ; « inconnue » pour un passage sans date) ;
@@ -288,14 +308,17 @@ js/
   store.js      document unique versionné, migrations, IndexedDB, annulation (30 gestes)
   dates.js      dates « AAAA-MM-JJ », semaines du programme
   parseur.js    grammaire d'une séance ↔ étapes structurées
-  programme.js  programme effectif (data.js + opérations), durées, états, clôture automatique
+  programme.js  programme effectif (data.js + blocs construits + opérations), durées, états, clôture automatique
+  blocs.js      blocs construits dans l'app (doc.blocs) : séances remplacées ou ajoutées, feux verts du bloc
+  plan.js       générateur de blocs, modèles, alertes (chargé avec l'assistant seulement)
+  csv.js        export « pour analyse » : 5 CSV dans un zip (chargé à la demande)
   analyse.js    tous les calculs de Progrès
   salles.js     salles, secteurs, voies, palette, caractéristiques, façon de coter
   infos.js      textes des explications ⓘ
   sync.js       sauvegarde GitHub ; export.js : export / import JSON
   minuteur.js   repos, chrono, fractions, routine guidée
   html.js       gabarit qui échappe tout ; blocs repliables mémorisés ; listes déroulantes ; ligne de choix
-  ecrans/       seance  programme  progres  plus  mur  editeur  fenetres
+  ecrans/       seance  programme  progres  plus  mur  editeur  fenetres  assistant (chargé à la demande)
 outil/grimpe.py
 tests/          *.test.js (node --test) ; navigateur/smoke.py ; navigateur/mise_a_jour.py
 ```
