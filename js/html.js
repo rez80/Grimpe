@@ -89,3 +89,6 @@ export const listeMulti = (champ, options, valeurs = [], { label = "" } = {}) =>
 
 // ⓘ : un lien discret qui ouvre l'explication (textes dans infos.js, fenêtre « info »)
 export const info = (cle, texte = "Comment ça marche") => h`<button class="lien lien-info" data-act="infoOuvrir" data-k="${cle}">ⓘ ${texte}</button>`;
+
+// Écran ou liste vide : toujours le même modèle (icône au trait, phrase courte, le bouton qui permet d'avancer)
+export const ecranVide = (icone, texte, bouton = "") => h`<div class="vide-etat">${icone ? h`<span class="vide-ico">${ico(icone)}</span>` : ""}<p>${texte}</p>${bouton}</div>`;

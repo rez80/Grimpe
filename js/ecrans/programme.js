@@ -13,7 +13,7 @@ export function rendre(ctx) {
   const semaines = [...new Set(P.map(s => s.semaine))].sort((a, b) => a - b), wNow = semaineDe(debut, auj);
   if (state.semaineVue !== null && !semaines.includes(state.semaineVue)) state.semaineVue = semaines.includes(wNow) ? wNow : semaines[0];   // null = tout replié
   const phases = []; for (const w of semaines) { const ph = (P.find(s => s.semaine === w) || {}).phase || ""; const bloc = ph.split(" · ")[0]; if (!phases.length || phases[phases.length - 1].bloc !== bloc) phases.push({ bloc, semaines: [] }); phases[phases.length - 1].semaines.push(w); }
-  let out = h`${carteRestaurer(ctx)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn btn-ajout" data-act="creationOuvrir">+ Séance</button><button class="petit-btn" data-act="progres">Progrès ›</button></div>`;
+  let out = h`${carteRestaurer(ctx)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn btn-ajout" data-act="creationOuvrir">+ Séance</button></div>`;
   for (const ph of phases) {
     out = h`${out}<h3 class="bloc-titre">${ph.bloc || "Programme"}</h3>`;
     for (const w of ph.semaines) {
@@ -72,7 +72,7 @@ function semaineDetail(ctx, w, sem, auj) {
     <div class="outils-semaine"><button class="petit-btn" data-act="mesuresOuvrir" data-w="${w}">${ico("regle")} Mesures${mesures ? " ✓" : ""}</button><button class="petit-btn" data-act="pauseOuvrir" data-w="${w}">${ico("pause")} Faire une pause</button><button class="petit-btn" data-act="copieSemaineOuvrir" data-w="${w}">Copier · répéter</button></div>`;
 }
 
-export function menuEcran() { return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "Passages hors séance (sans voie connue)", act: "ouvrirVue", data: { vue: "historique" } }, { label: "Aller à cette semaine", act: "semaineAujourdhui" }] }; }
+export function menuEcran() { return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "Aller à cette semaine", act: "semaineAujourdhui" }] }; }
 
 export const actions = {
   semaine: (ctx, d) => { ctx.state.semaineVue = ctx.state.semaineVue === +d.w ? null : +d.w; ctx.rendre();

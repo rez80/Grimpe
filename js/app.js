@@ -1,7 +1,7 @@
 // app.js — démarrage, état d'écran, rendu, routage des actions. Aucune règle métier ici.
 import { DATA } from "../data.js";
 import { ouvrirStore } from "./store.js";
-import { programmeEffectif, clotureAutomatique } from "./programme.js";
+import { programmeEffectif, clotureAutomatique, etapesSeance, activiteAffichee } from "./programme.js";
 import { bilanComplet as calculerBilan } from "./analyse.js";
 import { construireExport } from "./export.js";
 import { creerSync, lireJeton, configValide } from "./sync.js";
@@ -16,10 +16,11 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.14";
+export const APP_VERSION = "8.15";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
-const ONGLET_DE = { seance: "seance", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "plus", salle: "plus", historique: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
-const SOUS_ECRANS = ["biblio", "salles", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
+// Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
+const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "plus", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
+const SOUS_ECRANS = ["biblio", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
 
 const state = { vue: "seance", seanceId: null, semaineVue: null, ouverts: new Set(), modal: null, scroll: {}, pile: [], salleId: null, toast: null, filtre: {}, dernierSecteur: "",
   origine: null,          // « programme » : la séance a été ouverte depuis le programme → la flèche ‹ y ramène
@@ -80,13 +81,14 @@ function rendre(enHaut = false) {
   const onglet = ONGLET_DE[state.vue];
   document.querySelectorAll("#onglets button").forEach(b => b.classList.toggle("actif", b.dataset.onglet === onglet));
   const sous = SOUS_ECRANS.includes(state.vue);
-  const versProgramme = state.vue === "seance" && state.origine === "programme";
+  const versProgramme = state.vue === "seance";                                                     // une séance se quitte toujours vers le Programme
   $("prec").style.visibility = sous || r.fleches ? "visible" : "hidden"; $("prec").dataset.act = sous ? "retour" : versProgramme ? "retourProgramme" : "prec";
   $("prec").innerHTML = versProgramme ? '<span class="retour-txt">‹ Programme</span>' : "‹"; $("prec").classList.toggle("large", versProgramme);
   $("btn-aide").style.visibility = state.vue === "aide" ? "hidden" : "visible";
   document.body.classList.toggle("mode-ranger", state.vue === "salle" && !!state.ranger);
   glisserActif = !!r.glisser && !state.modal;
-  $("suiv").style.visibility = r.fleches ? "visible" : "hidden";
+  $("suiv").style.visibility = r.fleches && !versProgramme ? "visible" : "hidden";                   // séance voisine : en glissant
+  rendreBande();
   $("btn-menu").style.visibility = state.vue === "aide" ? "hidden" : "visible";                       // « Options » partout : les actions de l'écran, et Annuler
   document.body.dataset.activite = r.activite || "";
   $("fond-modal").style.display = state.modal ? "flex" : "none";
@@ -105,6 +107,20 @@ function montrer(bloc) {
   const dy = Math.min(r.bottom - bas, r.top - haut); if (dy > 0 || r.top < haut) window.scrollTo({ top: window.scrollY + (r.top < haut ? r.top - haut : dy), behavior: "smooth" });
 }
 ctx.montrer = montrer;
+// --- Bande « En cours » : au-dessus des onglets, sur tous les écrans sauf la séance elle-même ; un appui y ramène ---
+let bandeTick = null;
+function seanceOuverte() { return ctx.programme.find(s => { const sa = store.doc.seances[s.id]; return sa && sa.debut && !sa.fin; }); }
+function rendreBande() {
+  const b = $("bande-encours"), s = seanceOuverte(); if (!b) return;
+  document.documentElement.style.setProperty("--hauteur-onglets", ($("onglets").offsetHeight - (parseFloat(getComputedStyle($("onglets")).paddingBottom) || 0)) + "px");
+  if (!s || state.vue === "seance") { b.style.display = "none"; document.body.classList.remove("avec-bande"); clearInterval(bandeTick); bandeTick = null; return; }
+  const sa = store.doc.seances[s.id], act = seance.actives(etapesSeance(s, sa)), faites = act.filter(e => seance.etapeFinie(sa, e)).length, nom = activiteAffichee(s, sa);
+  const min = Math.floor((Date.now() - sa.debut - (sa.pauseTotale || 0)) / 60000), T = minuteur.minuteurActif();
+  const chrono = T ? `${T.type === "repos" ? "Repos" : (T.phases[T.phase] || {}).label || "Chrono"} ${minuteur.resteTexte()} · ` : "";
+  b.dataset.activite = nom; b.style.display = "flex"; document.body.classList.add("avec-bande");
+  b.innerHTML = String(h`<button data-act="bandeOuvrir" data-id="${s.id}"><span class="bande-pt">▶</span><span class="bande-txt"><b>${chrono}${nom}</b> · étape ${Math.min(faites + 1, act.length)}/${act.length} · ${min} min</span><span class="bande-go">›</span></button>`);
+  if (!bandeTick) bandeTick = setInterval(rendreBande, 1000);
+}
 function rendreToast() {
   const t = $("toast"); if (!state.toast) { t.style.display = "none"; return; }
   t.innerHTML = String(h`<span>${state.toast.texte}</span>${state.toast.bouton ? h`<button data-act="toastBouton">${state.toast.bouton.label}</button>` : ""}${state.toast.annuler ? h`<button data-act="toastAnnuler">Annuler</button>` : ""}`); t.style.display = "flex"; t.classList.toggle("sur-modal", !!state.modal);   // au-dessus d'une fenêtre ouverte (ex. ✕ dans l'historique d'une voie)
@@ -115,6 +131,7 @@ function rendreToast() {
 const ACTIONS = {
   onglet: (c, d) => { if (state.vue === d.onglet) { state.scroll[d.onglet] = 0; state.ouverts = new Set(); } ouvrir(d.onglet); },
   retour: () => retour(),
+  bandeOuvrir: (c, d) => { state.seanceId = d.id; state.origine = "programme"; ouvrir("seance"); },
   retourProgramme: () => { const s = ctx.seance(state.seanceId); if (s) state.semaineVue = s.semaine; state.origine = null; state.parRetour = true; ouvrir("programme"); },
   aideContexte: () => { state.filtre.aide = SECTION_AIDE[state.vue] || "principe"; state.filtre.aideRecherche = ""; forcerOuvert(`aide-${state.filtre.aide}`); ouvrir("aide"); },
   replier: (c, d) => { basculer(d.cle, d.defaut === "1"); rendre(false);                             // blocs repliables : l'état est retenu

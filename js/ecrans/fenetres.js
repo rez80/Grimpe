@@ -548,7 +548,7 @@ export const actions = {
   infoFermer: ctx => { const p = M(ctx).precedent; ctx.fermerModal(); if (p) ctx.ouvrirModal(p); },
   menuItem: (ctx, d) => { const x = M(ctx).items[+d.i]; ctx.fermerModal(); ctx.agir(x.act, x.data || {}); },
   nouveauProgrammeOk: ctx => { ctx.modifier("nouveau programme", d => { d.seances = {}; d.ops = []; d.mesures = {}; d.competences = {}; d.feuxVus = {}; d.programmeId = ctx.data.programmeId; }); ctx.state.seanceId = null; ctx.fermerModal(); },
-  importOk: ctx => { const m = M(ctx); ctx.store.remplacer(m.doc); ctx.state.seanceId = null; ctx.state.modal = null; ctx.ouvrir("seance"); ctx.toast("Sauvegarde restaurée"); },
+  importOk: ctx => { const m = M(ctx); ctx.store.remplacer(m.doc); ctx.state.seanceId = null; ctx.state.modal = null; ctx.ouvrir("programme"); ctx.toast("Sauvegarde restaurée"); },
 };
 
 function ouvrirApresReussite(ctx, s, v) { const l = ctx.saisie(s.id).tentatives, i = l.length - 1;

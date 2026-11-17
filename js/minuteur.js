@@ -32,6 +32,7 @@ export function ajuster(sec) { if (!T) return; if (T.restePause != null) T.reste
 export function passer() { if (!T) return; T.fin = Date.now(); T.restePause = null; maj(); }
 export const ouvrirPlein = plein => { $("minuteur").classList.toggle("plein", !!plein); $("minuteur").classList.toggle("pastille", !plein); };
 
+export const resteTexte = () => T ? mmss(Math.ceil(reste())) : "";
 function reste() { return T.restePause != null ? T.restePause : Math.max(0, (T.fin - Date.now()) / 1000); }
 function phaseSuivante() {
   const enRetard = Date.now() - T.fin > 3000;                             // fin passée pendant que l'app dormait : pas de bip en rafale

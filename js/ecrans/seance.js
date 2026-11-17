@@ -1,6 +1,6 @@
 // ecrans/seance.js — l'écran Séance, vu du mur : rien n'est demandé pendant la séance.
 // Le plan se lit, un curseur dit où on en est, les voies se touchent, la douleur et la fin ont un bouton. C'est tout.
-import { h, si, classes, lier, ico, pictoProfil, pli, ouvert } from "../html.js";
+import { h, si, classes, lier, ico, pictoProfil, pli, ouvert, liste as listeDeroulante } from "../html.js";
 import { etapesSeance, dureeEtape, dureeSeance, etatSeance, discipline, reposDefaut, seanceARegler, activiteAffichee } from "../programme.js";
 import { versionsDe, titreAction } from "../parseur.js";
 import { avertissements, reussi, forme, parVoie, projets, causePrincipale, anonyme, tentatives as toutesTentatives } from "../analyse.js";
@@ -25,7 +25,7 @@ export function courant(ctx) {
   if (s) state.seanceId = s.id;
   return s;
 }
-const actives = etapes => etapes.filter(e => e.type !== "info");
+export const actives = etapes => etapes.filter(e => e.type !== "info");
 // Une étape se coche (case ✓) ; une action répétée hors grimpe se compte en ronds (2/3) ; une étape de grimpe est faite quand on la coche
 // ou quand tous ses passages sont notés. Rien n'est obligatoire : c'est un repère, les analyses n'en dépendent pas.
 export const avecRonds = e => e.type === "action" && !e.grimpe && e.n > 1;
@@ -57,39 +57,47 @@ export function rendre(ctx) {
   // Bandeau
   const sousTitre = sa.fin ? `✓ Faite en ${hm(dureeReelle(sa))} · prévu ≈ ${hm(duree)}` : etat === "sautee" ? `Sautée${sa.raison ? " · " + sa.raison : ""}` : `≈ ${hm(duree)} · ${actives(etapes).length} étapes`;
   const theme = etapes.find(e => e.type === "info" && /^thème/i.test(e.texte));
-  out = h`${out}<div class="bandeau-seance ${enCours ? "reduit" : ""}"><h1>${activiteAffichee(s, sa)}${s.libre ? " · séance créée" : ""}</h1><div class="phase">${s.phase}${s.modifie ? " · modifiée" : ""}${s.dateFixee ? ` · déplacée (prévue ${court(s.datePrevue)})` : ""}</div><div class="sous-titre">${sousTitre}</div>
-    ${theme ? h`<div class="theme">${ico("cible")} ${lier(theme.texte.replace(/^thème[^:]*:\s*/i, ""), data.exercices)}</div>` : ""}
-    ${si(avant && versions.length > 1, h`<div class="segment blanc">${versions.map((v, n) => h`<button data-act="version" data-n="${n}" class="${(sa.version || 0) === n ? "choisi" : ""}">${v.replace(/\s*\(.*\)\s*$/, "")}</button>`)}</div>`)}
-    ${si(avant, h`<button class="gros blanc" data-act="demarrer">${ico("play")} Commencer</button><div class="liens"><button class="lien-blanc" data-act="sauterOuvrir">Séance sautée</button><button class="lien-blanc" data-act="bilanOuvrir">Déjà faite ? Bilan</button></div>`)}
-    ${si(etat === "abilan", h`<button class="gros blanc" data-act="bilanOuvrir">Donner le bilan</button>`)}
-    ${frise(ctx, s, sa, etapes, enCours ? courante : null)}
-  </div>`;
-  // Consignes : une seule ligne, toujours au même endroit (avant, pendant et après la séance)
-  { const inf = etapes.filter(e => e.type === "info" && !/^thème/i.test(e.texte));
-    const apercu = inf.length ? inf[0].texte.replace(/[{}«»]/g, "").slice(0, 48) + (inf[0].texte.length > 48 || inf.length > 1 ? "…" : "") : "aucune";
-    out = h`${out}${pli("consignes-seance", true, h`${ico("consignes")} Consignes`, () => inf.length ? h`<div class="consignes">${inf.map(e => h`<div class="info">${lier(e.texte, data.exercices)}</div>`)}</div>` : h`<p class="petit">Pas de consigne pour cette séance.</p>`, { resume: inf.length ? (ouvert("consignes-seance", true) ? String(inf.length) : apercu) : "aucune", classe: `carte pli-consignes ${inf.length ? "avec" : "sans"}` })}`; }
-
-  // Avertissements, et la version allégée si elle existe
+  const nom = activiteAffichee(s, sa);
+  // Consignes : avant et après la séance, juste sous la bannière ; pendant, sous la carte « En cours », repliées en une ligne
+  const inf = etapes.filter(e => e.type === "info" && !/^thème/i.test(e.texte));
+  const apercu = inf.length ? inf[0].texte.replace(/[{}«»]/g, "").slice(0, 48) + (inf[0].texte.length > 48 || inf.length > 1 ? "…" : "") : "aucune";
+  const cleC = enCours ? "consignes-encours" : "consignes-seance", defC = !enCours;
+  const consignes = () => pli(cleC, defC, h`${ico("consignes")} Consignes`, () => inf.length ? h`<div class="consignes">${inf.map(e => h`<div class="info">${lier(e.texte, data.exercices)}</div>`)}</div>` : h`<p class="petit">Pas de consigne pour cette séance.</p>`, { resume: inf.length ? (ouvert(cleC, defC) ? String(inf.length) : apercu) : "aucune", classe: `carte pli-consignes ${inf.length ? "avec" : "sans"}` });
   const averts = avertissements(s, ctx.programme, doc), fj = forme(sa, data.params);
-  for (const a of averts) out = h`${out}<div class="avert">${ico("alerte")} ${a}</div>`;
-  const allegee = versions.findIndex(v => /allég|léger|legere|court|récup/i.test(v));
-  if (avant && allegee >= 0 && allegee !== (sa.version || 0) && (averts.length || fj === "rouge")) out = h`${out}<div class="avert">Il existe une version « ${versions[allegee]} » : <button class="lien" data-act="version" data-n="${allegee}">la prendre aujourd'hui</button></div>`;
+  const blocAverts = () => { let o = h``; for (const a of averts) o = h`${o}<div class="avert">${ico("alerte")} ${a}</div>`;
+    const allegee = versions.findIndex(v => /allég|léger|legere|court|récup/i.test(v));
+    if (avant && allegee >= 0 && allegee !== (sa.version || 0) && (averts.length || fj === "rouge")) o = h`${o}<div class="avert">Il existe une version « ${versions[allegee]} » : <button class="lien" data-act="version" data-n="${allegee}">la prendre aujourd'hui</button></div>`;
+    return o; };
 
-  // Carte Maintenant
-  const infosSeance = etapes.filter(e => e.type === "info");
-  if (enCours) {
-    const ecoule = (Date.now() - sa.debut - (sa.pauseTotale || 0)) / 1000, suivante = etapeSuivante(sa, etapes);
-    out = h`${out}<div class="carte maintenant">
-      <div class="ligne-haut"><span>${fj ? h`<span class="point ${fj}"></span>` : ""}Depuis ${hhmm(sa.debut)} · ${hm(ecoule)} · fin estimée ${hhmm(Date.now() + Math.max(0, duree - ecoule) * 1000)}</span></div>
+  if (!enCours) {
+    // Avant ou après : la bannière dans la couleur de l'activité, puis les consignes
+    out = h`${out}<div class="bandeau-seance"><h1>${nom}${s.libre ? " · séance créée" : ""}</h1><div class="phase">${s.phase}${s.modifie ? " · modifiée" : ""}${s.dateFixee ? ` · déplacée (prévue ${court(s.datePrevue)})` : ""}</div><div class="sous-titre">${sousTitre}</div>
+      ${theme ? h`<div class="theme">${ico("cible")} ${lier(theme.texte.replace(/^thème[^:]*:\s*/i, ""), data.exercices)}</div>` : ""}
+      ${si(avant && versions.length > 1, h`<div class="segment blanc">${versions.map((v, n) => h`<button data-act="version" data-n="${n}" class="${(sa.version || 0) === n ? "choisi" : ""}">${v.replace(/\s*\(.*\)\s*$/, "")}</button>`)}</div>`)}
+      ${si(avant, h`<button class="gros blanc" data-act="demarrer">${ico("play")} Commencer</button><div class="liens"><button class="lien-blanc" data-act="sauterOuvrir">Séance sautée</button><button class="lien-blanc" data-act="bilanOuvrir">Déjà faite ? Bilan</button></div>`)}
+      ${si(etat === "abilan", h`<button class="gros blanc" data-act="bilanOuvrir">Donner le bilan</button>`)}
+      ${frise(ctx, s, sa, etapes, null)}
+    </div>${consignes()}${blocAverts()}`;
+  } else {
+    // Pendant : une seule carte « En cours », teintée de la couleur de l'activité. De haut en bas : où j'en suis (ligne du temps),
+    // l'étape en cours, ce qu'il faut faire, le gros bouton, puis le détail (encadré). Douleur et Fin de séance : barre fixe en bas.
+    const ecoule = (Date.now() - sa.debut - (sa.pauseTotale || 0)) / 1000, suivante = etapeSuivante(sa, etapes), act = actives(etapes);
+    const toutFait = act.every(e => etapeFinie(sa, e)), rang = courante ? act.findIndex(e => e.k === courante.k) + 1 : act.length;
+    out = h`${out}<div class="carte encours" data-activite="${nom}">
+      <div class="encours-tete"><span class="encours-nom">${fj ? h`<span class="point ${fj}"></span>` : ""}<b>${nom}</b> <span class="petit">${s.phase}</span></span><span class="petit">${hm(ecoule)} · fin ≈ ${hhmm(Date.now() + Math.max(0, duree - ecoule) * 1000)}</span></div>
+      ${frise(ctx, s, sa, etapes, toutFait ? null : courante)}
       ${si(!sa.recup, h`<div class="forme-ligne"><span class="petit">Forme ?</span><button data-act="forme" data-f="bien">🙂 Bien</button><button data-act="forme" data-f="moyen">😐 Moyen</button><button data-act="forme" data-f="pastop">😣 Pas top</button></div>`)}
-      ${courante && actives(etapes).every(e => etapeFinie(sa, e)) ? h`<p class="tout-fait">✓ Toutes les étapes sont faites. Fin de séance quand tu veux.</p>`
-      : courante ? h`<div class="maintenant-etape"><span class="genre genre-${courante.type === "routine" ? courante.genre || "echauffement" : courante.genre}"></span><b>${courante.type === "routine" ? courante.nom : titreAction(courante)}</b>${courante.type === "action" && courante.n > 1 ? h` <span class="petit">${avecRonds(courante) ? `${nbFait(sa, courante)}/${courante.n}` : courante.grimpe ? `${nbNotes(sa, courante)}/${courante.n * Math.max(1, courante.serie || 1)} notés` : `× ${courante.n}`}</span>` : ""}</div>
-        <div class="boutons-maintenant">${boutonsEtape(ctx, s, sa, courante, true)}
-          ${avecRonds(courante) && nbFait(sa, courante) < courante.n ? h`<button class="principal" data-act="rond" data-k="${courante.k}" data-i="${nbFait(sa, courante)}">+1 · ${nbFait(sa, courante) + 1}/${courante.n}</button>${suivante ? h`<button data-act="suivant">Passer à : ${titreDe(suivante)} ›</button>` : ""}`
-            : h`<button class="principal" data-act="suivant">✓ Fait${suivante ? h` · suivant : ${titreDe(suivante)}` : ""}</button>`}</div>` : ""}
-      ${si(courante, () => pli("m-detail", false, "Détail de l'étape", () => detailEtape(ctx, courante), { classe: "pli-maintenant" }))}
-      <div class="boutons-bas"><button data-act="douleurOuvrir">${ico("alerte")} Douleur</button><button class="danger-contour" data-act="bilanOuvrir">${ico("stop")} Fin de séance</button></div>
-    </div>`;
+      ${toutFait || !courante ? h`<div class="tout-fait"><b>✓ Toutes les étapes sont faites</b><span class="petit">Bravo ! Il reste le bilan : effort, douleur, et ce que tu as grimpé.</span></div>
+          <button class="gros principal" data-act="bilanOuvrir">${ico("stop")} Terminer la séance</button>`
+      : h`<div class="encours-etape"><span class="petit">Étape ${rang} sur ${act.length}</span>
+          <div class="maintenant-etape"><span class="genre genre-${courante.type === "routine" ? courante.genre || "echauffement" : courante.genre}"></span><b>${courante.type === "routine" ? courante.nom : titreAction(courante)}</b>${courante.type === "action" && courante.n > 1 ? h` <span class="petit">${avecRonds(courante) ? `${nbFait(sa, courante)}/${courante.n}` : courante.grimpe ? `${nbNotes(sa, courante)}/${courante.n * Math.max(1, courante.serie || 1)} notés` : `× ${courante.n}`}</span>` : ""}</div></div>
+        <div class="boutons-maintenant">${boutonsEtape(ctx, s, sa, courante, true)}</div>
+        ${avecRonds(courante) && nbFait(sa, courante) < courante.n ? h`<button class="gros principal" data-act="rond" data-k="${courante.k}" data-i="${nbFait(sa, courante)}">+1 · ${nbFait(sa, courante) + 1}/${courante.n}</button>${suivante ? h`<button class="gros contour" data-act="suivant">Passer à : ${titreDe(suivante)} ›</button>` : ""}`
+          : suivante ? h`<button class="gros principal" data-act="suivant">✓ Fait · suivant : ${titreDe(suivante)}</button>`
+          : h`<button class="gros principal" data-act="suivantFin">✓ Fait · terminer la séance</button>`}
+        ${pli("m-detail", false, "Détail de l'étape", () => h`<div class="detail-cadre">${detailEtape(ctx, courante)}</div>`, { classe: "pli-maintenant" })}`}
+    </div>${consignes()}${blocAverts()}
+    <div class="barre-seance"><button class="contour-orange" data-act="douleurOuvrir">${ico("alerte")} Douleur</button><button class="fin-seance" data-act="bilanOuvrir">${ico("stop")} Fin de séance</button></div>`;
   }
 
   // Résumé après la séance
@@ -162,6 +170,9 @@ function frise(ctx, s, sa, etapes, courante) {
 const CLE_PLUS_TARD = "grimpe-hier-plus-tard";
 const plusTard = () => { try { return localStorage.getItem(CLE_PLUS_TARD) || ""; } catch { return ""; } };
 
+// Toutes les étapes cochées pendant une séance en cours : l'app propose d'elle-même de terminer
+function proposerFin(ctx, s) { const sa = ctx.saisie(s.id); if (!sa.debut || sa.fin) return;
+  if (actives(etapesSeance(s, sa)).every(e => etapeFinie(sa, e))) ctx.toast("✓ Toutes les étapes sont faites", null, { label: "Terminer la séance", action: () => ctx.agir("bilanOuvrir") }); }
 // --- La carte des voies ---
 // Cotations proposées en passage rapide : celles prévues par la séance, sinon autour du niveau consolidé (cotations sans « + »)
 function cotationsRapides(ctx, etapes, disc) {
@@ -174,7 +185,7 @@ function cotationsRapides(ctx, etapes, disc) {
 // --- La carte des voies, courte : la salle · « + Noter un passage » · tes cibles · voie déjà faite (cotations, un appui) · aujourd'hui, par voie · le mur ---
 const tuileVoie = (ctx, salle, v, auj, voies) => { const hv = voies.find(x => x.voieId === v.id), t = auj.filter(x => x.voieId === v.id), hex = hexDe(ctx.doc, v.couleur, salle), sec = secteurDe(salle, v);
   return h`<button class="tuile-voie ${t.length ? (t.some(reussi) ? "ok-auj" : "ko-auj") : ""}" data-act="voieRapide" data-appui="projetOuvrir" data-salle="${salle.id}" data-id="${v.id}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (sec ? sec.nom : "") || (v.profil || "").toLowerCase()}</span>
-    <span class="tuile-histo">${hv ? reperes(hv) : "jamais"}${t.length ? ` · auj. ${t.map(x => x.res === "ok" ? "✓" : x.res === "sec" ? "s" : "✗").join("")}` : ""}</span></button>`; };
+    ${hv && hv.essais ? h`<span class="marque ${hv.reussies ? "ok" : "ko"}">${hv.reussies ? "✓" : "✗"}</span>` : ""}<span class="tuile-histo">${hv ? reperes(hv) : "jamais"}${t.length ? ` · auj. ${t.map(x => x.res === "ok" ? "✓" : x.res === "sec" ? "s" : "✗").join("")}` : ""}</span></button>`; };
 // Cibles : ★ à essayer puis projets, encore en place
 function ciblesDe(ctx, salle, disc) {
   const enPlace = voiesEnPlace(salle, disc), voies = parVoie(toutesTentatives(ctx.programme, ctx.doc));
@@ -209,12 +220,14 @@ export function fenetreNoter(ctx, M) {
   if (!salle) return h`<h2>Noter un passage</h2>${haut}<p class="petit">Salle inconnue : note par cotation, ou choisis la salle du jour pour retrouver ses voies.</p><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
   const { enPlace, voies, cibles } = ciblesDe(ctx, salle, disc), rangCot = c => (ctx.data.echelles[disc] || []).indexOf(c);
   const couleurs = [...new Set(enPlace.map(v => v.couleur).filter(Boolean))], cotes = [...new Set(enPlace.map(v => v.cotSalle || v.cot).filter(Boolean))].sort((a, b) => rangCot(a) - rangCot(b) || (a < b ? -1 : 1));
-  const filtrees = enPlace.filter(v => (!M.fCouleur || v.couleur === M.fCouleur) && (!M.fCot || (v.cotSalle || v.cot) === M.fCot));
-  const poids = v => cibles.includes(v) ? 0 : auj.some(t => t.voieId === v.id) ? 1 : 2, l = [...filtrees].sort((a, b) => poids(a) - poids(b)), filtre = M.fCouleur || M.fCot, max = filtre ? 60 : 9;
+  const etatDe = v => { const hv = voies.find(x => x.voieId === v.id); return !hv || !hv.essais ? "jamais" : hv.reussies ? "reussie" : "projet"; }, nE = e => enPlace.filter(v => etatDe(v) === e).length;
+  const filtrees = enPlace.filter(v => (!M.fCouleur || v.couleur === M.fCouleur) && (!M.fCot || (v.cotSalle || v.cot) === M.fCot) && (!M.fEtat || etatDe(v) === M.fEtat));
+  const poids = v => cibles.includes(v) ? 0 : auj.some(t => t.voieId === v.id) ? 1 : 2, l = [...filtrees].sort((a, b) => poids(a) - poids(b)), filtre = M.fCouleur || M.fCot || M.fEtat, max = filtre ? 60 : 9;
   return h`<h2>Noter un passage · ${salle.nom}</h2>${haut}
-    ${enPlace.length ? h`<label class="champ">Quelle ${disc === "Bloc" ? "bloc" : "voie"} ? <span class="petit">filtre par couleur et cotation</span></label>
+    ${enPlace.length ? h`<label class="champ">${disc === "Bloc" ? "Quel bloc" : "Quelle voie"} ? <span class="petit">filtre par couleur, état, niveau</span></label>
       <div class="pastilles filtre-couleurs">${couleurs.map(c => h`<button class="pastille ${M.fCouleur === c ? "choisi" : ""}" style="background:${hexDe(ctx.doc, c, salle)}" data-act="noterFiltre" data-k="fCouleur" data-valeur="${c}" aria-label="${c}" title="${c}"></button>`)}</div>
-      <div class="choix compact">${cotes.map(c => h`<button class="${M.fCot === c ? "choisi" : ""}" data-act="noterFiltre" data-k="fCot" data-valeur="${c}">${c}</button>`)}</div>
+      <div class="barre-filtres">${listeDeroulante("noter-etat", [["projet", `✗ Projets (${nE("projet")})`], ["jamais", `Jamais essayé${disc === "Bloc" ? "s" : "es"} (${nE("jamais")})`], ["reussie", `✓ Réussi${disc === "Bloc" ? "s" : "es"} (${nE("reussie")})`]], M.fEtat || "", { act: "noterFiltreListe", vide: "Tous les états", data: { k: "fEtat" } })}
+        ${listeDeroulante("noter-niveau", cotes, M.fCot || "", { act: "noterFiltreListe", vide: "Tous les niveaux", data: { k: "fCot" } })}</div>
       ${si(filtre, h`<button class="lien" data-act="noterFiltre" data-k="tout">✕ enlever les filtres</button>`)}
       <div class="tuiles">${l.slice(0, max).map(v => tuileVoie(ctx, salle, v, auj, voies))}</div>
       ${si(l.length > max, h`<p class="petit">${l.length - max} autres : filtre par couleur ou cotation.</p>`)}${si(!l.length, h`<p class="petit">Aucune voie ne correspond : « + ${disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"} ».</p>`)}`
@@ -263,18 +276,21 @@ export const actions = {
   // « ✓ Fait · suivant » : coche l'étape en cours et passe à la prochaine pas encore faite
   suivant: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), etapes = etapesSeance(s, sa), c = etapeCourante(sa, etapes); if (!c) return;
     ctx.modifierSeance(s.id, "étape faite", x => { demarrerSiBesoin(x); x.faites = x.faites || {}; if (!avecRonds(c)) x.faites[c.k] = Math.max(1, x.faites[c.k] || 0);
-      const n = prochaineApres(x, etapes, c.k); if (n) x.curseur = n.k; else delete x.curseur; }); ctx.rendre(); },
+      const n = prochaineApres(x, etapes, c.k); if (n) x.curseur = n.k; else delete x.curseur; }); ctx.rendre(); proposerFin(ctx, s); },
+  // Dernière étape : « ✓ Fait » et on passe au bilan
+  suivantFin: ctx => { actions.suivant(ctx); ctx.state.toast = null; ctx.agir("bilanOuvrir"); },
   // Case ✓ : coche ou décoche ; cocher l'étape en cours fait avancer
   cocher: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), etapes = etapesSeance(s, sa), e = etapes.find(x => x.k === d.k), finie = etapeFinie(sa, e), cour = etapeCourante(sa, etapes);
     ctx.modifierSeance(s.id, finie ? "étape décochée" : "étape faite", x => { x.faites = x.faites || {};
-      if (finie) { if (e.grimpe && nbNotes(x, e) >= e.n * Math.max(1, e.serie || 1)) x.faites[e.k] = -1; else delete x.faites[e.k]; } else { demarrerSiBesoin(x); x.faites[e.k] = avecRonds(e) ? e.n : 1; if (cour && cour.k === e.k) { const n = prochaineApres(x, etapes, e.k); if (n) x.curseur = n.k; else delete x.curseur; } } }); ctx.rendre(); },
+      if (finie) { if (e.grimpe && nbNotes(x, e) >= e.n * Math.max(1, e.serie || 1)) x.faites[e.k] = -1; else delete x.faites[e.k]; } else { demarrerSiBesoin(x); x.faites[e.k] = avecRonds(e) ? e.n : 1; if (cour && cour.k === e.k) { const n = prochaineApres(x, etapes, e.k); if (n) x.curseur = n.k; else delete x.curseur; } } }); ctx.rendre();
+    proposerFin(ctx, s); },
   // Rond i : un passage de plus (ou de moins si on retouche le dernier rond plein) ; la dernière fait avancer
   rond: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), etapes = etapesSeance(s, sa), e = etapes.find(x => x.k === d.k), i = +d.i, n = nbFait(sa, e), cour = etapeCourante(sa, etapes);
     const nouveau = i < n ? i : i + 1;
     ctx.modifierSeance(s.id, "passage", x => { demarrerSiBesoin(x); x.faites = x.faites || {}; if (nouveau) x.faites[e.k] = nouveau; else delete x.faites[e.k];
       if (nouveau >= e.n && cour && cour.k === e.k) { const p = prochaineApres(x, etapes, e.k); if (p) x.curseur = p.k; else delete x.curseur; } });
     if (nouveau > n && nouveau < e.n && ctx.doc.reglages.reposAuto) lancerRepos(ctx, s, ctx.saisie(s.id), e);
-    ctx.rendre(); },
+    ctx.rendre(); proposerFin(ctx, s); },
   allerA: (ctx, d) => { const s = courant(ctx); ctx.modifierSeance(s.id, "j'en suis là", x => { x.curseur = d.k; }, { annulable: false }); ctx.state.ouverts.delete("e" + d.k); ctx.rendre(); },
   forme: (ctx, d) => { const s = courant(ctx);
     if (d.f === "pastop") return ctx.ouvrirModal({ type: "pasTop", seanceId: s.id, quoi: [], zone: "", niveau: 0 });
@@ -296,7 +312,8 @@ export const actions = {
   choisirSalle: (ctx, d) => { const s = courant(ctx), disc = discipline(s, ctx.saisie(s.id));
     ctx.modifier("salle", doc => { const sa = doc.seances[s.id] = doc.seances[s.id] || {}; sa.salle = d.id; retenirSalle(doc, disc, d.id); }, { annulable: false }); ctx.rendre(); },
   noterOuvrir: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id); ctx.ouvrirModal({ type: "noter", seanceId: s.id, disc: discipline(s, sa), fCouleur: "", fCot: "" }); },
-  noterFiltre: (ctx, d) => { const m = ctx.state.modal; if (d.k === "tout") { m.fCouleur = ""; m.fCot = ""; } else m[d.k] = m[d.k] === d.valeur ? "" : d.valeur; ctx.rendre(); },
+  noterFiltreListe: (ctx, d, el) => { ctx.state.modal[d.k] = el.value; ctx.rendre(); },
+  noterFiltre: (ctx, d) => { const m = ctx.state.modal; if (d.k === "tout") { m.fCouleur = ""; m.fCot = ""; m.fEtat = ""; } else m[d.k] = m[d.k] === d.valeur ? "" : d.valeur; ctx.rendre(); },
   murOuvrir: (ctx, d) => ctx.ouvrir("salle", { salleId: d.id }),
   // « + encore » : même voie (de la salle : sa fenêtre rapide ; sans voie : la fenêtre du passage, pré-remplie)
   encore: (ctx, d) => { const s = courant(ctx), sa = ctx.saisie(s.id), t = sa.tentatives[+d.i]; if (!t) return;

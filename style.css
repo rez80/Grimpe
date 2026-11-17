@@ -522,3 +522,63 @@ html.sombre .tuile-voie { border-color: rgba(255,255,255,.28); }
 html.grand .zone-depot.tuiles { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
 html.grand .zone-depot .tuile-voie b { font-size: 20px; }
 .zone-depot .depot-vide { grid-column: 1 / -1; padding: 8px 4px; }
+
+/* ===== 8.15 ===== */
+/* Bande « En cours » : juste au-dessus des onglets, dans la couleur de l'activité ; un appui ramène à la séance */
+#bande-encours { position: fixed; left: 0; right: 0; bottom: calc(var(--hauteur-onglets, 56px) + var(--bas)); z-index: 19; display: flex; --a: var(--ocre); }
+#bande-encours[data-activite="Voie"] { --a: var(--voie); } #bande-encours[data-activite="Bloc"] { --a: var(--bloc); } #bande-encours[data-activite="Maison"] { --a: var(--maison); } #bande-encours[data-activite="Course"] { --a: var(--course); }
+#bande-encours button { flex: 1; display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 6px 14px; border: none; border-radius: 0; background: var(--a); color: #fff; font-size: 14px; text-align: left; }
+#bande-encours .bande-txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } #bande-encours .bande-go { font-size: 22px; }
+#bande-encours .bande-pt { font-size: 11px; animation: bande-pulse 1.6s ease-in-out infinite; } @keyframes bande-pulse { 50% { opacity: .35; } }
+body.avec-bande #ecran { padding-bottom: calc(var(--hauteur-onglets, 56px) + 60px + var(--bas)); }
+@media (min-width: 700px) { #bande-encours { max-width: 640px; left: 50%; transform: translateX(-50%); } }
+.titre-groupe { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--texte-2); margin: 14px 4px 6px; } .titre-groupe:first-child { margin-top: 4px; }
+.tuile[data-vue="historique"] { --t: #6B7A8A; }
+/* Salle : réussis / projets / jamais essayés */
+.compte-etats { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 4px 0 8px; font-size: 14px; }
+.ce.ok { color: #2E9E6B; font-weight: 600; } .ce.ko { color: var(--rouge); font-weight: 600; } .ce.jamais { color: var(--texte-2); }
+.baton-barre.empile { display: flex; flex-direction: column; overflow: hidden; background: transparent !important; }
+.seg { display: block; min-height: 3px; }
+.seg.reussie { background: var(--c, #8a8a8a); }
+.seg.projet { background: repeating-linear-gradient(135deg, var(--c, #8a8a8a) 0 3px, color-mix(in srgb, var(--c, #8a8a8a) 35%, var(--carte)) 3px 6px); }
+.seg.jamais { background: color-mix(in srgb, var(--c, #8a8a8a) 22%, var(--carte)); }
+.legende-etats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--texte-2); margin: 6px 0 2px; }
+.legende-etats i.seg { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; --c: #7d8790; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+/* Tuile : ✓ réussie, ✗ projet (pastille blanche bien visible, en bas à droite) */
+.tuile-voie .marque { position: absolute; right: 4px; bottom: 4px; width: 17px; height: 17px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.18); line-height: 1; }
+.tuile-voie .marque.ok { color: #1f8a57; } .tuile-voie .marque.ko { color: #d23b3b; }
+/* Filtres : des listes déroulantes, sur une ligne */
+.barre-filtres { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 8px; } .barre-filtres select.liste { flex: 1 1 30%; min-width: 0; width: auto; margin: 0; font-size: 14px; min-height: 38px; padding: 4px 8px; }
+/* Écrans vides : même modèle partout */
+.vide-etat { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 22px 16px; color: var(--texte-2); }
+.vide-etat .vide-ico .ico-svg { width: 34px; height: 34px; opacity: .6; } .vide-etat p { margin: 0; max-width: 320px; }
+/* Liste des salles : la salle du jour en premier, réussis et projets */
+.etiquette-jour { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 9px; background: var(--ocre); color: #261F30; vertical-align: 2px; }
+.cs-etats { display: block; font-size: 13px; margin-top: 2px; } .cs-etats .ce { margin-right: 8px; }
+/* Séance en cours : une seule carte, teintée de la couleur de l'activité */
+.carte.encours { --a: var(--ocre); background: color-mix(in srgb, var(--a) 13%, var(--carte)); border: 2px solid var(--a); border-radius: 16px; padding: 12px 14px 10px; }
+.carte.encours[data-activite="Voie"] { --a: var(--voie); } .carte.encours[data-activite="Bloc"] { --a: var(--bloc); } .carte.encours[data-activite="Maison"] { --a: var(--maison); } .carte.encours[data-activite="Course"] { --a: var(--course); }
+.encours-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.encours-nom b { font-size: 18px; color: color-mix(in srgb, var(--a) 75%, var(--texte)); }
+.carte.encours .frise { margin: 4px 0 10px; }
+.carte.encours .frise-seg.ici { outline: 3px solid var(--texte); outline-offset: 1px; z-index: 1; }
+.encours-etape { margin: 6px 0 8px; } .encours-etape > .petit { text-transform: uppercase; letter-spacing: .05em; font-weight: 600; color: color-mix(in srgb, var(--a) 70%, var(--texte)); }
+.encours-etape .maintenant-etape b { font-size: 21px; }
+.carte.encours .boutons-maintenant { margin: 4px 0 8px; } .carte.encours > .gros { width: 100%; margin: 4px 0; }
+.carte.encours .tout-fait { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 8px; } .carte.encours .tout-fait b { color: #2E9E6B; font-size: 18px; }
+.detail-cadre { border: 1px solid var(--trait); border-left: 4px solid var(--a, var(--ocre)); border-radius: 10px; padding: 10px 12px; background: var(--carte); margin: 4px 0 6px; }
+/* Douleur et Fin de séance : toujours visibles, juste au-dessus des onglets */
+.barre-seance { position: fixed; left: 0; right: 0; bottom: calc(var(--hauteur-onglets, 56px) + var(--bas)); z-index: 19; display: flex; gap: 8px; padding: 8px 12px; background: color-mix(in srgb, var(--fond) 92%, transparent); backdrop-filter: blur(6px); border-top: 1px solid var(--trait); }
+.barre-seance button { flex: 1; min-height: 46px; font-size: 16px; font-weight: 600; border-radius: var(--rayon); }
+.barre-seance .contour-orange { background: var(--carte); border: 1.5px solid #E08A2E; color: #C46F12; }
+.barre-seance .fin-seance { background: var(--rouge); border: 1.5px solid var(--rouge); color: #fff; }
+html.sombre .barre-seance .contour-orange { color: #F0A050; }
+body:has(.barre-seance) #ecran { padding-bottom: calc(var(--hauteur-onglets, 56px) + 76px + var(--bas)); }
+@media (min-width: 700px) { .barre-seance { max-width: 640px; left: 50%; transform: translateX(-50%); } }
+/* Consignes repliées : titre sur une ligne, aperçu tronqué à côté */
+.pli-consignes .pli-titre { flex: 0 0 auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.pli-consignes .pli-resume { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+/* Bâtons empilés : un contour de la couleur, pour que les parties claires (jamais essayés) restent lisibles, même en blanc ou jaune */
+.baton-barre.empile { border: 1.5px solid color-mix(in srgb, var(--c, #888) 55%, #6b6b6b); box-shadow: none; box-sizing: border-box; }
+.seg.jamais { background: color-mix(in srgb, var(--c, #8a8a8a) 30%, var(--carte)); }
+.seg + .seg { border-top: 1px solid color-mix(in srgb, var(--c, #888) 40%, #6b6b6b); }
