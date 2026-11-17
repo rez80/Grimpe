@@ -8,7 +8,7 @@ import { lignesDe } from "../parseur.js";
 import { libelleCritere, finBloc, feuxBloc } from "../blocs.js";
 import { FAMILLES, NOMS_FAMILLES, sansAccent } from "./plus.js";
 import { PHASES, ORDRE_PHASES, ROLES, PROFILS, MODELES, modele, planVide, normaliser, semainesParDefaut, feuxParDefaut, genererBloc, crans,
-  TYPES_SEANCE, DUREES, SECONDAIRES, FILS, niveauSecondaire, exercicesProposes, consigne, consigneDevers, themesNouveaux, ligneAjout,
+  TYPES_SEANCE, DUREES, SECONDAIRES, FILS, niveauSecondaire, exercicesProposes, consigne, consigneDevers, themesNouveaux, themesDevers, doublons, ligneAjout,
   alertesObjectif, alertesJours, alertesPhases, alertesFeux } from "../plan.js";
 
 const ETAPES = ["Départ", "Objectif", "Disponibilités", "Phases", "Séances", "Feux verts", "Récapitulatif"];
@@ -48,6 +48,7 @@ function planSuite(ctx, b) {
   const filFait = (F.find(f => f.role === "fil") || {}).ok; if (filFait) p.fil = "";
   const deja = (ctx.doc.blocs || []).filter(x => x.plan).flatMap(x => { const r = normaliser(x.plan); return r.semaines.map((_, k) => consigne(r, k)); });
   p.consignes = themesNouveaux(p, ctx.data.exercices, deja);
+  if ((p.secondaires || []).some(x => x.type === "devers")) p.consignesDevers = themesDevers(p, ctx.data.exercices, (ctx.doc.blocs || []).filter(x => x.plan).flatMap(x => { const r = normaliser(x.plan); return r.semaines.map((_, k) => consigneDevers(r, k)); }));
   return p;
 }
 const derniereSemaine = ctx => Math.max(0, ...programmeEffectif(ctx.data, { ...ctx.doc, blocs: [] }).map(s => s.semaine), ...(ctx.doc.blocs || []).map(finBloc));
@@ -161,7 +162,7 @@ function etapeSeances(ctx, A, P, E) {
       ${aj.map((a, n) => h`<div class="as-exo ajout"><span>+ ${ligneAjout(a).replace(/\s*\{[^}]*\}/g, "").replace(/[«»]/g, "").replace(/\s+/g, " ")}${a.phase ? h` <span class="petit">(${PHASES[a.phase].label} seulement)</span>` : ""}</span><span class="as-exo-act"><button class="petit-btn danger" data-act="asExoAjoutRetirer" data-type="${t}" data-n="${n}">Retirer</button></span></div>`)}</div>
       <button class="petit-btn btn-ajout" data-act="asExoFenetre" data-mode="ajout" data-type="${t}">+ Ajouter un exercice</button>`; };
   const devers = secs.includes("devers"), bloc = genererBloc(P, E), wA = Math.max(A.apercu, p0), duJour = bloc.seances.filter(s => s.semaine === P.debut + wA - p0);
-  return h`${groupe("Chiffres par semaine", P.semaines.map((s, k) => k < p0 ? "" : ligne(A, `sem-${k}`, h`<b>S${k + 1}</b> <span class="petit">${PHASES[s.type].label}</span>`, resume(s), () => col.map(([c, l, , mx]) => rangee(l, pas(`semaines.${k}.${c}`, s[c], { max: mx })))))
+  return h`${alertes(doublons(bloc))}${groupe("Chiffres par semaine", P.semaines.map((s, k) => k < p0 ? "" : ligne(A, `sem-${k}`, h`<b>S${k + 1}</b> <span class="petit">${PHASES[s.type].label}</span>`, resume(s), () => col.map(([c, l, , mx]) => rangee(l, pas(`semaines.${k}.${c}`, s[c], { max: mx })))))
       , "un appui pour régler")}
     ${groupe("Exercices", types.map(t => ligne(A, `ex-${t}`, TYPES_SEANCE[t], resumeExos(t), () => exosType(t))))}
     ${groupe("Consignes de la semaine", h`${P.semaines.map((s, k) => k < p0 ? "" : ligneFenetre(h`S${k + 1} <span class="petit">${PHASES[s.type].label}</span>`, consigne(P, k), "asExoFenetre", { mode: "consigne", k }))}
@@ -195,7 +196,7 @@ function etapeRecap(ctx, A, P, E) {
   const regl = ctx.doc.reglages, mesure = (Pg, w) => { const l = Pg.filter(s => s.semaine === w && !s.bonus);
     return { n: l.length, min: Math.round(l.reduce((t, s) => t + dureeSeance(s, etapesSeance(s, {}), ctx.data, regl), 0) / 60),
       essais: l.reduce((t, s) => t + lignesDe(s.contenu.split("\n## ")[0]).filter(e => e.type === "action" && e.grimpe && e.grimpe.cot === P.objectif.cot && e.grimpe.disc === P.objectif.disc).reduce((x, e) => x + e.n, 0), 0) }; };
-  const toutes = [...alertesObjectif(P, E), ...alertesJours(P), ...alertesPhases(P), ...alertesFeux(bloc.feux)];
+  const toutes = [...alertesObjectif(P, E), ...alertesJours(P), ...alertesPhases(P), ...alertesFeux(bloc.feux), ...doublons(bloc)];
   const lignes = []; for (let w = bloc.debut; w <= fin; w++) lignes.push({ w, a: mesure(avant, w), b: mesure(apres, w), ph: (bloc.seances.find(s => s.semaine === w) || {}).phase || "" });
   const compare = lignes.some(x => x.a.n > 0), cel = (a, b, f = x => x) => compare && a !== undefined ? h`${f(a)} → <b>${f(b)}</b>` : h`<b>${f(b)}</b>`;
   const secs = (P.secondaires || []).map(x => SECONDAIRES[x.type].titre(x.niveau));
@@ -206,7 +207,7 @@ function etapeRecap(ctx, A, P, E) {
     ${si(chevauche.length, () => h`<div class="avert">${chevauche.map(b => `${b.nom} · ${b.titre}`).join(", ")} couvre déjà ces semaines : il sera retiré.</div>`)}
     <div class="carte as-groupe"><table class="tableau as-table"><tr><th>Sem.</th><th>Séances</th><th>Temps</th><th>Essais ${P.objectif.cot}</th></tr>
       ${lignes.map(x => h`<tr><td>${x.w}<br><span class="petit">${x.ph.replace(/^[^·]*·\s*/, "")}</span></td><td>${cel(x.a.n, x.b.n)}</td><td>${cel(x.a.min, x.b.min, hmc)}</td><td>${cel(x.a.essais, x.b.essais)}</td></tr>`)}</table>
-      <p class="petit">${compare ? "Avant → après, " : ""}sans les séances bonus (course, prévention). Le temps est estimé d'après les repos et les routines.</p></div>
+      <p class="petit">${compare ? "Avant → après, sans" : "Sans"} les séances bonus (course, prévention). Le temps est estimé d'après les repos et les routines.</p></div>
     <div class="carte as-groupe"><h3 class="as-sous">Feux verts</h3><ul class="as-liste">${bloc.feux.map(f => h`<li>${f.titre} : ${f.criteres.map(c => c.type === "coche" ? c.label : `${c.label || libelleCritere(c)}${c.type === "douleur" ? ` ≤ ${c.max ?? 2}/10` : ` ≥ ${c.min}${c.type === "taux" ? " %" : c.type === "mesure" ? " s" : ""}`}`).join(" · ")}</li>`)}</ul></div>
     ${si(toutes.length, () => h`<details class="as-apercu"><summary>${toutes.length} conseil${toutes.length > 1 ? "s" : ""} non suivi${toutes.length > 1 ? "s" : ""}</summary>${alertes(toutes)}</details>`)}`;
 }
@@ -299,8 +300,10 @@ export const actions = {
   asExoValider: ctx => { const M = ctx.state.modal, P = ctx.state.assistant.plan; if (!M.choix) { ctx.toast("Choisis d'abord un exercice dans la liste"); return; }
     const X = P.exos = P.exos || {}; X.ajouts = X.ajouts || {}; X.ajouts[M.t] = [...(X.ajouts[M.t] || []), { nom: M.choix, n: M.n || 1, detail: (M.detail || "").trim(), phase: M.phase || "", effort: !!M.effort }];
     ctx.state.assistant.section = `ex-${M.t}`; ctx.fermerModal(); },
-  asThemes: ctx => { const P = ctx.state.assistant.plan, deja = (ctx.doc.blocs || []).filter(b => b.id !== P.id && b.plan).flatMap(b => { const q = normaliser(b.plan); return q.semaines.map((_, k) => consigne(q, k)); });
-    P.consignes = themesNouveaux(P, ctx.data.exercices, deja); ctx.rendre(); ctx.toast("Thèmes proposés : touche une semaine pour en changer"); },
+  asThemes: ctx => { const P = ctx.state.assistant.plan, autres = (ctx.doc.blocs || []).filter(b => b.id !== P.id && b.plan).map(b => normaliser(b.plan));
+    P.consignes = themesNouveaux(P, ctx.data.exercices, autres.flatMap(q => q.semaines.map((_, k) => consigne(q, k))));
+    if ((P.secondaires || []).some(x => x.type === "devers")) P.consignesDevers = themesDevers(P, ctx.data.exercices, autres.flatMap(q => q.semaines.map((_, k) => consigneDevers(q, k))));
+    ctx.rendre(); ctx.toast("Thèmes proposés : touche une semaine pour en changer"); },
   asConsignesDefaut: ctx => { ctx.state.assistant.plan.consignes = null; ctx.rendre(); },
   // Feux
   asFeuRetirer: (ctx, d) => { const P = ctx.state.assistant.plan; P.feux = feuxDe(P).filter((_, n) => n !== +d.n); ctx.state.assistant.section = null; ctx.rendre(); },

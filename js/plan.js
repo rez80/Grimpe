@@ -144,6 +144,22 @@ export const consigneDefaut = k => CONSIGNES[k % CONSIGNES.length];
 export const consigne = (plan, k) => (plan.consignes || [])[k] || consigneDefaut(k);
 export const consigneDeversDefaut = k => DEVERS_CONSIGNES[k % DEVERS_CONSIGNES.length];
 export const consigneDevers = (plan, k) => (plan.consignesDevers || [])[k] || consigneDeversDefaut(k);
+// Consignes dévers nouvelles : les exercices de la catégorie Dévers pas encore utilisés (semaines légères : « Hanches collées »)
+export function themesDevers(plan, exercices, dejaUtilises = []) {
+  const deja = new Set(dejaUtilises), l = exercices.filter(e => e.categorie === "Dévers" && !deja.has(e.nom) && e.nom !== "Hanches collées").sort((a, b) => (ORDRE_NIV[a.niveau] ?? 1) - (ORDRE_NIV[b.niveau] ?? 1));
+  let n = 0; return plan.semaines.map(s => s.type === "respiration" || s.type === "decharge" || !l.length ? "Hanches collées" : l[n++ % l.length].nom);
+}
+// Un même exercice deux fois dans une séance (par exemple ajouté à la main et déjà prévu par le fil rouge) : un conseil, pas une erreur
+export function doublons(bloc) {
+  const X = (bloc.plan && bloc.plan.exos) || {}, aSurveiller = new Set([...Object.values(X.ajouts || {}).flat().map(a => a.nom), ...Object.values(X.remplaces || {}).flatMap(m => Object.values(m))]);
+  if (!aSurveiller.size) return [];
+  const vus = new Set(), out = [];
+  for (const s of bloc.seances) for (const version of s.contenu.split(/^## .*$/m)) {
+    const c = {}; for (const l of version.split("\n")) { if (!/^\d+×/.test(l.trim())) continue; for (const m of l.matchAll(/«\s*(.+?)\s*»/g)) if (aSurveiller.has(m[1])) c[m[1]] = (c[m[1]] || 0) + 1; }
+    for (const [nom, n] of Object.entries(c)) if (n > 1) { const k = `${s.jour}|${nom}`; if (!vus.has(k)) { vus.add(k); out.push(`${s.jour} : « ${nom} » apparaît ${n} fois dans la même séance (dès la semaine ${s.semaine}) : tu l'as ajouté, et il est déjà prévu. Retire l'un des deux si ce n'est pas voulu.`); } }
+  }
+  return out;
+}
 // « Proposer des thèmes nouveaux » : des exercices de technique pas encore utilisés (ni dans ce plan, ni dans les blocs d'avant) ;
 // les semaines légères (respiration, décharge) gardent une consigne facile et connue
 const CATS_THEMES = ["Pieds", "Prises et positions", "Corps et équilibre", "Apprendre"], ORDRE_NIV = { "Débutant": 0, "Intermédiaire": 1, "Avancé": 2 };

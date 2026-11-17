@@ -27,7 +27,7 @@ export function rendre(ctx) {
       resume = h`<span class="petit">terminé · ${F.length ? `feux ${F.filter(f => f.ok).length}/${F.length}` : `${faitesB}/${semB.length}`}</span>`; }
     if (etat === "avenir") resume = h`<span class="petit">à venir · ${jourMois(dateSeance(debut, ph.semaines[0], "Lundi"))}</span>`;
     const sous = h`semaines ${ph.semaines[0]} → ${fin}${construit && construit.plan && construit.plan.objectif ? ` · objectif ${construit.plan.objectif.disc.toLowerCase()} ${construit.plan.objectif.cot}` : ""}`;
-    out = h`${out}${pli(`prog-bloc-${ph.bloc || "p"}`, etat === "en-cours", h`<span class="bloc-nom">${nomB}${construit ? ` · ${construit.titre}` : ""}</span><span class="bloc-sous petit">${sous}</span>`, () => contenuBloc(ph, construit), { resume, classe: `carte bloc-prog bloc-${etat}` })}`;
+    out = h`${out}${pli(`prog-bloc-${ph.bloc || "p"}${etat === "termine" ? "-fini" : ""}`, etat === "en-cours", h`<span class="bloc-nom">${nomB}${construit ? ` · ${construit.titre}` : ""}</span><span class="bloc-sous petit">${sous}</span>`, () => contenuBloc(ph, construit), { resume, classe: `carte bloc-prog bloc-${etat}` })}`;
   }
   function contenuBloc(ph, construit) { let o = h``;
     for (const w of ph.semaines) {

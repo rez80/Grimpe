@@ -55,7 +55,8 @@ export function niveauxConsolides(ts, echelles, params) {
     const l = ts.filter(t => t.disc === disc && t.cot && groupeProfil(t.profil) === g);
     let niveau = "", detail = [];
     for (const c of echelles[disc]) {
-      const x = l.filter(t => baseCot(t.cot) === c); if (!x.length) continue;
+      // En bloc, le « + » est une cotation à part entière (5+ ≠ 5, cotation Fontainebleau) ; en voie, 5b+ compte comme 5b
+      const x = l.filter(t => disc === "Bloc" ? String(t.cot) === c : baseCot(t.cot) === c); if (!x.length) continue;
       const r = { cot: c, essais: x.length, taux: taux(x) }; detail.push(r);
       if (x.length >= essaisMin && r.taux >= tauxMin) niveau = c;
     }
