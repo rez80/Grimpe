@@ -1,4 +1,4 @@
-# Grimpe 8.13 — l'app d'escalade
+# Grimpe 8.14 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -95,7 +95,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 ⓘ explique chaque calcul.
 
 **Outils d'une semaine** (dans le programme) :
-- 📏 Mesures : ⓘ décrit chaque test, et la valeur précédente s'affiche à côté du champ.
+- Mesures : ⓘ décrit chaque test, et la valeur précédente s'affiche à côté du champ.
 - ⏸ Faire une pause : repousse la semaine et les suivantes de 1 à 4 semaines. La fenêtre montre les nouvelles dates, et les séances déjà commencées, faites ou sautées ne bougent pas.
 - Copier · répéter.
 
@@ -113,6 +113,15 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 - **Éditeur de plan** : repos, chrono, durée et fractions de course se choisissent dans des listes déroulantes ; les nombres (3×, séries) gardent − / +.
 - **Bibliothèque** : filtre par niveau (Débutant, Intermédiaire, Avancé, avec le nombre d'exercices) et « Cette semaine » (les exercices et routines cités dans les séances de la semaine en cours). Les routines sont une catégorie comme les autres : chaque routine a sa fiche (étapes, durées, exercices cliquables, ★ favori) et la recherche les trouve. Le niveau s'affiche en petite étiquette colorée.
 - **Couleurs** : la Bibliothèque a une teinte par famille de catégories (technique, méthode, endurance, renfort, soin) ; dans Progrès, chaque section a son liseré, les barres des feux verts sont ocre (en cours) puis vertes (atteint). Plus présente ses tuiles en deux colonnes compactes, le nom à côté de l'icône.
+- **Mêmes mots partout** : une voie est « Enchaînée », « Avec sec » ou « Échec » ; un bloc « Réussi » ou « Échec ». Dans une salle de blocs, l'app parle de blocs (« 7 blocs », « Plusieurs blocs d'un coup »).
+- **Durées** écrites d'une seule façon : « 45 s », « 1 min 30 », « 20 min », « 1 h 22 ».
+- **Icônes au trait** partout, comme la barre du bas (plus d'émojis en couleur, sauf les visages de « Forme ? »). Les feux verts : un rond vide, plein et vert quand il est atteint.
+- **Un seul style par rôle** : un seul bouton principal par fenêtre ; « + » au contour ocre ; supprimer et effacer au contour rouge.
+- **Créer ou modifier une voie** : la même présentation, une ligne par réglage ; en création, Couleur et Cotation sont déjà ouvertes.
+- **Le mur** : tuiles plus petites (5 par rangée), l'inclinaison n'est écrite sur la tuile que si elle diffère de celle du secteur ; avec un filtre, seuls les secteurs qui ont quelque chose à montrer restent.
+- **Mode sombre** : les couleurs foncées (Noir…) gardent un fin contour clair.
+- **Salle par défaut** : si une seule salle propose la discipline de la séance, elle est choisie d'office.
+- **Échelles en boutons** : cotation, nombre, « Comment ? », effort et douleur restent des boutons (un seul appui) ; les autres choix de plus de 4 options sont des listes.
 - **Filtres actifs** : dans une salle, chaque filtre en cours s'affiche en étiquette « ✕ » sous la barre. Les filtres sont propres à chaque salle.
 
 ---
