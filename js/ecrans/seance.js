@@ -7,7 +7,7 @@ import { avertissements, reussi, forme, parVoie, projets, causePrincipale, anony
 import { court, hm, hhmm, mmss, duree as dureeTexte, semaineDe, ajouterJours } from "../dates.js";
 // Le passage lui-même, daté comme dans les calculs : il ne doit compter ni comme « avant lui » ni comme une réussite précédente
 export const refPassage = (ctx, seanceId, t) => { const s = ctx.seance(seanceId), sa = ctx.saisie(seanceId); return t && { ...t, date: sa.dateReelle || (s && s.date) }; };
-import { salleDe, profilHabituel, salleParDefautPour, retenirSalle, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe } from "../salles.js";
+import { salleDe, profilHabituel, salleParDefautPour, retenirSalle, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe, trierNiveaux } from "../salles.js";
 
 export const GENRES = { echauffement: "Échauffement", securite: "Sécurité", facile: "Facile", effort: "Effort", recup: "Récupération" };
 export const RES_LABEL = { ok: "Réussi", sec: "Avec sec", ko: "Échec" };
@@ -184,7 +184,7 @@ function cotationsRapides(ctx, etapes, disc) {
 }
 // --- La carte des voies, courte : la salle · « + Noter un passage » · tes cibles · voie déjà faite (cotations, un appui) · aujourd'hui, par voie · le mur ---
 const tuileVoie = (ctx, salle, v, auj, voies) => { const hv = voies.find(x => x.voieId === v.id), t = auj.filter(x => x.voieId === v.id), hex = hexDe(ctx.doc, v.couleur, salle), sec = secteurDe(salle, v);
-  return h`<button class="tuile-voie ${t.length ? (t.some(reussi) ? "ok-auj" : "ko-auj") : ""}" data-act="voieRapide" data-appui="projetOuvrir" data-salle="${salle.id}" data-id="${v.id}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (sec ? sec.nom : "") || (v.profil || "").toLowerCase()}</span>
+  return h`<button class="tuile-voie ${hex === "transparent" ? "sans-couleur" : ""} ${t.length ? (t.some(reussi) ? "ok-auj" : "ko-auj") : ""}" data-act="voieRapide" data-appui="projetOuvrir" data-salle="${salle.id}" data-id="${v.id}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (sec ? sec.nom : "") || (v.profil || "").toLowerCase()}</span>
     ${hv && hv.essais ? h`<span class="marque ${hv.reussies ? "ok" : "ko"}">${hv.reussies ? "✓" : "✗"}</span>` : ""}<span class="tuile-histo">${hv ? reperes(hv) : "jamais"}${t.length ? ` · auj. ${t.map(x => x.res === "ok" ? "✓" : x.res === "sec" ? "s" : "✗").join("")}` : ""}</span></button>`; };
 // Cibles : ★ à essayer puis projets, encore en place
 function ciblesDe(ctx, salle, disc) {
@@ -219,7 +219,7 @@ export function fenetreNoter(ctx, M) {
   const haut = h`<div class="noter-haut">${si(salle, h`<button data-act="nouvelleVoieOuvrir">+ ${disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"}</button>`)}<button data-act="resultat">Sans ${disc === "Bloc" ? "bloc" : "voie"} précis${disc === "Bloc" ? "" : "e"} <span class="petit">(cotation seule)</span></button></div>`;
   if (!salle) return h`<h2>Noter un passage</h2>${haut}<p class="petit">Salle inconnue : note par cotation, ou choisis la salle du jour pour retrouver ses voies.</p><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
   const { enPlace, voies, cibles } = ciblesDe(ctx, salle, disc), rangCot = c => (ctx.data.echelles[disc] || []).indexOf(c);
-  const couleurs = [...new Set(enPlace.map(v => v.couleur).filter(Boolean))], cotes = [...new Set(enPlace.map(v => v.cotSalle || v.cot).filter(Boolean))].sort((a, b) => rangCot(a) - rangCot(b) || (a < b ? -1 : 1));
+  const couleurs = [...new Set(enPlace.map(v => v.couleur).filter(Boolean))], cotes = trierNiveaux(ctx.data.echelles, salle, disc, [...new Set(enPlace.map(v => String(v.cotSalle || v.cot || "")).filter(Boolean))]);           // dans l'ordre de la salle, comme « En bref »
   const etatDe = v => { const hv = voies.find(x => x.voieId === v.id); return !hv || !hv.essais ? "jamais" : hv.reussies ? "reussie" : "projet"; }, nE = e => enPlace.filter(v => etatDe(v) === e).length;
   const filtrees = enPlace.filter(v => (!M.fCouleur || v.couleur === M.fCouleur) && (!M.fCot || (v.cotSalle || v.cot) === M.fCot) && (!M.fEtat || etatDe(v) === M.fEtat));
   const poids = v => cibles.includes(v) ? 0 : auj.some(t => t.voieId === v.id) ? 1 : 2, l = [...filtrees].sort((a, b) => poids(a) - poids(b)), filtre = M.fCouleur || M.fCot || M.fEtat, max = filtre ? 60 : 9;
@@ -227,7 +227,7 @@ export function fenetreNoter(ctx, M) {
     ${enPlace.length ? h`<label class="champ">${disc === "Bloc" ? "Quel bloc" : "Quelle voie"} ? <span class="petit">filtre par couleur, état, niveau</span></label>
       <div class="pastilles filtre-couleurs">${couleurs.map(c => h`<button class="pastille ${M.fCouleur === c ? "choisi" : ""}" style="background:${hexDe(ctx.doc, c, salle)}" data-act="noterFiltre" data-k="fCouleur" data-valeur="${c}" aria-label="${c}" title="${c}"></button>`)}</div>
       <div class="barre-filtres">${listeDeroulante("noter-etat", [["projet", `✗ Projets (${nE("projet")})`], ["jamais", `Jamais essayé${disc === "Bloc" ? "s" : "es"} (${nE("jamais")})`], ["reussie", `✓ Réussi${disc === "Bloc" ? "s" : "es"} (${nE("reussie")})`]], M.fEtat || "", { act: "noterFiltreListe", vide: "Tous les états", data: { k: "fEtat" } })}
-        ${listeDeroulante("noter-niveau", cotes, M.fCot || "", { act: "noterFiltreListe", vide: "Tous les niveaux", data: { k: "fCot" } })}</div>
+        ${listeDeroulante("noter-niveau", cotes.map(c => [c, `${c} (${enPlace.filter(v => String(v.cotSalle || v.cot) === c).length})`]), M.fCot || "", { act: "noterFiltreListe", vide: "Tous les niveaux", data: { k: "fCot" } })}</div>
       ${si(filtre, h`<button class="lien" data-act="noterFiltre" data-k="tout">✕ enlever les filtres</button>`)}
       <div class="tuiles">${l.slice(0, max).map(v => tuileVoie(ctx, salle, v, auj, voies))}</div>
       ${si(l.length > max, h`<p class="petit">${l.length - max} autres : filtre par couleur ou cotation.</p>`)}${si(!l.length, h`<p class="petit">Aucune voie ne correspond : « + ${disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"} ».</p>`)}`

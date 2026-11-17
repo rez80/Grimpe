@@ -151,3 +151,9 @@ export function renommerCouleur(doc, salle, ancien, nom, hex) {
     Object.values(salle.cotation || {}).forEach(cot => (cot.liste || []).forEach(x => { if (x.salle === ancien) x.salle = nom; })); }
 }
 export function supprimerCouleur(salle, nom) { if (voiesDeCouleur(salle, nom)) return false; salle.couleurs = (salle.couleurs || []).filter(x => x.nom !== nom); return true; }
+
+// Ordre des niveaux d'une salle : celui de sa propre liste (ou de ses couleurs), sinon celui de l'échelle de l'app ; inconnus à la fin
+export function ordreNiveau(echelles, s, disc, k) { const c = cotationDe(s, disc);
+  if (c.mode === "liste" || c.mode === "couleurs") { const i = c.liste.findIndex(x => String(x.salle) === String(k)); return i < 0 ? 999 : i; }
+  const i = (echelles[disc] || []).indexOf(String(k)); return i < 0 ? 999 : i; }
+export const trierNiveaux = (echelles, s, disc, l) => [...l].sort((a, b) => ordreNiveau(echelles, s, disc, a) - ordreNiveau(echelles, s, disc, b) || String(a).localeCompare(String(b), "fr", { numeric: true }));

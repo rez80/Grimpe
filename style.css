@@ -582,3 +582,55 @@ body:has(.barre-seance) #ecran { padding-bottom: calc(var(--hauteur-onglets, 56p
 .baton-barre.empile { border: 1.5px solid color-mix(in srgb, var(--c, #888) 55%, #6b6b6b); box-shadow: none; box-sizing: border-box; }
 .seg.jamais { background: color-mix(in srgb, var(--c, #8a8a8a) 30%, var(--carte)); }
 .seg + .seg { border-top: 1px solid color-mix(in srgb, var(--c, #888) 40%, #6b6b6b); }
+
+/* ===== 8.16 ===== */
+/* En-tête : plus de case pour « › » ; Options collé au bord droit, « ? » juste avant */
+#entete { grid-template-columns: auto 1fr 40px auto; }
+#entete #suiv { display: none; }
+/* Listes déroulantes et champs : même hauteur partout (44 px) */
+select.liste, .barre-filtres select.liste, select.ed-duree, .champ-date, input[type=date], input[type=time] { min-height: 44px; font-size: 16px; }
+/* Secteur : une seule ligne — nom (et inclinaison) à gauche, « 7 blocs · 1 → 9 » à droite */
+.secteur { padding: 6px 10px; margin: 6px 0; } .secteur-tete { margin-bottom: 6px; }
+.secteur-plier { align-items: center; min-height: 40px; padding: 2px; gap: 6px; }
+.secteur-plier .sect-nom { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.secteur-plier .sect-resume { flex: 0 0 auto; white-space: nowrap; }
+.secteur-tete .ed-outils button { min-width: 36px; min-height: 36px; }
+/* Cartes de salle : une ligne compacte (nom, et dessous « 8 voies · 2 blocs ») */
+.cartes-salles { display: flex; flex-direction: column; gap: 8px; }
+.carte-salle .cs-corps { padding: 9px 14px; gap: 1px; } .carte-salle .cs-corps b { font-size: 17px; } .carte-salle .cs-infos { font-size: 14px; opacity: .85; }
+/* Voie sans couleur : fond gris clair, bord en pointillés, niveau en gris foncé — lisible en clair comme en sombre */
+.tuile-voie.sans-couleur { background: #e4e2dd !important; color: #3a3a3a !important; border: 1.5px dashed #8a8780 !important; }
+html.sombre .tuile-voie.sans-couleur { background: #3a3732 !important; color: #e6e2da !important; border-color: #8f8a80 !important; }
+/* Inventaire : un rond de couleur par niveau */
+.inventaire .ligne-reg { gap: 8px; } .inv-droite { display: flex; align-items: center; gap: 10px; }
+.inv-couleur { width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; border: 2px solid rgba(0,0,0,.2); font-weight: 700; color: var(--texte-2); }
+.inv-couleur.vide { background: transparent; border: 2px dashed var(--gris); } .inv-couleur.ouvert { outline: 3px solid var(--ocre); outline-offset: 1px; }
+/* Fenêtres : un titre repliable se distingue de son contenu — titre en gras sur sa ligne, contenu ouvert dans un cadre à liseré ocre */
+.fiche-ligne { font-weight: 650; font-size: 16px; color: var(--texte); border-top: none; }
+.fiche-ligne > span:first-child { font-weight: 650; }
+.fiche-ligne .val { font-weight: 500; }
+.fiche-contenu { margin: 6px 0 10px 4px; padding: 10px 12px; border: 1px solid var(--trait); border-left: 4px solid var(--ocre); border-radius: 10px; background: color-mix(in srgb, var(--ocre) 6%, var(--carte)); }
+.fiche-contenu > :first-child { margin-top: 0; } .fiche-contenu > :last-child { margin-bottom: 0; }
+/* Programme : blocs repliables (Bloc 1, Bloc 2…), avec leur avancement ; phases en sous-titres */
+.bloc-prog { padding: 4px 12px 8px; } .bloc-prog .bloc-nom { font-size: 18px; font-weight: 700; }
+.bloc-prog.bloc-en-cours { --lis: var(--ocre); }
+.jauge-mini { display: inline-block; width: 54px; height: 7px; border-radius: 4px; background: color-mix(in srgb, var(--texte) 12%, transparent); vertical-align: 1px; overflow: hidden; }
+.jauge-mini i { display: block; height: 100%; background: #2E9E6B; border-radius: 4px; }
+.phase-titre { margin: 12px 2px 4px; font-size: 13px; font-weight: 650; color: var(--texte-2); text-transform: uppercase; letter-spacing: .04em; }
+.phase-titre:first-child { margin-top: 4px; }
+.ligne-hors { border-left: 4px solid #6B7A8A; }
+.sous-cat { margin: 12px 2px 4px; font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: color-mix(in srgb, var(--cat) 75%, var(--texte)); } .sous-cat:first-child { margin-top: 2px; }
+/* Progrès : tableau de bord 2 × 2, et douleur récente en bandeau rouge */
+.tuiles-bord { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 8px; }
+.tuile-bord { --t: var(--ocre); display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 96px; padding: 10px 12px; text-align: left; background: var(--carte); border: none; border-left: 5px solid var(--t); border-radius: var(--rayon); box-shadow: var(--ombre); color: var(--texte); }
+.tb-titre { font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--texte-2); }
+.tb-val { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; } .tb-grand { font-size: 28px; line-height: 1.05; }
+.tb-niv { display: inline-flex; align-items: baseline; gap: 3px; margin-right: 8px; } .tb-niv b { font-size: 24px; }
+.tb-up { color: #2E9E6B; font-weight: 800; } .tb-down { color: var(--voie); font-weight: 800; } .tb-ko { color: var(--rouge); font-weight: 800; font-size: 20px; }
+.tuile-bord .jauge { display: block; width: 100%; height: 7px; border-radius: 4px; background: color-mix(in srgb, var(--texte) 12%, transparent); overflow: hidden; }
+.tuile-bord .jauge i { display: block; height: 100%; background: var(--t); border-radius: 4px; } .tuile-bord .jauge.trop i { background: var(--rouge); }
+.bandeau-douleur { width: 100%; display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 10px 14px; min-height: 48px; border: none; border-radius: var(--rayon); background: var(--rouge); color: #fff; text-align: left; font-size: 15px; }
+.bandeau-douleur span:nth-child(2) { flex: 1; } .bandeau-douleur .ico-svg { color: #fff; }
+.phrases .conseil { margin: 0 0 6px; }
+.secteur-tete { min-width: 0; } .secteur-plier { min-width: 0; overflow: hidden; } .secteur-tete .ed-outils { flex: 0 0 auto; }
+.outils-semaine { display: flex; flex-wrap: wrap; gap: 6px; } .outils-semaine button { flex: 1 1 auto; white-space: nowrap; }

@@ -1,6 +1,6 @@
 // ecrans/mur.js — le mur d'une salle : les voies par secteur, en tuiles, rangées au doigt (glisser-déposer).
 import { h, si, brut, pictoProfil, ouvert, pli, liste as listeDeroulante, forcerOuvert, ecranVide } from "../html.js";
-import { salleDe, hexDe, texteSur, ranger, cotationDe, profilHabituel, inclinaisonSecteur, passagesDe, supprimerVoies, couleursDe } from "../salles.js";
+import { salleDe, hexDe, texteSur, ranger, cotationDe, ordreNiveau as ordreNiv, profilHabituel, inclinaisonSecteur, passagesDe, supprimerVoies, couleursDe } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, reussi, rang } from "../analyse.js";
 import { court } from "../dates.js";
 
@@ -17,7 +17,7 @@ export function rendre(ctx) {
   const groupes = [...s.secteurs.map(sec => ({ id: sec.id, nom: sec.nom, profil: inclinaisonSecteur(s, sec.id), voies: liste.filter(v => v.secteurId === sec.id) })), { id: "", nom: "Sans secteur", profil: "", voies: liste.filter(v => !v.secteurId || !s.secteurs.some(x => x.id === v.secteurId)) }];
   const classer = state.classer, ranger = state.ranger;
   const tuile = v => { const hv = voies.find(x => x.voieId === v.id), hex = hexDe(doc, v.couleur, s);
-    return h`<div class="tuile-voie glissable ${classer && classer.has(v.id) ? "selectionnee" : ""}" draggable="false" data-id="${v.id}" data-act="${classer ? "classerBascule" : "voieEditer"}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (v.profil && v.profil !== inclinaisonSecteur(s, v.secteurId || null) ? v.profil.toLowerCase() : "")}</span>${(e => e === "jamais" ? "" : h`<span class="marque ${e === "reussie" ? "ok" : "ko"}" aria-label="${e === "reussie" ? "réussie" : "projet"}">${e === "reussie" ? "✓" : "✗"}</span>`)(etatDe(v))}${si(v.statut === "demontee", h`<span class="tuile-histo">démontée ${v.demontee ? court(v.demontee) : ""}</span>`)}</div>`; };
+    return h`<div class="tuile-voie glissable ${hex === "transparent" ? "sans-couleur" : ""} ${classer && classer.has(v.id) ? "selectionnee" : ""}" draggable="false" data-id="${v.id}" data-act="${classer ? "classerBascule" : "voieEditer"}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (v.profil && v.profil !== inclinaisonSecteur(s, v.secteurId || null) ? v.profil.toLowerCase() : "")}</span>${(e => e === "jamais" ? "" : h`<span class="marque ${e === "reussie" ? "ok" : "ko"}" aria-label="${e === "reussie" ? "réussie" : "projet"}">${e === "reussie" ? "✓" : "✗"}</span>`)(etatDe(v))}${si(v.statut === "demontee", h`<span class="tuile-histo">démontée ${v.demontee ? court(v.demontee) : ""}</span>`)}</div>`; };
   if (classer) { const n = classer.size;
     const dis = n ? "" : "disabled", cotable = ["standard", "liste"].includes(cotationDe(s, filtre || (s.type === "Bloc" ? "Bloc" : "Voie")).mode);
     return { titre: h`<b>${s.nom}</b>`, infos: "Sélection", html: h`<p class="petit">Touche les ${motSalle(s)} à modifier ou supprimer ensemble.</p>
@@ -27,9 +27,10 @@ export function rendre(ctx) {
   const discDefaut = filtre || (s.type === "Bloc" ? "Bloc" : "Voie"), tout = ranger;
   const filtreActif = !!(fCot || fCarac || filtre || fEtat || demontees);              // un filtre : seuls les secteurs qui ont quelque chose à montrer           // en mode Ranger, tous les secteurs sont ouverts (on dépose partout)
   // Résumé d'un secteur replié : nombre, couleurs présentes, étendue des cotations
-  const resume = g => { const cs = [...new Set(g.voies.map(v => v.couleur).filter(Boolean))], tri = g.voies.filter(v => v.cot).sort((a, b) => rang(ctx.data.echelles, a.disc, a.cot) - rang(ctx.data.echelles, b.disc, b.cot));
-    const lo = tri[0], hi = tri[tri.length - 1], et = !lo ? "" : (lo.cotSalle || lo.cot) === (hi.cotSalle || hi.cot) ? (lo.cotSalle || lo.cot) : `${lo.cotSalle || lo.cot} → ${hi.cotSalle || hi.cot}`;
-    return h`<span class="petit">${compteVoies(g.voies, s)}${et ? " · " + et : ""}</span> <span class="points">${cs.slice(0, 8).map(c => h`<i style="background:${hexDe(doc, c, s)}"></i>`)}</span>`; };
+  // Résumé d'un secteur, sur la ligne de son nom : « 7 blocs · 1 → 9 » (plage dans l'ordre des niveaux de la salle)
+  const resume = g => { const n = v => cotationDe(s, v.disc).mode === "couleurs" ? "" : String(v.cotSalle || v.cot || ""), tri = g.voies.filter(n).sort((a, b) => ordreNiveau(ctx, s, a.disc, n(a)) - ordreNiveau(ctx, s, b.disc, n(b)));
+    const lo = tri[0], hi = tri[tri.length - 1], et = !lo ? "" : n(lo) === n(hi) ? n(lo) : `${n(lo)} → ${n(hi)}`;
+    return h`<span class="petit sect-resume">${compteVoies(g.voies, s)}${et ? " · " + et : ""}</span>`; };
   // En bref : combien de voies (et de blocs) par cotation, en un coup d'œil ; toucher une cotation filtre le mur
   const enPlace = s.voies.filter(v => v.statut !== "demontee"), nDem = s.voies.length - enPlace.length;
   // En bref : un bâtonnet par niveau, hauteur = nombre de voies ; couleur du niveau (salle par couleurs) ou couleur de prises la plus présente
@@ -60,7 +61,7 @@ export function rendre(ctx) {
       return f.length ? h`<div class="filtres-actifs"><span class="petit">Filtre :</span>${f.map(([l, act, d]) => h`<button class="etiquette-filtre" data-act="${act}" ${brutData(d)}>${l} ✕</button>`)}</div>` : ""; })()}
     ${groupes.filter(g => g.voies.length || (!filtreActif && g.id)).map(g => { const cle = `sec-${s.id}-${g.id}`, o = tout || ouvert(cle, false);
       return h`<div class="secteur ${o ? "ouvert" : "replie"}" data-secteur="${g.id}"><div class="secteur-tete">
-        <button class="secteur-plier" data-act="replier" data-cle="${cle}" data-defaut="" ${brut(g.id ? `data-appui="secteurEditer" data-id="${g.id}"` : "")} aria-expanded="${o ? "true" : "false"}"><span class="pli-fleche">${o ? "▾" : "▸"}</span><span><b>${g.nom}</b>${g.profil ? h` <span class="petit">${g.profil.toLowerCase()}</span>` : ""}<br>${resume(g)}</span></button>
+        <button class="secteur-plier" data-act="replier" data-cle="${cle}" data-defaut="" ${brut(g.id ? `data-appui="secteurEditer" data-id="${g.id}"` : "")} aria-expanded="${o ? "true" : "false"}"><span class="pli-fleche">${o ? "▾" : "▸"}</span><span class="sect-nom"><b>${g.nom}</b>${g.profil ? h` <span class="petit">${g.profil.toLowerCase()}</span>` : ""}</span>${resume(g)}</button>
         <span class="ed-outils">${si(g.id, h`<button data-act="secteurEditer" data-id="${g.id}" aria-label="Modifier le secteur">✎</button>`)}${si(!demontees, h`<button class="btn-ajout rond" data-act="voieNouvelle" data-secteur="${g.id}" data-disc="${discDefaut}" aria-label="Ajouter dans ${g.nom}">+</button>`)}</span></div>
         ${si(o, () => h`<div class="tuiles zone-depot" data-secteur="${g.id}">${g.voies.map(tuile)}${si(!g.voies.length, h`<span class="petit depot-vide">${ranger ? "déposer ici" : s.type === "Bloc" ? "aucun bloc" : "aucune voie"}</span>`)}</div>`)}</div>`; })}
     ${si(filtreActif && !liste.length && s.voies.length, () => ecranVide("prise", `${s.type === "Bloc" ? "Aucun bloc" : "Aucune voie"} avec ces filtres.`, h`<button class="petit-btn" data-act="filtresMurRaz">Retirer les filtres</button>`))}
@@ -80,9 +81,7 @@ const ouvrirTout = ctx => { const sl = ctx.doc.salles.find(x => x.id === ctx.sta
 const brutData = d => brut(Object.entries(d).map(([k, v]) => `data-${k}="${String(v).replace(/"/g, "&quot;")}"`).join(" "));
 // Niveau d'une voie tel que la salle l'affiche (la couleur, pour une salle qui cote par couleurs) et son rang
 const niveauDe = (s, v) => String(cotationDe(s, v.disc).mode === "couleurs" ? v.couleur || "?" : v.cotSalle || v.cot || "?");
-function ordreNiveau(ctx, s, disc, k) { const c = cotationDe(s, disc);
-  if (c.mode === "liste" || c.mode === "couleurs") { const i = c.liste.findIndex(x => x.salle === k); return i < 0 ? 999 : i; }
-  const r = rang(ctx.data.echelles, disc, k); return r < 0 ? 999 : r; }
+const ordreNiveau = (ctx, s, disc, k) => ordreNiv(ctx.data.echelles, s, disc, k);
 
 // --- Glisser-déposer, comme les apps de l'iPhone : appui long (½ s) sur une tuile → elle se soulève et suit le doigt ;
 // dépôt sur une tuile (avant elle), dans un secteur ouvert ou sur le nom d'un secteur replié (à la fin). Un appui court ouvre la fiche. ---

@@ -16,10 +16,10 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.15";
+export const APP_VERSION = "8.16";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
-const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "plus", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
+const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
 const SOUS_ECRANS = ["biblio", "salle", "historique", "calendrier", "reglages", "aide", "sauvegarde"];
 
 const state = { vue: "seance", seanceId: null, semaineVue: null, ouverts: new Set(), modal: null, scroll: {}, pile: [], salleId: null, toast: null, filtre: {}, dernierSecteur: "",
@@ -83,7 +83,7 @@ function rendre(enHaut = false) {
   const sous = SOUS_ECRANS.includes(state.vue);
   const versProgramme = state.vue === "seance";                                                     // une séance se quitte toujours vers le Programme
   $("prec").style.visibility = sous || r.fleches ? "visible" : "hidden"; $("prec").dataset.act = sous ? "retour" : versProgramme ? "retourProgramme" : "prec";
-  $("prec").innerHTML = versProgramme ? '<span class="retour-txt">‹ Programme</span>' : "‹"; $("prec").classList.toggle("large", versProgramme);
+  $("prec").innerHTML = "‹"; $("prec").classList.remove("large");                                     // la même flèche partout (en séance : vers le Programme)
   $("btn-aide").style.visibility = state.vue === "aide" ? "hidden" : "visible";
   document.body.classList.toggle("mode-ranger", state.vue === "salle" && !!state.ranger);
   glisserActif = !!r.glisser && !state.modal;

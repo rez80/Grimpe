@@ -1,29 +1,36 @@
 // ecrans/programme.js — le programme semaine par semaine, la semaine dépliée, les outils de semaine.
-import { h, si, classes, ico } from "../html.js";
+import { h, si, classes, ico, pli } from "../html.js";
 import { etatSeance, etapesSeance, dureeSeance, activiteAffichee } from "../programme.js";
 import { semaineDe, dateSeance, ajouterJours, jourMois, court, hm, JOURS, nomJour, jourSemaine } from "../dates.js";
 import { reussi } from "../analyse.js";
 import * as editeur from "./editeur.js";
 import { carteHier } from "./seance.js";
 
-const ICONE = { faite: "✓", abilan: "✓", sautee: "–", encours: "▸", aujourdhui: "●", passee: "·", avenir: "" };
+// Repères d'état, les mêmes partout : ✓ faite, ✗ sautée, ● en cours (ou aujourd'hui), ○ à venir, ? passée sans nouvelles
+const ICONE = { faite: "✓", abilan: "✓", sautee: "✗", encours: "●", aujourdhui: "●", passee: "?", avenir: "" };
 
 export function rendre(ctx) {
   const P = ctx.programme, { state, doc, data } = ctx, auj = ctx.aujourdhui(), debut = doc.reglages.dateDebut || data.dateDebut;
   const semaines = [...new Set(P.map(s => s.semaine))].sort((a, b) => a - b), wNow = semaineDe(debut, auj);
   if (state.semaineVue !== null && !semaines.includes(state.semaineVue)) state.semaineVue = semaines.includes(wNow) ? wNow : semaines[0];   // null = tout replié
   const phases = []; for (const w of semaines) { const ph = (P.find(s => s.semaine === w) || {}).phase || ""; const bloc = ph.split(" · ")[0]; if (!phases.length || phases[phases.length - 1].bloc !== bloc) phases.push({ bloc, semaines: [] }); phases[phases.length - 1].semaines.push(w); }
-  let out = h`${carteRestaurer(ctx)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn btn-ajout" data-act="creationOuvrir">+ Séance</button></div>`;
+  let out = h`${carteRestaurer(ctx)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn btn-ajout" data-act="creationOuvrir">+ Séance</button><button class="petit-btn btn-ajout" data-act="passageAncienOuvrir">+ Hors séance</button></div>`;
+  // Les blocs du programme (B1, B2…) : des cartes repliables ; le bloc en cours est ouvert, les autres repliés avec leur avancement
   for (const ph of phases) {
-    out = h`${out}<h3 class="bloc-titre">${ph.bloc || "Programme"}</h3>`;
+    const semB = P.filter(s => ph.semaines.includes(s.semaine)), faitesB = semB.filter(s => ctx.saisie(s.id).fin).length, enCours = ph.semaines.includes(wNow);
+    const nomB = (ph.bloc || "Programme").replace(/^B(\d+)$/, "Bloc $1"), pct = semB.length ? Math.round(100 * faitesB / semB.length) : 0;
+    out = h`${out}${pli(`prog-bloc-${ph.bloc || "p"}`, enCours, h`<span class="bloc-nom">${nomB}</span> <span class="petit">semaines ${ph.semaines[0]} → ${ph.semaines[ph.semaines.length - 1]}</span>`, () => contenuBloc(ph), { resume: h`<span class="jauge-mini"><i style="width:${pct}%"></i></span> ${faitesB}/${semB.length}`, classe: `carte bloc-prog ${enCours ? "bloc-en-cours" : ""}` })}`;
+  }
+  function contenuBloc(ph) { let o = h``, dernierePhase = null;
     for (const w of ph.semaines) {
-      const sem = P.filter(s => s.semaine === w), faites = sem.filter(s => ctx.saisie(s.id).fin).length, phase = (sem[0] || {}).phase || "";
+      const sem = P.filter(s => s.semaine === w), faites = sem.filter(s => ctx.saisie(s.id).fin).length, phase = (sem[0] || {}).phase || "", nomPhase = phase.replace(/^[^·]*·\s*/, "");
       const ouverte = state.semaineVue === w;
-      out = h`${out}<div class="semaine ${classes(ouverte && "ouverte", w === wNow && "courante")}">
-        <button class="semaine-tete" data-act="semaine" data-w="${w}"><span><b>Semaine ${w}</b> <span class="petit">${jourMois(dateSeance(debut, w, "Lundi"))} → ${jourMois(dateSeance(debut, w, "Dimanche"))}</span></span><span class="petit">${phase.replace(/^[^·]*·\s*/, "")} · ${faites}/${sem.length}</span></button>
+      if (nomPhase !== dernierePhase) { o = h`${o}<h4 class="phase-titre">${nomPhase}</h4>`; dernierePhase = nomPhase; }
+      o = h`${o}<div class="semaine ${classes(ouverte && "ouverte", w === wNow && "courante")}">
+        <button class="semaine-tete" data-act="semaine" data-w="${w}"><span><b>Semaine ${w}</b> <span class="petit">${jourMois(dateSeance(debut, w, "Lundi"))} → ${jourMois(dateSeance(debut, w, "Dimanche"))}</span></span><span class="petit">${faites}/${sem.length}</span></button>
         ${si(ouverte, () => semaineDetail(ctx, w, sem, auj))}</div>`;
     }
-  }
+    return o; }
   return { html: out, titre: h`<b>Programme</b>` };
 }
 
@@ -62,17 +69,20 @@ function semaineDetail(ctx, w, sem, auj) {
   // Bilan de la semaine (dès qu'une séance est faite)
   const faites = sem.filter(s => ctx.saisie(s.id).fin), ts = faites.flatMap(s => ctx.saisie(s.id).tentatives || []), efforts = faites.map(s => ctx.saisie(s.id).effort).filter(x => x != null);
   const bilanSem = faites.length ? `${faites.length} séance${faites.length > 1 ? "s" : ""} faite${faites.length > 1 ? "s" : ""}${ts.length ? ` · ${ts.length} passage${ts.length > 1 ? "s" : ""}, ${ts.filter(reussi).length} réussi${ts.filter(reussi).length > 1 ? "s" : ""}` : ""}${efforts.length ? ` · effort moyen ${(efforts.reduce((a, b) => a + b, 0) / efforts.length).toFixed(1).replace(".", ",")}` : ""}` : "";
-  return h`${si(bilanSem, h`<p class="bilan-sem">${bilanSem}</p>`)}${si(aFaire.length, () => h`<div class="a-faire"><b>À faire</b><div class="liste">${aFaire}</div></div>`)}<div class="jours">${jours.map(x => h`<div class="jour ${x.d === auj ? "auj" : ""}"><div class="jour-nom">${x.j.slice(0, 3)}<br><span class="petit">${x.d.slice(8, 10)}</span></div>
+  // Passages hors séance de la semaine : une ligne, qu'on touche pour les voir
+  const dim = ajouterJours(lundi, 6), hors = (doc.passagesAnciens || []).filter(p => p.date && p.date >= lundi && p.date <= dim);
+  const ligneHors = hors.length ? h`<button class="item ligne-hors" data-act="ouvrirVue" data-vue="historique"><span>Hors séance · ${hors.length} passage${hors.length > 1 ? "s" : ""}${(n => n ? ` · ${n} réussi${n > 1 ? "s" : ""}` : "")(hors.filter(p => p.res === "ok").length)}</span><span class="petit">voir ›</span></button>` : "";
+  return h`${si(bilanSem, h`<p class="bilan-sem">${bilanSem}</p>`)}${ligneHors}${si(aFaire.length, () => h`<div class="a-faire"><b>À faire</b><div class="liste">${aFaire}</div></div>`)}<div class="jours">${jours.map(x => h`<div class="jour ${x.d === auj ? "auj" : ""}"><div class="jour-nom">${x.j.slice(0, 3)}<br><span class="petit">${x.d.slice(8, 10)}</span></div>
       ${x.seances.map(s => { const e = etatSeance(s, ctx.saisie(s.id), auj); const a = activiteAffichee(s, ctx.saisie(s.id)); return h`<button class="pastille-seance etat-${e}" data-act="ouvrirSeance" data-appui="seanceMenu" data-id="${s.id}" data-activite="${a}" aria-label="${a}">${ICONE[e] || a[0]}</button>`; })}</div>`)}</div>
     ${sem.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), t = sa.tentatives || [], et = etapesSeance(s, sa);
       const a = activiteAffichee(s, sa);
       return h`<div class="carte-seance-cadre"><button class="carte-seance etat-${e}" data-act="ouvrirSeance" data-appui="seanceMenu" data-id="${s.id}" data-activite="${a}">
         <span class="cs-gauche"><b>${a}</b><span class="petit">${court(s.date)}${s.dateFixee ? " (déplacée)" : ""} · ≈ ${hm(dureeSeance(s, et, data, doc.reglages))}</span></span>
-        <span class="cs-droite">${e === "faite" ? h`✓ ${sa.effort ? `effort ${sa.effort}` : ""}${t.length ? ` · ${t.filter(reussi).length}/${t.length}` : ""}` : e === "abilan" ? "✓ bilan ?" : e === "sautee" ? "sautée" : e === "encours" ? "▸ en cours" : e === "passee" ? "passée" : e === "aujourdhui" ? "aujourd'hui" : ""}</span></button><button class="cs-menu" data-act="seanceMenu" data-id="${s.id}" aria-label="Options de la séance">⋯</button></div>`; })}
+        <span class="cs-droite">${e === "faite" ? h`✓ ${sa.effort ? `effort ${sa.effort}` : ""}${t.length ? ` · ${t.filter(reussi).length}/${t.length}` : ""}` : e === "abilan" ? "✓ bilan ?" : e === "sautee" ? "✗ sautée" : e === "encours" ? "● en cours" : e === "passee" ? "? passée" : e === "aujourdhui" ? "aujourd'hui" : ""}</span></button><button class="cs-menu" data-act="seanceMenu" data-id="${s.id}" aria-label="Options de la séance">⋯</button></div>`; })}
     <div class="outils-semaine"><button class="petit-btn" data-act="mesuresOuvrir" data-w="${w}">${ico("regle")} Mesures${mesures ? " ✓" : ""}</button><button class="petit-btn" data-act="pauseOuvrir" data-w="${w}">${ico("pause")} Faire une pause</button><button class="petit-btn" data-act="copieSemaineOuvrir" data-w="${w}">Copier · répéter</button></div>`;
 }
 
-export function menuEcran() { return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "Aller à cette semaine", act: "semaineAujourdhui" }] }; }
+export function menuEcran() { return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "+ Passage hors séance", act: "passageAncienOuvrir" }, { label: "Passages hors séance (la liste)", act: "ouvrirVue", data: { vue: "historique" } }, { label: "Aller à cette semaine", act: "semaineAujourdhui" }] }; }
 
 export const actions = {
   semaine: (ctx, d) => { ctx.state.semaineVue = ctx.state.semaineVue === +d.w ? null : +d.w; ctx.rendre();

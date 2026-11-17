@@ -156,7 +156,8 @@ export function rendre(ctx) {
       ${si(M.res === "ko", () => liste("cause", CAUSES, M.cause, { label: "Cause de l'échec", vide: "facultative" }))}
       ${si(M.res === "ok", () => champsReussite(ctx, M))}
       ${si(!deSalle, () => ligneChoix(M, "plus", "Couleur, nom", [M.couleur, M.nom].filter(Boolean).join(" · ") || "facultatif", () => h`${pastilles(ctx, "mCouleur", M.couleur, salleDe(doc, M.salle))}<label class="champ">Nom</label><input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="facultatif">`))}
-      <div class="actions">${M.edit !== undefined ? h`<button class="danger" data-act="resultatSupprimer">Supprimer</button>` : h`<button data-act="mFermer">Annuler</button>`}<button class="principal" data-act="resultatOk" ${M.res ? "" : "disabled"}>Enregistrer</button></div>`; }
+      <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="resultatOk" ${M.res ? "" : "disabled"}>Enregistrer</button></div>
+      ${si(M.edit !== undefined, h`<div class="zone-danger"><button class="danger" data-act="resultatSupprimer">Supprimer ce passage</button></div>`)}`; }
 
     case "douleur": return h`<h2>Douleur pendant la séance</h2>${liste("zone", data.zones.filter(z => z !== "Aucune"), M.zone, { label: "Zone", vide: "Choisir…" })}
       <label class="champ">Niveau</label>${echelle("mChamp", 10, M.niveau, { data: { champ: "niveau" } })}
@@ -172,10 +173,10 @@ export function rendre(ctx) {
       ${si(M.apres > 0, () => liste("zone", data.zones.filter(z => z !== "Aucune"), M.zone, { label: "Zone", vide: "Choisir…" }))}
       ${si(estGrimpe, h`<label class="champ">En gros, ce que tu as grimpé <span class="petit">${precises ? `en plus des ${precises} passages déjà notés` : "(approximatif)"}</span></label>
         <div class="grille">${presentes.map(c => h`<div class="grille-ligne"><b>${c}</b>${["ok", "ko"].map(r => h`<span class="compteur"><button data-act="mGrille" data-k="${c}|${r}" data-pas="-1">−</button><span>${M.grille[c + "|" + r] || 0} ${r === "ok" ? "✓" : "✗"}</span><button data-act="mGrille" data-k="${c}|${r}" data-pas="1">+</button></span>`)}</div>`)}
-        <button class="pli" data-act="mPlier" data-k="autresCots">${M.autresCots ? "▾" : "▸"} Une autre cotation</button>
-        ${si(M.autresCots, () => h`<div class="choix compact">${cots.filter(c => !presentes.includes(c)).map(c => h`<button data-act="mGrille" data-k="${c}|ok" data-pas="1">${c}</button>`)}</div>`)}</div>`)}
-      <button class="pli" data-act="mPlier" data-k="details">${M.details ? "▾" : "▸"} Heures, notes <span class="petit">${M.hDebut} → ${M.hFin}${dureeHeures(M) != null ? ` · ${dureeHeures(M)} min` : ""}</span></button>
-      ${si(M.details, () => h`<div class="ed-rangee"><label class="champ">Début</label><input type="time" data-champ="hDebut" value="${M.hDebut}"><label class="champ">Fin</label><input type="time" data-champ="hFin" value="${M.hFin}"></div><label class="champ">Notes</label><textarea data-champ="notes" rows="3">${M.notes}</textarea>`)}
+        <button class="fiche-ligne" data-act="mPlier" data-k="autresCots"><span>Une autre cotation</span><span class="val">${M.autresCots ? "▾" : "›"}</span></button>
+        ${si(M.autresCots, () => h`<div class="fiche-contenu"><div class="choix compact">${cots.filter(c => !presentes.includes(c)).map(c => h`<button data-act="mGrille" data-k="${c}|ok" data-pas="1">${c}</button>`)}</div></div>`)}</div>`)}
+      <button class="fiche-ligne" data-act="mPlier" data-k="details"><span>Heures, notes</span><span class="val">${M.hDebut} → ${M.hFin}${dureeHeures(M) != null ? ` · ${dureeHeures(M)} min` : ""} ${M.details ? "▾" : "›"}</span></button>
+      ${si(M.details, () => h`<div class="fiche-contenu"><div class="ed-rangee"><label class="champ">Début</label><input type="time" data-champ="hDebut" value="${M.hDebut}"><label class="champ">Fin</label><input type="time" data-champ="hFin" value="${M.hFin}"></div><label class="champ">Notes</label><textarea data-champ="notes" rows="3">${M.notes}</textarea></div>`)}
       ${actionsBas(sa.fin ? "Enregistrer" : "Terminer la séance", "bilanOk", M.effort === "")}`; }
 
     case "menu": return h`<h2>${court(s.date)} · ${activiteAffichee(s, sa)}</h2><div class="menu">
@@ -254,8 +255,11 @@ export function rendre(ctx) {
       ${si(sl.type === "Bloc et voie", () => choix("mInvDisc", [["Voie", "Voies"], ["Bloc", "Blocs"]], M.disc, { classe: "compact" }))}
       ${si(sl.secteurs.length, () => liste("secteurId", sl.secteurs.map(x => [x.id, x.nom]), M.secteurId, { label: "Dans le secteur", vide: "Sans secteur", act: "mSecteurListe" }))}
       <div class="inventaire">${niv.map(n => h`<div class="ligne-reg"><span>${c.mode === "couleurs" ? h`<span class="pastille" style="background:${hexDe(doc, n, sl)}"></span> ${n.toLowerCase()}` : h`<b>${n || (c.mode === "aucune" ? "Sans niveau" : "Niveau inconnu")}</b>`}${c.mode === "couleurs" && cotApp(sl, M.disc, "", n) ? h` <span class="petit">≈ ${cotApp(sl, M.disc, "", n)}</span>` : ""}</span>
-        <span class="compteur"><button data-act="mInv" data-k="${n}" data-pas="-1" ${M.comptes[n] ? "" : "disabled"}>−</button><span>${M.comptes[n] || 0}</span><button data-act="mInv" data-k="${n}" data-pas="1">+</button></span></div>`)}</div>
-      ${si(c.mode !== "couleurs", () => h`<label class="champ">Couleur de prises <span class="petit">(facultatif, pour toutes)</span></label>${pastilles(ctx, "mCouleur", M.couleur, sl)}`)}
+        <span class="inv-droite">${si(c.mode !== "couleurs", () => { const cl = (M.couleursNiv || {})[n] || "", hx = cl ? hexDe(doc, cl, sl) : "";
+            return h`<button class="inv-couleur ${cl ? "" : "vide"} ${M.invCoul === n ? "ouvert" : ""}" data-act="mInvCouleurOuvrir" data-k="${n}" style="${hx ? `background:${hx}` : ""}" aria-label="Couleur des ${M.disc === "Bloc" ? "blocs" : "voies"} ${n}">${cl ? "" : "?"}</button>`; })}
+        <span class="compteur"><button data-act="mInv" data-k="${n}" data-pas="-1" ${M.comptes[n] ? "" : "disabled"}>−</button><span>${M.comptes[n] || 0}</span><button data-act="mInv" data-k="${n}" data-pas="1">+</button></span></span></div>
+        ${si(M.invCoul === n && c.mode !== "couleurs", () => h`<div class="fiche-contenu">${pastilles(ctx, "mInvCouleur", (M.couleursNiv || {})[n] || "", sl, { k: n })}</div>`)}`)}</div>
+      ${si(c.mode !== "couleurs", () => h`<p class="petit">Le rond à côté de chaque niveau : la couleur des prises de ces ${M.disc === "Bloc" ? "blocs" : "voies"} (facultatif ; « ? » = sans couleur, à compléter ensuite).</p>`)}
       <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="inventaireOk" ${total ? "" : "disabled"}>Créer ${total} ${M.disc === "Bloc" ? (total > 1 ? "blocs" : "bloc") : (total > 1 ? "voies" : "voie")}</button></div>`; }
 
     case "secteurs": return h`<h2>Nouveaux secteurs · ${salleDe(doc, M.salleId).nom}</h2>${champsSecteurs(M)}
@@ -276,7 +280,7 @@ export function rendre(ctx) {
       // En création, couleur et cotation sont ouvertes d'office : ce sont les deux choix à faire.
       const ouvertes = M.id || M.section ? [M.section] : ["couleur", "cot"];
       const ligne = (k, label, valeur, contenu) => h`<button class="fiche-ligne" data-act="mSection" data-k="${k}"><span>${label}</span><span class="val">${valeur} ${ouvertes.includes(k) ? "▾" : "›"}</span></button>${si(ouvertes.includes(k), () => h`<div class="fiche-contenu">${contenu()}</div>`)}`;     // une seule présentation
-      return h`${M.id ? h`<div class="fiche-tete"><span class="tuile-voie apercu" style="background:${hexDe(doc, M.couleur, sl)};color:${texteSur(hexDe(doc, M.couleur, sl))}"><b>${M.etoile ? "★ " : ""}${libelleVoie({ cotSalle: M.cotSalle, cot: cotApp(sl, M.disc, M.cotSalle, M.couleur) })}</b>${dessinProfil(M.profil, "picto-tuile")}</span>
+      return h`${M.id ? h`<div class="fiche-tete"><span class="tuile-voie apercu ${hexDe(doc, M.couleur, sl) === "transparent" ? "sans-couleur" : ""}" style="background:${hexDe(doc, M.couleur, sl)};color:${texteSur(hexDe(doc, M.couleur, sl))}"><b>${M.etoile ? "★ " : ""}${libelleVoie({ cotSalle: M.cotSalle, cot: cotApp(sl, M.disc, M.cotSalle, M.couleur) })}</b>${dessinProfil(M.profil, "picto-tuile")}</span>
           <div><h2>${M.disc === "Bloc" ? "Bloc" : "Voie"}${M.nom ? " · " + M.nom : ""}</h2><p class="petit">${sl.nom}${sec ? " · " + sec.nom : ""}${M.statut === "demontee" ? " · démontée" : ""}</p>
           <p class="petit">${hv ? `${hv.essais} essai${hv.essais > 1 ? "s" : ""}, ${hv.reussies} réussi${hv.reussies > 1 ? "s" : ""}` : "jamais tentée"}</p></div></div>
           ${si(M.statut === "demontee", h`<button class="gros principal" data-act="voieDemonter">Remonter cette voie</button>`)}`
@@ -387,11 +391,13 @@ export const actions = {
   mProfil: (ctx, d) => { M(ctx).profil = d.valeur; M(ctx).section = ""; ctx.rendre(); },
   mSecteur: (ctx, d) => { M(ctx).secteurId = d.valeur; M(ctx).section = ""; ctx.state.dernierSecteur = d.valeur; ctx.rendre(); },
   mCouleur: (ctx, d) => { M(ctx).couleur = M(ctx).couleur === d.valeur ? "" : d.valeur; if (M(ctx).type === "voie") M(ctx).section = ""; ctx.rendre(); },
+  mInvCouleurOuvrir: (ctx, d) => { const m = M(ctx); m.invCoul = m.invCoul === d.k ? null : d.k; ctx.rendre(); },
+  mInvCouleur: (ctx, d) => { const m = M(ctx); m.couleursNiv = m.couleursNiv || {}; m.couleursNiv[d.k] = m.couleursNiv[d.k] === d.valeur ? "" : d.valeur; m.invCoul = null; if (!m.comptes[d.k]) m.comptes[d.k] = 1; ctx.rendre(); },
   mInv: (ctx, d) => { const m = M(ctx); m.comptes[d.k] = Math.max(0, (m.comptes[d.k] || 0) + +d.pas); ctx.rendre(); },
   mInvDisc: (ctx, d) => { const m = M(ctx); m.disc = d.valeur; m.comptes = {}; ctx.rendre(); },
   inventaireOk: ctx => { const m = M(ctx), sl0 = salleDe(ctx.doc, m.salleId), couleurs = cotationDe(sl0, m.disc).mode === "couleurs"; let n = 0;
     ctx.modifier("inventaire", d => { const sl = salleDe(d, m.salleId);
-      for (const [niv, k] of Object.entries(m.comptes)) for (let i = 0; i < k; i++) { sl.voies.push(nouvelleVoie(sl, { disc: m.disc, couleur: couleurs ? niv : m.couleur || "", cotSalle: couleurs ? "" : niv, profil: profilHabituel(sl, m.secteurId || null), secteurId: m.secteurId || null }, ctx.aujourdhui())); n++; } });
+      for (const [niv, k] of Object.entries(m.comptes)) for (let i = 0; i < k; i++) { sl.voies.push(nouvelleVoie(sl, { disc: m.disc, couleur: couleurs ? niv : (m.couleursNiv || {})[niv] || m.couleur || "", cotSalle: couleurs ? "" : niv, profil: profilHabituel(sl, m.secteurId || null), secteurId: m.secteurId || null }, ctx.aujourdhui())); n++; } });
     forcerOuvert(`sec-${m.salleId}-${m.secteurId || ""}`); ctx.fermerModal(); ctx.toast(m.disc === "Bloc" ? `${n} bloc${n > 1 ? "s" : ""} créé${n > 1 ? "s" : ""}` : `${n} voie${n > 1 ? "s" : ""} créée${n > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
   mNbSecteurs: (ctx, d) => { const m = M(ctx); m.noms = nomsSecteurs(m.noms, Math.max(m.type === "salle" ? 0 : 1, Math.min(30, m.noms.length + +d.pas)), m.departNom || 1); ctx.rendre(); },
   mNomSecteur: (ctx, d, el) => { M(ctx).noms[+d.i] = el.value; },

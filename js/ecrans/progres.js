@@ -1,6 +1,6 @@
-// ecrans/progres.js — d'abord trois phrases, ensuite le détail pour les curieux. Rien n'est calculé ici.
-import { h, si, lier, pli, info, ico } from "../html.js";
-import { court } from "../dates.js";
+// ecrans/progres.js — d'abord un tableau de bord (4 tuiles, et la douleur récente), une ligne de conseil, ensuite le détail. Rien n'est calculé ici.
+import { h, si, lier, pli, info, ico, forcerOuvert } from "../html.js";
+import { court, semaineDe, ecartJours } from "../dates.js";
 import { hexDe, salleDe } from "../salles.js";
 
 const FORME = { vert: "Bonne forme", orange: "Forme moyenne", rouge: "Forme basse" };
@@ -11,8 +11,29 @@ export function rendre(ctx) {
   let out = h``;
   for (const f of B.nouveauxFeux) out = h`${out}<div class="carte feu-carte"><div><b><span class="feu-pt ok"></span> Feu vert : ${f.titre}</b><br><span class="petit">${f.criteres.map(c => `${c.t} : ${c.val}${c.pct ? " %" : ""}`).join(" · ")}</span></div><button data-act="feuVu" data-id="${f.id}">Vu !</button></div>`;
 
-  // Les phrases
-  out = h`${out}<div class="carte phrases carte-liseree">${B.phrases.length ? B.phrases.map(p => h`<p class="${p.cle}">${p.texte}</p>`) : h`<p>Pas encore de quoi dire quelque chose : grimpe, note deux ou trois voies, et reviens.</p>`}
+  // Douleur récente (épisode en cours, ou moins de 14 jours) : un bandeau rouge au-dessus de tout ; sinon rien
+  const recente = B.episodes.filter(e => !e.fin || ecartJours(e.dernier, B.aujourdhui) <= 14).sort((a, b) => b.dernier < a.dernier ? -1 : 1)[0];
+  if (recente) { const j = ecartJours(recente.dernier, B.aujourdhui);
+    out = h`${out}<button class="bandeau-douleur" data-act="pgOuvrir" data-cle="pg-douleurs">${ico("alerte")} <span><b>Douleur : ${recente.zone} ${recente.max}/10</b> · ${j === 0 ? "aujourd'hui" : j === 1 ? "hier" : `il y a ${j} jours`}${recente.fin ? "" : " · en cours"}</span><span class="bande-go">›</span></button>`; }
+
+  // Le tableau de bord : 4 tuiles (un appui ouvre la section détaillée)
+  const ech = data.echelles, wNow = semaineDe(B.dateDebut, B.aujourdhui);
+  const fleche = disc => { const m = B.meilleures.filter(x => x[`${disc}-Vertical`]); if (m.length < 2) return ""; const r = x => ech[disc].indexOf(String(x[`${disc}-Vertical`]).replace(/\+$/, ""));
+    const d = r(m[m.length - 1]) - Math.max(...m.slice(0, -1).map(r)); return d > 0 ? "↑" : ""; };
+  const niv = ["Voie", "Bloc"].map(disc => { const c = Object.values(B.consolides).find(x => x.disc === disc && x.groupe === "Vertical"); return [disc, c && c.niveau]; });
+  const feuxP = B.feux.filter(f => !f.info), feuxOk = feuxP.filter(f => f.ok).length;
+  const chS = B.charge.semaines, cur = (chS.find(x => x.semaine === wNow) || {}).charge || 0, prev = chS.filter(x => x.semaine < wNow).slice(-4), moy = prev.length ? prev.reduce((t, x) => t + x.charge, 0) / prev.length : 0;
+  const rapport = moy ? cur / moy : null, nbProj = B.voies.filter(v => v.essais > 0 && v.reussies === 0 && (v.voieId || v.couleur || v.nom)).length;
+  out = h`${out}<div class="tuiles-bord">
+    <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-niveau" style="--t:var(--voie)"><span class="tb-titre">Niveau</span><span class="tb-val">${niv.map(([d, n]) => h`<span class="tb-niv"><span class="petit">${d}</span> <b>${n || "—"}</b>${n && fleche(d) ? h` <span class="tb-up">${fleche(d)}</span>` : ""}</span>`)}</span></button>
+    <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-feux" style="--t:#2E9E6B"><span class="tb-titre">Feux verts</span><span class="tb-val"><b class="tb-grand">${feuxOk}</b> <span class="petit">/ ${feuxP.length}</span></span><span class="jauge"><i style="width:${feuxP.length ? 100 * feuxOk / feuxP.length : 0}%"></i></span></button>
+    <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-charge" style="--t:#7A5BB5"><span class="tb-titre">Charge · semaine ${wNow}</span><span class="tb-val"><b class="tb-grand">${cur}</b> ${rapport == null ? "" : rapport > 1.1 ? h`<span class="tb-up">↑</span>` : rapport < 0.9 ? h`<span class="tb-down">↓</span>` : h`<span class="petit">=</span>`}</span><span class="jauge ${rapport != null && rapport > 1.3 ? "trop" : ""}"><i style="width:${moy ? Math.min(100, 100 * cur / (moy * 1.5)) : cur ? 100 : 0}%"></i></span><span class="petit">${moy ? `moyenne ${Math.round(moy)}` : "pas encore de comparaison"}</span></button>
+    <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-projets" style="--t:var(--rouge)"><span class="tb-titre">Projets</span><span class="tb-val"><span class="tb-ko">✗</span> <b class="tb-grand">${nbProj}</b></span><span class="petit">essayés, pas encore réussis</span></button>
+  </div>`;
+
+  // Une seule ligne de conseil (la première phrase utile), puis la forme et la vigilance
+  const conseil = B.phrases.find(p => /^(cap|faible|aisance)/.test(p.cle)) || B.phrases[0];
+  out = h`${out}<div class="carte phrases carte-liseree">${conseil ? h`<p class="conseil"><b>Conseil</b> · ${conseil.texte}</p>` : h`<p>Pas encore de quoi dire quelque chose : grimpe, note deux ou trois voies, et reviens.</p>`}
     <div class="ligne-res"><span>Forme</span><b>${B.formeJour ? h`<span class="point ${B.formeJour.forme}"></span>${FORME[B.formeJour.forme]} <span class="petit">(${court(B.formeJour.date)})</span>` : "pas encore notée"}</b></div>
     ${B.vigilance.filter(v => v.niveau !== "vert").map(v => h`<div class="vig ${v.niveau}">${v.texte}</div>`)}</div>`;
 
@@ -57,6 +78,8 @@ export const actions = {
   // Un projet → sa fiche de voie (historique, ajouter, corriger)
   projetOuvrir: (ctx, d) => { const sl = salleDe(ctx.doc, d.salle) || ctx.doc.salles.find(x => x.voies.some(v => v.id === d.id)); const v = sl && sl.voies.find(x => x.id === d.id);
     if (!v) return ctx.toast("Cette voie n'est plus dans tes salles."); ctx.ouvrirModal({ type: "voie", salleId: sl.id, ...v, chiffre: (v.cotSalle || "")[0] || "" }); },
+  // Une tuile du tableau de bord : ouvre sa section et s'y place
+  pgOuvrir: (ctx, d) => { forcerOuvert(d.cle); ctx.rendre(); const t = document.querySelector(`#ecran [data-act=replier][data-cle="${d.cle}"]`); if (t) ctx.montrer(t.closest(".pli-bloc") || t); },
   signalementSupprimer: (ctx, d) => { ctx.modifierSeance(d.s, "douleur supprimée", sa => { const x = sa.douleur; if (!x) return;
       if (d.quand === "avant") { delete x.avant; delete x.zoneAvant; } else if (d.quand === "après") { delete x.apres; delete x.zone; } else (x.pendant || []).splice(+d.i, 1); });
     ctx.toast("Signalement supprimé", () => ctx.store.annuler()); ctx.rendre(); },

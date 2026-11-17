@@ -26,13 +26,12 @@ function menu(ctx) {
   const { doc, data } = ctx, sync = doc.derniereSync, dernier = doc.dernierExport, jours = dernier ? Math.floor((Date.now() - new Date(dernier)) / 864e5) : null;
   const etatSauvegarde = sync && sync.ok && configValide(doc.reglages.sync) ? `GitHub · ${court(sync.quand.slice(0, 10))}` : sync && !sync.ok ? "GitHub en erreur" : dernier ? `export il y a ${jours} j` : "jamais sauvegardé";
   const alerte = !(sync && sync.ok && (Date.now() - new Date(sync.quand)) < 8 * 864e5) && (jours === null || jours > 7);
-  const nHors = (doc.passagesAnciens || []).filter(p => !p.voieId).length;
   return { titre: h`<b>Plus</b>`, html: h`<h3 class="titre-groupe">Contenu</h3><div class="menu-plus">
     <button class="tuile" data-act="ouvrirVue" data-vue="biblio"><span class="ico">${ico("livre")}</span><span><b>Bibliothèque</b><br><span class="petit">${data.exercices.length} exercices · ${new Set(data.routines.map(r => r.routine)).size} routines</span></span></button>
     </div><h3 class="titre-groupe">Mes données</h3><div class="menu-plus">
     <button class="tuile ${alerte ? "attention" : ""}" data-act="ouvrirVue" data-vue="sauvegarde"><span class="ico">${ico("envoyer")}</span><span><b>Sauvegarde</b><br><span class="petit">${etatSauvegarde}</span></span></button>
     <button class="tuile" data-act="ouvrirVue" data-vue="calendrier"><span class="ico">${ico("calendrier")}</span><span><b>Calendrier</b><br><span class="petit">le programme dans l'iPhone</span></span></button>
-    <button class="tuile" data-act="ouvrirVue" data-vue="historique"><span class="ico">${ico("consignes")}</span><span><b>Hors séance</b><br><span class="petit">${nHors} passage${nHors > 1 ? "s" : ""} sans voie connue</span></span></button>
+
     </div><h3 class="titre-groupe">L'app</h3><div class="menu-plus">
     <button class="tuile" data-act="ouvrirVue" data-vue="reglages"><span class="ico">${ico("reglages")}</span><span><b>Réglages</b><br><span class="petit">repos, affichage, minuteur</span></span></button>
     <button class="tuile" data-act="ouvrirVue" data-vue="aide"><span class="ico">${ico("aide")}</span><span><b>Aide</b><br><span class="petit">principe, syntaxe, données</span></span></button>
@@ -63,7 +62,7 @@ function biblio(ctx) {
   const { data, state } = ctx, r = state.filtre.biblio || "", niv = state.filtre.niveauExo || "", aff = state.filtre.afficherExo || "";
   const compte = n => data.exercices.filter(x => !n || x.niveau === n).length;
   return { titre: h`<b>Bibliothèque</b>`, html: h`<input type="search" class="recherche" placeholder="Rechercher un exercice, une routine…" value="${r}" data-frappe="biblioRecherche" aria-label="Rechercher">
-    <div class="barre-filtres">${liste("niveau-exo", ["Débutant", "Intermédiaire", "Avancé"].map(n => [n, `${n} (${compte(n)})`]), niv, { act: "niveauExoListe", vide: `Tous les niveaux (${compte("")})` })}
+    <div class="barre-filtres">${liste("niveau-exo", ["Débutant", "Intermédiaire", "Avancé"].map(n => [n, `${n} (${compte(n)})`]), niv, { act: "niveauExoListe", vide: `Tous niveaux (${compte("")})` })}
       ${liste("afficher-exo", [["semaine", "Cette semaine"], ["favoris", "★ Favoris"]], aff, { act: "afficherExo", vide: "Tout afficher" })}</div>
     <div id="biblio-liste">${listeBiblio(ctx, r)}</div>` };
 }
@@ -85,6 +84,10 @@ const sansAccent = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f
 // renfort et mobilité (vert), soin et prévention (rose) ; une catégorie inconnue prend une teinte stable selon son nom
 const FAMILLES = [["#2F80C0", ["Pieds", "Corps et équilibre", "Prises et positions", "Dévers", "Dynamique"]], ["#7A5BB5", ["Apprendre", "Méthode", "Méthodes de séance", "Tests", "En tête et falaise"]],
   ["#E08A2E", ["Endurance", "Jeux et endurance", "Allure et technique"]], ["#5E8F2E", ["Gainage", "Haut du corps", "Hanches", "Épaules et dos"]], ["#C2457A", ["Prévention", "Récupération", "Peau"]]];
+// Les 5 familles de la Bibliothèque (et « Autres » pour une catégorie inconnue), dans cet ordre
+const NOMS_FAMILLES = ["Technique", "Méthode", "Endurance", "Renfort", "Soin"];
+const familles = tous => { const cats = [...new Set(tous.map(x => x.categorie))], out = FAMILLES.map(([coul, l], i) => [NOMS_FAMILLES[i], coul, l.filter(c => cats.includes(c))]);
+  const autres = cats.filter(c => !FAMILLES.some(([, l]) => l.includes(c))); if (autres.length) out.push(["Autres", "#6B7A8A", autres]); return out.filter(f => f[2].length); };
 const TEINTES = ["#2F80C0", "#7A5BB5", "#E08A2E", "#5E8F2E", "#C2457A", "#1AA3A3"];
 export const couleurCategorie = c => (FAMILLES.find(([, l]) => l.includes(c)) || [TEINTES[[...String(c)].reduce((a, x) => a + x.charCodeAt(0), 0) % TEINTES.length]])[0];
 function listeBiblio(ctx, recherche) {
@@ -104,7 +107,8 @@ function listeBiblio(ctx, recherche) {
   return h`${si(S, () => h`<p class="petit">Semaine ${S.w} : ${tous.length} exercice${tous.length > 1 ? "s" : ""}${routines.length ? ` et ${routines.length} routine${routines.length > 1 ? "s" : ""}` : ""} cités dans tes séances.</p>`)}
     ${si(favs.length, () => h`<div class="cat-bloc" style="--cat:var(--ocre)">${pli("biblio-favoris", true, "★ Favoris", () => h`<div class="liste">${favs}</div>`, { resume: String(favs.length), classe: "carte" })}</div>`)}
     ${si(routines.length, () => h`<div class="cat-bloc" style="--cat:${COULEUR_ROUTINES}">${pli("biblio-routines", false, "Routines", () => h`<div class="liste">${routines.map(itemR)}</div>`, { resume: String(routines.length), classe: "carte" })}</div>`)}
-    ${cats.map(c => { const l = tous.filter(x => x.categorie === c); return h`<div class="cat-bloc" style="--cat:${couleurCategorie(c)}">${pli(`biblio-${c}`, false, c, () => h`<div class="liste">${l.map(item)}</div>`, { resume: String(l.length), classe: "carte" })}</div>`; })}`;
+    ${familles(tous).map(([nomF, coul, cs]) => { const n = cs.reduce((t, c) => t + tous.filter(x => x.categorie === c).length, 0);
+      return h`<div class="cat-bloc" style="--cat:${coul}">${pli(`biblio-fam-${nomF}`, false, nomF, () => cs.map(c => h`<h4 class="sous-cat">${c} <span class="petit">${tous.filter(x => x.categorie === c).length}</span></h4><div class="liste">${tous.filter(x => x.categorie === c).map(item)}</div>`), { resume: String(n), classe: "carte" })}</div>`; })}`;
 }
 // Étiquette de niveau : même forme partout (exercices, fiches)
 export const etiquetteNiveau = n => n ? h`<span class="niv-tag niv-${sansAccent(n).slice(0, 3)}">${n}</span>` : "";
@@ -116,8 +120,8 @@ function salles(ctx) {
   return { titre: h`<b>Salles</b>`, html: h`${si(!doc.salles.length, () => ecranVide("prise", "Une salle, c'est ta mémoire des voies : couleur, niveau, secteur, et ton historique sur chacune. Pendant une séance, tu touches la voie au lieu de remplir une fiche.", ""))}
     <div class="cartes-salles">${ordre.map(s => { const v = s.voies.filter(x => x.statut !== "demontee"), cs = [...new Set(v.map(x => x.couleur).filter(Boolean))], e = v.map(etats), nOk = e.filter(x => x === "reussie").length, nP = e.filter(x => x === "projet").length;
       const derniere = ts.filter(t => t.salle === s.id && t.date).map(t => t.date).sort().pop(), nv = v.filter(x => x.disc === "Voie").length, nb = v.filter(x => x.disc === "Bloc").length;
-      return h`<div class="carte-salle" style="background:${fondSalle(doc, s)}"><button class="cs-corps" data-act="salleOuvrir" data-appui="salleMenu" data-id="${s.id}"><b>${s.nom}</b>${si(s.id === jour, h` <span class="etiquette-jour">Aujourd'hui</span>`)}
-        <span class="cs-infos">${s.type === "Bloc et voie" ? "Bloc et voie" : s.type === "Bloc" ? "Bloc" : "Voie"} · ${[s.type !== "Bloc" ? `${nv} voie${nv > 1 ? "s" : ""}` : "", s.type !== "Voie" ? `${nb} bloc${nb > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ")}</span>${si(v.length, h`<span class="cs-etats"><span class="ce ok">✓ ${nOk} réussi${s.type === "Bloc" ? "" : "e"}${nOk > 1 ? "s" : ""}</span> <span class="ce ko">✗ ${nP} projet${nP > 1 ? "s" : ""}</span></span>`)}</button>
+      return h`<div class="carte-salle" style="background:${fondSalle(doc, s)}"><button class="cs-corps" data-act="salleOuvrir" data-appui="salleMenu" data-id="${s.id}"><b>${s.nom}</b>
+        <span class="cs-infos">${[s.type !== "Bloc" ? `${nv} voie${nv > 1 ? "s" : ""}` : "", s.type !== "Voie" ? `${nb} bloc${nb > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ")}</span></button>
         <button class="item-edit" data-act="salleEditer" data-id="${s.id}" aria-label="Modifier la salle">✎</button></div>`; })}</div>
     <button class="gros btn-ajout" data-act="salleNouvelle">+ Nouvelle salle</button>` };
 }
@@ -196,7 +200,9 @@ Planche (s) {mesure planche}</pre>
       <p><b>Onglets.</b> Programme · Salles · Progrès · Plus. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme. Pendant une séance, une bande « En cours » (couleur de l'activité) reste au-dessus des onglets sur tous les écrans, avec le repos ou le chrono qui tourne : un appui y ramène.</p>
       <p><b>Pendant une séance.</b> Une seule carte « En cours » : ligne du temps (repère sur l'étape), « Étape 2 sur 7 », ce qu'il faut faire, le gros bouton « ✓ Fait », et le détail de l'étape (encadré). Douleur et Fin de séance restent en bas de l'écran. Sur la dernière étape, « ✓ Fait · terminer la séance » ouvre le bilan ; si tout est coché autrement, l'app te propose de terminer.</p>
       <p><b>Gestes.</b> Appui long (½ s), comme sur l'iPhone : sur une séance du Programme, son menu ; sur une salle, ses actions ; sur une voie pendant une séance, sa fiche ; sur un passage d'aujourd'hui, le corriger ; sur une voie du mur, la déplacer ; sur un secteur, le modifier. Glisser depuis le bord gauche : revenir en arrière (sauf sur une séance, où glisser passe à la séance voisine). Une section qu'on ouvre s'affiche en entier.</p>
-      <p><b>Bibliothèque.</b> Deux listes : Niveau (Débutant, Intermédiaire, Avancé, avec le nombre d'exercices) et Afficher (Tout, Cette semaine : ce que tes séances de la semaine citent, ★ Favoris). Les routines sont des fiches comme les exercices : étapes, durées, ★ favori.</p>
+      <p><b>Bibliothèque.</b> Six familles repliables : Routines, Technique, Méthode, Endurance, Renfort, Soin ; dedans, les catégories en sous-titres. Deux listes : Niveau (avec le nombre d'exercices) et Afficher (Tout, Cette semaine, ★ Favoris). Les routines sont des fiches comme les exercices.</p>
+      <p><b>Programme.</b> Chaque bloc (Bloc 1, Bloc 2…) est une carte repliable avec son avancement ; le bloc en cours est ouvert, ses phases en sous-titres. « + Hors séance » note un passage en dehors d'une séance ; il apparaît dans sa semaine (« Hors séance · 2 passages »), et la liste complète est dans Options. Repères : ✓ faite, ✗ sautée, ● en cours ou aujourd'hui, ? passée sans nouvelles.</p>
+      <p><b>Progrès.</b> En haut, quatre tuiles : Niveau (↑ quand ta meilleure cotation monte), Feux verts, Charge de la semaine (comparée à la moyenne des semaines d'avant), Projets. Une douleur récente s'affiche au-dessus en rouge. Un appui sur une tuile ouvre sa section. Dessous, une ligne de conseil.</p>
       <p><b>Annuler.</b> Options en haut, sur chaque écran : les 30 derniers gestes. Une suppression propose aussi « Annuler » quelques secondes.</p>`,
   };
   return S;
