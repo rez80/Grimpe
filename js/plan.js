@@ -176,7 +176,7 @@ export function themesNouveaux(plan, exercices, dejaUtilises = []) {
 export const TYPES_SEANCE = { dure: "Séance dure", volume: "Volume", voie: "Voie", planB: "Plan B (sans partenaire)" };
 const echapper = t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export const ligneAjout = a => `${Math.max(1, +a.n || 1)}× « ${a.nom} »${a.detail ? ` · ${a.detail}` : ""} {repos 2min} {${a.effort ? "effort" : "facile"}}`;
-function retoucher(lignes, role, type, exos) {
+function retoucher(lignes, role, type, exos, ajouter = true) {
   const R = (exos.retires || {})[role] || [], M = (exos.remplaces || {})[role] || {}, A = ((exos.ajouts || {})[role] || []).filter(a => a.nom && (!a.phase || a.phase === type));
   let out = [];
   for (let l of lignes) {
@@ -188,14 +188,16 @@ function retoucher(lignes, role, type, exos) {
       l = l.replace(new RegExp(`\\s*·\\s*«\\s*${echapper(nom)}\\s*»`, "g"), "").replace(new RegExp(`«\\s*${echapper(nom)}\\s*»\\s*·?\\s*`, "g"), ""); }
     if (!sup) out.push(l);
   }
-  if (A.length) { const i = out.findIndex(l => /^> (Retour au calme|Coudes après)/.test(l) || /^1× (Voie facile|« Traversée basse »)/.test(l)); out.splice(i < 0 ? out.length : i, 0, ...A.map(ligneAjout)); }
+  if (A.length && ajouter) { const i = out.findIndex(l => /^> (Retour au calme|Coudes après)/.test(l) || /^1× (Voie facile|« Traversée basse »)/.test(l)); out.splice(i < 0 ? out.length : i, 0, ...A.map(ligneAjout)); }
   return out;
 }
 export function appliquerExos(contenu, role, type, exos) {
   if (!exos) return contenu;
   const segs = [], lignes = contenu.split("\n"); let cur = { nom: "", l: [] }; segs.push(cur);
   for (const l of lignes) { if (l.startsWith("## ")) { cur = { nom: l, l: [] }; segs.push(cur); } else cur.l.push(l); }
-  return segs.map(sg => { const r = /^## Remplacement/.test(sg.nom) ? "planB" : role; return [...(sg.nom ? [sg.nom] : []), ...retoucher(sg.l, r, type, exos)]; }).flat().join("\n");
+  // La partie commune (avant le premier « ## ») d'une séance à versions ne reçoit pas les ajouts : ils vont dans chaque version
+  const aVersions = segs.length > 1;
+  return segs.map(sg => { const r = /^## Remplacement/.test(sg.nom) ? "planB" : role; return [...(sg.nom ? [sg.nom] : []), ...retoucher(sg.l, r, type, exos, !(aVersions && !sg.nom))]; }).flat().join("\n");
 }
 // Les exercices proposés par le générateur, par type de séance (sans les consignes de la semaine, réglées à part)
 export function exercicesProposes(plan, echelles) {

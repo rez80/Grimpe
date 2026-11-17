@@ -12,7 +12,7 @@
 //   store.remplacer(doc)                               import d'une sauvegarde (migrée au passage)
 //   store.abonner(fn)                                  fn(doc, libellé) après chaque changement
 
-export const VERSION_DOC = 5;
+export const VERSION_DOC = 6;
 
 export const documentVide = () => ({
   version: VERSION_DOC,
@@ -48,6 +48,8 @@ export const MIGRATIONS = {
   // 3 → 4 : les blocs construits dans l'app (assistant « Construire un bloc »)
   3: doc => { doc.blocs = doc.blocs || []; },
   4: doc => { doc.exos = doc.exos || []; },
+  // 8.20 : un exercice ajouté aux séances voie était aussi recopié avant « ## Voie » ; ces blocs sont régénérés au démarrage (app.js)
+  5: doc => { for (const b of doc.blocs || []) if (b.plan && b.plan.exos && Object.values(b.plan.exos.ajouts || {}).some(l => l && l.length)) b.aRegenerer = true; },
   2: doc => {
     const txt = x => x === null || x === undefined ? "" : String(x), parId = {};
     for (const s of doc.salles || []) {

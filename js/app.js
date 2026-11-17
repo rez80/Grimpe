@@ -17,7 +17,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.20";
+export const APP_VERSION = "8.21";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
 const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", assistant: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
@@ -229,6 +229,15 @@ async function ecranAllume(on) { try { if (on && !verrou && navigator.wakeLock &
 const seanceEnCours = d => ctx.programme.some(s => { const sa = d.seances[s.id]; return sa && sa.debut && !sa.fin; });
 const majEcranAllume = () => ecranAllume(!!store.doc.reglages.ecranAllume && seanceEnCours(store.doc));
 
+// Blocs marqués par une migration : leurs séances sont réécrites par le générateur actuel (mêmes identifiants : les saisies restent)
+let regenEnCours = false;
+function regenererBlocs() {
+  if (regenEnCours || !(store.doc.blocs || []).some(b => b.aRegenerer)) return; regenEnCours = true;
+  import("./plan.js").then(({ genererBloc }) => {
+    store.modifier("blocs régénérés", d => { d.blocs = d.blocs.map(b => { if (!b.aRegenerer) return b; const n = genererBloc({ ...b.plan, id: b.id }, DATA.echelles); const { aRegenerer, ...reste } = b; return { ...reste, seances: n.seances }; }); }, { annulable: false });
+    rendre(false); }).catch(() => { /* hors ligne au premier lancement : réessayé au prochain */ }).finally(() => { regenEnCours = false; });
+}
+
 // --- Démarrage ---
 (async () => {
   store = await ouvrirStore();
@@ -239,7 +248,7 @@ const majEcranAllume = () => ecranAllume(!!store.doc.reglages.ecranAllume && sea
   document.documentElement.classList.toggle("grand", !!store.doc.reglages.grand);
   // Une séance restée ouverte depuis plus de 4 h est close ; son bilan sera demandé par la carte « hier »
   { const closes = clotureAutomatique(JSON.parse(JSON.stringify(store.doc)), ctx.programme); if (closes.length) store.modifier("clôture automatique", d => clotureAutomatique(d, ctx.programme), { annulable: false }); }
-  store.abonner(() => { cache.doc = null; majEcranAllume(); });
+  store.abonner(() => { cache.doc = null; majEcranAllume(); if ((store.doc.blocs || []).some(b => b.aRegenerer)) setTimeout(regenererBlocs, 0); });   // ex. après une restauration
   minuteur.configurer({ son: store.doc.reglages.son, quandFini: fini => { if (fini.type === "repos") ctx.toast("Repos terminé"); rendre(false); } });
   minuteur.restaurer();
   state.semaineVue = Math.max(1, semaineDe(store.doc.reglages.dateDebut || DATA.dateDebut, ctx.aujourdhui()));
@@ -247,6 +256,7 @@ const majEcranAllume = () => ecranAllume(!!store.doc.reglages.ecranAllume && sea
   { const enCours = ctx.programme.find(s => { const sa = store.doc.seances[s.id]; return sa && sa.debut && !sa.fin; });
     if (enCours) { state.vue = "seance"; state.seanceId = enCours.id; state.origine = "programme"; } else state.vue = "programme"; }
   rendre(true); majEcranAllume();
+  regenererBlocs();
   ctx.ouverture = Math.round(performance.now());                                   // temps jusqu'au premier écran (affiché dans Plus)
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     const proposer = () => { if (navigator.serviceWorker.controller) $("bandeau").style.display = "block"; };
