@@ -5,6 +5,7 @@
 import { tentatives, signalements, dureeMinutes } from "./analyse.js";
 import { etatSeance } from "./programme.js";
 import { salleDe, secteurDe } from "./salles.js";
+import { feuxBloc, finBloc } from "./blocs.js";
 
 const BOM = "﻿";
 const cellule = v => { if (v == null) return ""; if (typeof v === "boolean") return v ? "oui" : "non"; if (typeof v === "number") return String(v).replace(".", ",");
@@ -13,7 +14,7 @@ export const versCSV = (colonnes, lignes) => BOM + [colonnes.join(";"), ...ligne
 const heure = ms => { if (!ms) return ""; const d = new Date(ms), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 
 // Les 5 tables, à partir du programme effectif et du document. notes = false : sans les textes libres.
-export function tables({ programme, doc, aujourdhui, notes = true }) {
+export function tables({ programme, doc, aujourdhui, dateDebut, notes = true }) {
   const nomSalle = id => (salleDe(doc, id) || {}).nom || (id ? "?" : "");
   const passages = tentatives(programme, doc).sort((a, b) => (a.date || "") < (b.date || "") ? -1 : (a.date || "") > (b.date || "") ? 1 : (a.t || 0) - (b.t || 0)).map(t => ({
     date: t.date || "", heure: heure(t.t).slice(11), seance: String(t.seanceId || "").startsWith("ancien-") ? "hors séance" : t.seanceId, discipline: t.disc, cotation: t.cot, cotation_salle: t.cotSalle,
@@ -30,7 +31,14 @@ export function tables({ programme, doc, aujourdhui, notes = true }) {
       caracteristiques: (v.carac || []).join(", "), statut: v.statut || "en place", ouverte: v.ouverte || "", demontee: v.demontee || "", passages: nbPassages[v.id] || 0, reussie: !!reussies[v.id], voie_id: v.id }; }));
   const mesures = Object.entries(doc.mesures || {}).flatMap(([w, m]) => Object.entries(m || {}).map(([cle, valeur]) => ({ semaine: +w, mesure: cle, valeur })));
   const douleurs = signalements(programme, doc).map(x => ({ date: x.date, seance: x.seanceId, moment: x.quand, zone: x.zone, niveau: x.niveau }));
+  // Blocs construits : un critère de feu vert par ligne, évalué aujourd'hui
+  const blocs = (doc.blocs || []).flatMap(b => (dateDebut ? feuxBloc(b, { programme, doc, aujourdhui, dateDebut }) : []).flatMap(f => f.criteres.map(c => ({
+    bloc: b.nom, titre: b.titre, semaines: `${b.debut}-${finBloc(b)}`, objectif: b.plan && b.plan.objectif ? `${b.plan.objectif.disc} ${b.plan.objectif.cot}` : "", feu: f.titre, role: f.role || "", feu_atteint: !!f.ok,
+    critere: c.t, valeur: c.val, cible: c.cible, atteint: !!c.ok }))));
+  const exercices = (doc.exos || []).map(x => ({ nom: x.nom, fiche_origine: x.base || "", categorie: x.categorie, niveau: x.niveau, discipline: x.discipline, but: x.but, comment: x.comment, securite: x.securite }));
   return {
+    "blocs.csv": versCSV(["bloc", "titre", "semaines", "objectif", "feu", "role", "feu_atteint", "critere", "valeur", "cible", "atteint"], blocs),
+    "exercices.csv": versCSV(["nom", "fiche_origine", "categorie", "niveau", "discipline", "but", "comment", "securite"], exercices),
     "passages.csv": versCSV(["date", "heure", "seance", "discipline", "cotation", "cotation_salle", "profil", "resultat", "aisance", "style", "essais_avant", "premier_essai", "cause", "couleur", "nom", "salle", "voie_id", "nouvelle", "date_approx", ...(notes ? ["note"] : [])], passages),
     "seances.csv": versCSV(["id", "semaine", "jour", "date_prevue", "date_reelle", "activite", "phase", "bloc", "bonus", "etat", "version", "debut", "fin", "duree_min", "effort", "forme", "douleur_avant", "douleur_apres", "zone_apres", "passages", "salle", "raison", ...(notes ? ["notes"] : [])], seances),
     "voies.csv": versCSV(["salle", "secteur", "discipline", "couleur", "cotation_salle", "cotation", "nom", "profil", "caracteristiques", "statut", "ouverte", "demontee", "passages", "reussie", "voie_id"], voies),

@@ -8,6 +8,7 @@ import { creerSync, lireJeton, configValide } from "./sync.js";
 import { aujourdhui as dateDuJour, semaineDe } from "./dates.js";
 import { $, h, basculer, forcerOuvert } from "./html.js";
 import { PALETTE } from "./salles.js";
+import { exercicesEffectifs } from "./bibliotheque.js";
 import * as minuteur from "./minuteur.js";
 import * as seance from "./ecrans/seance.js";
 import * as programme from "./ecrans/programme.js";
@@ -16,7 +17,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.17";
+export const APP_VERSION = "8.19";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
 const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", assistant: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
@@ -25,10 +26,13 @@ const SOUS_ECRANS = ["biblio", "salle", "historique", "assistant", "calendrier",
 const state = { vue: "seance", seanceId: null, semaineVue: null, ouverts: new Set(), modal: null, scroll: {}, pile: [], salleId: null, toast: null, filtre: {}, dernierSecteur: "",
   origine: null,          // « programme » : la séance a été ouverte depuis le programme → la flèche ‹ y ramène
   classer: null, ranger: false, ouvertsAvantAide: null };
-let store, cache = { doc: null, programme: null, bilan: null };
+let store, cache = { doc: null, programme: null, bilan: null }, cacheData = { exos: null, data: DATA };
 
 const ctx = {
-  data: DATA, state, APP_VERSION,
+  // Les données du programme, avec la bibliothèque complétée par tes fiches (doc.exos)
+  get data() { const ex = store && store.doc && store.doc.exos; if (!ex || !ex.length) return DATA;
+    if (cacheData.exos !== ex) cacheData = { exos: ex, data: { ...DATA, exercices: exercicesEffectifs(DATA.exercices, ex) } }; return cacheData.data; },
+  state, APP_VERSION,
   get store() { return store; },
   get doc() { return store.doc; },
   aujourdhui: () => state.dateSimulee || dateDuJour(),

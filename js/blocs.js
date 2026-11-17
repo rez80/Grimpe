@@ -36,11 +36,14 @@ export const blocDeSemaine = (doc, w) => blocsDe(doc).filter(b => w >= b.debut &
 
 // Libellé d'un critère, construit à partir de ses réglages
 export function libelleCritere(c) {
-  const quoi = (c.disc === "Voie" ? "voie" : "bloc"), dev = c.profil === "devers" ? " en dévers" : c.profil === "vertical" ? " en vertical" : "";
+  const quoi = (c.disc === "Voie" ? "voie" : "bloc"), dev = c.profil === "devers" ? " en dévers" : c.profil === "dalle" ? " en dalle" : c.profil === "vertical" ? " en vertical" : "";
   switch (c.type) {
     case "essais": return `Essais en ${quoi} ${c.cot}${dev}`;
     case "taux": return `Réussite en ${quoi} ${c.cot}${dev}`;
     case "differents": return `${c.disc === "Voie" ? "Voies" : "Blocs"} ${c.cot} différent${c.disc === "Voie" ? "e" : ""}s réussi${c.disc === "Voie" ? "e" : ""}s${dev}`;
+    case "memeJour": return `${c.disc === "Voie" ? "Voies" : "Blocs"} ${c.cot} réussi${c.disc === "Voie" ? "e" : ""}s le même jour`;
+    case "avue": return `${c.disc === "Voie" ? "Voies" : "Blocs"} ${c.cot} réussi${c.disc === "Voie" ? "e" : ""}s à vue ou flash`;
+    case "mesure": return c.cle === "planche" ? "Planche (s), dernière mesure" : `Mesure « ${c.cle} »`;
     case "douleur": return `Douleur max sur ${c.semaines || 4} semaines`;
     case "seances": return "Séances du bloc faites (en %)";
     case "coche": return c.label || "À cocher";
@@ -52,7 +55,10 @@ export function libelleCritere(c) {
 export function feuxBloc(b, { programme, doc, aujourdhui, dateDebut }) {
   const depuis = dateSeance(dateDebut, b.debut, "Lundi");
   const ts = avecEssaisDeclares(tentatives(programme, doc)).filter(t => t.date && t.date >= depuis && t.date <= aujourdhui);
-  const filtre = c => ts.filter(t => t.disc === c.disc && baseCot(t.cot) === String(c.cot) && (c.profil === "devers" ? enDevers(t.profil) : c.profil === "vertical" ? !enDevers(t.profil) : true));
+  // La cotation exacte (5+ ≠ 5) ; une cotation sans « + » compte aussi ses « + » (5b compte 5b+), comme le niveau consolidé
+  const memeCot = (t, c) => String(c.cot).endsWith("+") ? String(t.cot) === String(c.cot) : baseCot(t.cot) === String(c.cot);
+  const filtre = c => ts.filter(t => t.disc === c.disc && memeCot(t, c) && (c.profil === "devers" ? enDevers(t.profil) : c.profil === "dalle" ? t.profil === "Dalle" : c.profil === "vertical" ? !enDevers(t.profil) : true));
+  const derniereMesure = cle => { const w = Object.keys(doc.mesures || {}).map(Number).filter(x => x >= b.debut && doc.mesures[x] && doc.mesures[x][cle] != null && doc.mesures[x][cle] !== "").sort((a, z) => z - a)[0]; return w ? +doc.mesures[w][cle] || 0 : 0; };
   const douleurMax = semaines => { const limite = ajouterJours(aujourdhui, -7 * (semaines || 4)); let m = 0;
     for (const s of programme) { const ds = dateDe(s, doc); if (ds < limite || ds > aujourdhui) continue; const d = (doc.seances[s.id] || {}).douleur || {};
       m = Math.max(m, +d.avant || 0, +d.apres || 0, ...(d.pendant || []).map(x => +x.niveau || 0)); }
@@ -60,11 +66,14 @@ export function feuxBloc(b, { programme, doc, aujourdhui, dateDebut }) {
   const crit = (c, val, cible, pct = false) => ({ t: c.label || libelleCritere(c), val, cible, pct, ok: val >= cible });
   return (b.feux || []).map(f => {
     const criteres = f.criteres.map((c, n) => {
-      const l = c.type === "essais" || c.type === "taux" || c.type === "differents" ? filtre(c) : [];
+      const l = ["essais", "taux", "differents", "memeJour", "avue"].includes(c.type) ? filtre(c) : [];
       switch (c.type) {
         case "essais": return crit(c, l.length, c.min ?? 10);
         case "taux": return crit(c, l.length ? Math.round(100 * l.filter(reussi).length / l.length) : 0, c.min ?? 70, true);
         case "differents": return crit(c, differentes(l.filter(reussi)), c.min ?? 5);
+        case "memeJour": { const j = {}; for (const t of l.filter(reussi)) j[t.date] = (j[t.date] || 0) + 1; return crit(c, Math.max(0, ...Object.values(j)), c.min ?? 4); }
+        case "avue": return crit(c, differentes(l.filter(t => reussi(t) && (t.style === "À vue" || t.style === "Flash"))), c.min ?? 3);
+        case "mesure": return crit(c, derniereMesure(c.cle), c.min ?? 1);
         case "douleur": { const m = douleurMax(c.semaines); return { ...crit(c, m <= (c.max ?? 2) ? 1 : 0, 1), t: `${c.label || libelleCritere(c)} ≤ ${c.max ?? 2}/10`, detail: `max ${m}/10` }; }
         case "seances": { const du = programme.filter(s => s.bloc === b.id && !s.bonus && dateDe(s, doc) <= aujourdhui), faites = du.filter(s => doc.seances[s.id] && doc.seances[s.id].fin).length;
           return crit(c, du.length ? Math.round(100 * faites / du.length) : 0, c.min ?? 80, true); }

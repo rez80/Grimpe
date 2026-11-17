@@ -1,6 +1,7 @@
 // ecrans/progres.js — d'abord un tableau de bord (4 tuiles, et la douleur récente), une ligne de conseil, ensuite le détail. Rien n'est calculé ici.
 import { h, si, lier, pli, info, ico, forcerOuvert } from "../html.js";
-import { court, semaineDe, ecartJours } from "../dates.js";
+import { court, semaineDe, ecartJours, hm } from "../dates.js";
+import { etapesSeance, dureeSeance } from "../programme.js";
 import { hexDe, salleDe } from "../salles.js";
 
 const FORME = { vert: "Bonne forme", orange: "Forme moyenne", rouge: "Forme basse" };
@@ -23,18 +24,26 @@ export function rendre(ctx) {
   const niv = ["Voie", "Bloc"].map(disc => { const c = Object.values(B.consolides).find(x => x.disc === disc && x.groupe === "Vertical"); return [disc, c && c.niveau]; });
   const feuxP = B.feux.filter(f => !f.info), feuxOk = feuxP.filter(f => f.ok).length;
   const chS = B.charge.semaines, cur = (chS.find(x => x.semaine === wNow) || {}).charge || 0, prev = chS.filter(x => x.semaine < wNow).slice(-4), moy = prev.length ? prev.reduce((t, x) => t + x.charge, 0) / prev.length : 0;
+  // Cette semaine : le temps grimpé et celui prévu par le programme (sans les séances bonus)
+  const semPrevues = ctx.programme.filter(x => x.semaine === wNow && !x.bonus), faitesSem = semPrevues.filter(x => ctx.saisie(x.id).fin).length;
+  const minPrevues = Math.round(semPrevues.reduce((t, x) => t + dureeSeance(x, etapesSeance(x, ctx.saisie(x.id)), data, doc.reglages), 0) / 60), minFaites = (chS.find(x => x.semaine === wNow) || {}).minutes || 0;
   const rapport = moy ? cur / moy : null, nbProj = B.voies.filter(v => v.essais > 0 && v.reussies === 0 && (v.voieId || v.couleur || v.nom)).length;
   out = h`${out}<div class="tuiles-bord">
     <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-niveau" style="--t:var(--voie)"><span class="tb-titre">Niveau</span><span class="tb-val">${niv.map(([d, n]) => h`<span class="tb-niv"><span class="petit">${d}</span> <b>${n || "—"}</b>${n && fleche(d) ? h` <span class="tb-up">${fleche(d)}</span>` : ""}</span>`)}</span></button>
     <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-feux" style="--t:#2E9E6B"><span class="tb-titre">Feux verts</span><span class="tb-val"><b class="tb-grand">${feuxOk}</b> <span class="petit">/ ${feuxP.length}</span></span><span class="jauge"><i style="width:${feuxP.length ? 100 * feuxOk / feuxP.length : 0}%"></i></span></button>
-    <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-charge" style="--t:#7A5BB5"><span class="tb-titre">Charge · semaine ${wNow}</span><span class="tb-val"><b class="tb-grand">${cur}</b> ${rapport == null ? "" : rapport > 1.1 ? h`<span class="tb-up">↑</span>` : rapport < 0.9 ? h`<span class="tb-down">↓</span>` : h`<span class="petit">=</span>`}</span><span class="jauge ${rapport != null && rapport > 1.3 ? "trop" : ""}"><i style="width:${moy ? Math.min(100, 100 * cur / (moy * 1.5)) : cur ? 100 : 0}%"></i></span><span class="petit">${moy ? `moyenne ${Math.round(moy)}` : "pas encore de comparaison"}</span></button>
+    <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-charge" style="--t:#7A5BB5"><span class="tb-titre">Cette semaine</span><span class="tb-val"><b class="tb-grand">${hm(minFaites * 60)}</b> <span class="petit">sur ≈ ${hm(minPrevues * 60)}</span></span><span class="jauge"><i style="width:${minPrevues ? Math.min(100, 100 * minFaites / minPrevues) : 0}%"></i></span><span class="petit">${faitesSem}/${semPrevues.length} séance${semPrevues.length > 1 ? "s" : ""} faite${semPrevues.length > 1 ? "s" : ""}</span></button>
     <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-projets" style="--t:var(--rouge)"><span class="tb-titre">Projets</span><span class="tb-val"><span class="tb-ko">✗</span> <b class="tb-grand">${nbProj}</b></span><span class="petit">essayés, pas encore réussis</span></button>
   </div>`;
 
-  // Une seule ligne de conseil (la première phrase utile), puis la forme et la vigilance
-  const conseil = B.phrases.find(p => /^(cap|faible|aisance)/.test(p.cle)) || B.phrases[0];
-  out = h`${out}<div class="carte phrases carte-liseree">${conseil ? h`<p class="conseil"><b>Conseil</b> · ${conseil.texte}</p>` : h`<p>Pas encore de quoi dire quelque chose : grimpe, note deux ou trois voies, et reviens.</p>`}
-    <div class="ligne-res"><span>Forme</span><b>${B.formeJour ? h`<span class="point ${B.formeJour.forme}"></span>${FORME[B.formeJour.forme]} <span class="petit">(${court(B.formeJour.date)})</span>` : "pas encore notée"}</b></div>
+  // Le conseil : une carte, avec l'avancement vers le prochain cap et un accès direct ; la forme et la vigilance sur leur propre ligne
+  const conseil = B.phrases.find(p => /^(cap|faible|aisance)/.test(p.cle)) || B.phrases[0], SECTION = { cap: "pg-feux", faible: "pg-travailler", aisance: "pg-niveau", niveau: "pg-niveau", semaine: "pg-charge" };
+  const feuCap = conseil && conseil.cle === "cap" ? B.feux.find(f => !f.ok && !f.info) : null, critCap = feuCap ? feuCap.criteres.filter(c => !c.ok && !c.coche).sort((a, b) => a.val / (a.cible || 1) - b.val / (b.cible || 1))[0] : null;
+  const section = conseil ? SECTION[conseil.cle.split("-")[0]] : null;
+  out = h`${out}<div class="carte carte-conseil"><div class="cc-tete">${ico("ampoule")}<b>Conseil</b></div>
+    ${conseil ? h`<p>${conseil.texte}</p>` : h`<p>Pas encore de quoi dire quelque chose : grimpe, note deux ou trois voies, et reviens.</p>`}
+    ${si(critCap, () => h`<span class="jauge cc-jauge"><i style="width:${Math.min(100, 100 * critCap.val / (critCap.cible || 1))}%"></i></span>`)}
+    ${si(section, () => h`<button class="petit-btn" data-act="pgOuvrir" data-cle="${section}">${conseil.cle === "cap" ? "Voir le feu vert" : "Voir le détail"} ›</button>`)}</div>
+    <div class="carte compacte ligne-forme"><div class="ligne-res"><span>Forme</span><b>${B.formeJour ? h`<span class="point ${B.formeJour.forme}"></span>${FORME[B.formeJour.forme]} <span class="petit">(${court(B.formeJour.date)})</span>` : h`<span class="petit">pas encore notée (au début d'une séance)</span>`}</b></div>
     ${B.vigilance.filter(v => v.niveau !== "vert").map(v => h`<div class="vig ${v.niveau}">${v.texte}</div>`)}</div>`;
 
   // Projets en cours (toutes salles)
@@ -46,7 +55,7 @@ export function rendre(ctx) {
     ${f.criteres.map(c => c.coche ? h`<div class="crit crit-coche"><span>${c.t}</span><button class="case-feu ${c.ok ? "ok" : ""}" data-act="feuCoche" data-bloc="${f.bloc}" data-cle="${c.coche}" aria-pressed="${c.ok ? "true" : "false"}">${c.ok ? "✓ Fait" : "À cocher"}</button></div>`
       : c.detail ? h`<div class="crit"><span>${c.t}</span>${barre(c.val, c.cible, c.ok ? "ok" : "")}<b>${c.detail}</b></div>`
       : h`<div class="crit"><span>${c.t}</span>${barre(c.val, c.cible, c.ok ? "ok" : "")}<b>${c.val}${c.pct ? " %" : ""} / ${c.cible}${c.pct ? " %" : ""}</b></div>`)}
-    ${si(p && B.recul, () => h`<p class="petit">${p.semaines ? `À ce rythme : ${p.semaines > 26 ? "plus de six mois" : p.semaines === 1 ? "une semaine" : p.semaines + " semaines"}.` : p.val > 0 ? "Pas d'avancée sur quatre semaines." : ""}</p>`)}</div>`; })}`, { resume: `${B.feux.filter(f => f.ok).length} / ${B.feux.filter(f => !f.info).length}`, classe: "carte" })}`;
+    ${si(p && B.recul, () => h`<p class="petit">${p.semaines ? `À ce rythme : ${p.semaines > 26 ? "plus de six mois" : p.semaines === 1 ? "une semaine" : p.semaines + " semaines"}.` : p.val > 0 ? "Pas d'avancée sur quatre semaines." : ""}</p>`)}</div>`; })}`, { resume: `${B.feux.filter(f => f.ok && !f.info).length} / ${B.feux.filter(f => !f.info).length}`, classe: "carte" })}`;
 
   out = h`${out}${pli("pg-niveau", false, "Niveau consolidé", () => h`${info("niveau")}<p class="petit">≥ ${Math.round(B.params.consolide_taux * 100)} % de réussite sur ≥ ${B.params.consolide_essais} essais.</p>
     <div class="grille-niv">${Object.values(B.consolides).map(c => h`<div class="niv"><span class="petit">${c.disc} · ${c.groupe}</span>${c.niveau ? h`<span class="niv-tag niv-cot niv-${c.disc === "Bloc" ? "bloc" : "voie"}">${c.niveau}</span>` : h`<b>—</b>`}</div>`)}</div>

@@ -66,7 +66,7 @@ export function rendre(ctx) {
   const averts = avertissements(s, ctx.programme, doc), fj = forme(sa, data.params);
   const blocAverts = () => { let o = h``; for (const a of averts) o = h`${o}<div class="avert">${ico("alerte")} ${a}</div>`;
     const allegee = versions.findIndex(v => /allég|léger|legere|court|récup/i.test(v));
-    if (avant && allegee >= 0 && allegee !== (sa.version || 0) && (averts.length || fj === "rouge")) o = h`${o}<div class="avert">Il existe une version « ${versions[allegee]} » : <button class="lien" data-act="version" data-n="${allegee}">la prendre aujourd'hui</button></div>`;
+    if (avant && allegee >= 0 && allegee !== (sa.version || 0) && (averts.length || fj === "rouge")) o = h`${o}<div class="avert">Il existe une version « ${versions[allegee]} » : <button class="petit-btn" data-act="version" data-n="${allegee}">la prendre aujourd'hui</button></div>`;
     return o; };
 
   if (!enCours) {
@@ -106,8 +106,8 @@ export function rendre(ctx) {
       <div class="ligne-res"><span>Douleur après</span><b>${sa.douleur && sa.douleur.apres ? `${sa.douleur.apres}/10 · ${sa.douleur.zone || ""}` : "aucune"}</b></div>
       ${t.length ? h`<div class="ligne-res"><span>${disc === "Bloc" ? "Blocs réussis" : "Voies réussies"}</span><b>${ok} sur ${t.length}</b></div>` : ""}
       ${sa.notes ? h`<p class="petit">« ${sa.notes} »</p>` : ""}
-      <div class="liens"><button class="lien" data-act="bilanOuvrir">Modifier le bilan</button><button class="lien" data-act="reprendre">Reprendre la séance</button></div></div>`; }
-  if (etat === "sautee") out = h`${out}<p class="petit centre">Séance sautée · <button class="lien" data-act="desauter">annuler</button></p>`;
+      <div class="liens"><button class="petit-btn" data-act="bilanOuvrir">Modifier le bilan</button><button class="petit-btn" data-act="reprendre">Reprendre la séance</button></div></div>`; }
+  if (etat === "sautee") out = h`${out}<p class="petit centre">Séance sautée · <button class="petit-btn" data-act="desauter">annuler</button></p>`;
 
   // Les voies : projets, cotations visées, nouvelles
   if (estGrimpe || (sa.tentatives || []).length) out = h`${out}${carteVoies(ctx, s, sa, etapes, disc)}`;

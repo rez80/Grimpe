@@ -19,7 +19,7 @@ export const choix = (act, valeurs, actuel, extra = {}) => h`<div class="choix $
 export const echelle = (act, n, actuel, { de = 1, data = {} } = {}) => choix(act, Array.from({ length: n - de + 1 }, (_, i) => String(i + de)), actuel, { classe: "echelle", data });
 // Liens « Exercice » → boutons vers la fiche
 export const lier = (texte, exercices) => brut(esc(texte).replace(/«\s*(.+?)\s*»/g, (tout, nom) => {
-  const k = exercices.findIndex(x => x.nom.toLowerCase() === nom.toLowerCase());
+  const n = nom.toLowerCase(), k = exercices.findIndex(x => x.nom.toLowerCase() === n || (x.base && x.base.toLowerCase() === n));   // une fiche renommée garde son ancien nom
   return k === -1 ? tout : `<button class="exo" data-act="ficheExo" data-k="${k}">${esc(exercices[k].nom)} ⓘ</button>`; }));
 
 // Icônes dessinées (SVG) : sur iPhone, ▶ ⏱ ⚠ s'affichent en émojis colorés ; ces icônes prennent la couleur du texte
@@ -48,6 +48,7 @@ const ICONES = {
   copier: '<rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 15.5H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h9.5a1 1 0 0 1 1 1v.5" fill="none" stroke="currentColor" stroke-width="2"/>',
   annuler: '<path d="M9 7 4.5 11.5 9 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5h9a5 5 0 0 1 0 10h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   renouveler: '<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M19.5 4v4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  ampoule: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>',
   crayon: '<path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   calendrier: '<rect x="3.5" y="4.5" width="17" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 9.5h17M8 3v3M16 3v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
 };

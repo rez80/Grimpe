@@ -1,8 +1,9 @@
 // ecrans/programme.js — le programme semaine par semaine, la semaine dépliée, les outils de semaine.
-import { h, si, classes, ico, pli } from "../html.js";
+import { h, si, classes, ico, pli, forcerOuvert } from "../html.js";
 import { etatSeance, etapesSeance, dureeSeance, activiteAffichee } from "../programme.js";
 import { semaineDe, dateSeance, ajouterJours, jourMois, court, hm, JOURS, nomJour, jourSemaine } from "../dates.js";
 import { reussi } from "../analyse.js";
+import { feuxBloc, finBloc } from "../blocs.js";
 import * as editeur from "./editeur.js";
 import { carteHier } from "./seance.js";
 
@@ -14,24 +15,50 @@ export function rendre(ctx) {
   const semaines = [...new Set(P.map(s => s.semaine))].sort((a, b) => a - b), wNow = semaineDe(debut, auj);
   if (state.semaineVue !== null && !semaines.includes(state.semaineVue)) state.semaineVue = semaines.includes(wNow) ? wNow : semaines[0];   // null = tout replié
   const phases = []; for (const w of semaines) { const ph = (P.find(s => s.semaine === w) || {}).phase || ""; const bloc = ph.split(" · ")[0]; if (!phases.length || phases[phases.length - 1].bloc !== bloc) phases.push({ bloc, semaines: [] }); phases[phases.length - 1].semaines.push(w); }
-  let out = h`${carteRestaurer(ctx)}${carteModele(ctx, wNow)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn btn-ajout" data-act="creationOuvrir">+ Séance</button><button class="petit-btn btn-ajout" data-act="passageAncienOuvrir">+ Hors séance</button></div>`;
-  // Les blocs du programme (B1, B2…) : des cartes repliables ; le bloc en cours est ouvert, les autres repliés avec leur avancement
+  let out = h`${carteRestaurer(ctx)}${carteModele(ctx, wNow)}${carteBilanBloc(ctx, wNow)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn btn-ajout" data-act="creationOuvrir">+ Séance</button><button class="petit-btn btn-ajout" data-act="passageAncienOuvrir">+ Hors séance</button></div>`;
+  // Les blocs (B1, B2…) : une carte par bloc, son état se voit (en cours : ouvert, bord ocre ; terminé : atténué ; à venir : pointillés).
+  // Dedans, une ligne par semaine, avec la phase en pastille de couleur (mêmes couleurs que l'assistant).
   for (const ph of phases) {
-    const semB = P.filter(s => ph.semaines.includes(s.semaine)), faitesB = semB.filter(s => ctx.saisie(s.id).fin).length, enCours = ph.semaines.includes(wNow);
+    const construit = (doc.blocs || []).filter(x => x.nom === ph.bloc).pop(), semB = P.filter(s => ph.semaines.includes(s.semaine) && !s.bonus), faitesB = semB.filter(s => ctx.saisie(s.id).fin).length;
+    const fin = ph.semaines[ph.semaines.length - 1], etat = ph.semaines.includes(wNow) ? "en-cours" : fin < wNow ? "termine" : "avenir";
     const nomB = (ph.bloc || "Programme").replace(/^B(\d+)$/, "Bloc $1"), pct = semB.length ? Math.round(100 * faitesB / semB.length) : 0;
-    out = h`${out}${pli(`prog-bloc-${ph.bloc || "p"}`, enCours, h`<span class="bloc-nom">${nomB}</span> <span class="petit">semaines ${ph.semaines[0]} → ${ph.semaines[ph.semaines.length - 1]}</span>`, () => contenuBloc(ph), { resume: h`<span class="jauge-mini"><i style="width:${pct}%"></i></span> ${faitesB}/${semB.length}`, classe: `carte bloc-prog ${enCours ? "bloc-en-cours" : ""}` })}`;
+    let resume = h`<span class="jauge-mini"><i style="width:${pct}%"></i></span> ${faitesB}/${semB.length}`;
+    if (etat === "termine") { const F = construit ? feuxBloc(construit, { programme: P, doc, aujourdhui: dateSeance(debut, fin, "Dimanche"), dateDebut: debut }).filter(f => !f.info) : [];
+      resume = h`<span class="petit">terminé · ${F.length ? `feux ${F.filter(f => f.ok).length}/${F.length}` : `${faitesB}/${semB.length}`}</span>`; }
+    if (etat === "avenir") resume = h`<span class="petit">à venir · ${jourMois(dateSeance(debut, ph.semaines[0], "Lundi"))}</span>`;
+    const sous = h`semaines ${ph.semaines[0]} → ${fin}${construit && construit.plan && construit.plan.objectif ? ` · objectif ${construit.plan.objectif.disc.toLowerCase()} ${construit.plan.objectif.cot}` : ""}`;
+    out = h`${out}${pli(`prog-bloc-${ph.bloc || "p"}`, etat === "en-cours", h`<span class="bloc-nom">${nomB}${construit ? ` · ${construit.titre}` : ""}</span><span class="bloc-sous petit">${sous}</span>`, () => contenuBloc(ph, construit), { resume, classe: `carte bloc-prog bloc-${etat}` })}`;
   }
-  function contenuBloc(ph) { let o = h``, dernierePhase = null;
+  function contenuBloc(ph, construit) { let o = h``;
     for (const w of ph.semaines) {
-      const sem = P.filter(s => s.semaine === w), faites = sem.filter(s => ctx.saisie(s.id).fin).length, phase = (sem[0] || {}).phase || "", nomPhase = phase.replace(/^[^·]*·\s*/, "");
+      const sem = P.filter(s => s.semaine === w), principales = sem.filter(s => !s.bonus), faites = principales.filter(s => ctx.saisie(s.id).fin).length, phase = (sem[0] || {}).phase || "", ph2 = phaseDe(phase);
       const ouverte = state.semaineVue === w;
-      if (nomPhase !== dernierePhase) { o = h`${o}<h4 class="phase-titre">${nomPhase}</h4>`; dernierePhase = nomPhase; }
       o = h`${o}<div class="semaine ${classes(ouverte && "ouverte", w === wNow && "courante")}">
-        <button class="semaine-tete" data-act="semaine" data-w="${w}"><span><b>Semaine ${w}</b> <span class="petit">${jourMois(dateSeance(debut, w, "Lundi"))} → ${jourMois(dateSeance(debut, w, "Dimanche"))}</span></span><span class="petit">${faites}/${sem.length}</span></button>
+        <button class="semaine-tete" data-act="semaine" data-w="${w}"><span><b>Semaine ${w}</b> <span class="petit">${w === wNow ? "cette semaine" : `dès le ${jourMois(dateSeance(debut, w, "Lundi"))}`}</span></span><span class="sem-droite">${ph2.nom ? h`<span class="chip-phase ph-${ph2.type}">${ph2.nom}</span>` : ""}<span class="petit">${faites}/${principales.length}</span></span></button>
         ${si(ouverte, () => semaineDetail(ctx, w, sem, auj))}</div>`;
     }
+    if (construit) o = h`${o}<div class="outils-semaine outils-bloc"><button class="petit-btn" data-act="assistantOuvrir" data-bloc="${construit.id}">${ico("crayon")} Modifier le bloc</button><button class="petit-btn danger" data-act="blocRetirer" data-id="${construit.id}">Retirer</button></div>`;
     return o; }
   return { html: out, titre: h`<b>Programme</b>` };
+}
+
+// La phase d'une semaine : son nom court (« Construction », « Consolider le 5b ») et son type (pour la couleur de la pastille)
+const TYPES_PHASE = [["decharge", /décharge/i], ["realisation", /réalisation/i], ["respiration", /respiration/i], ["construction", /construction/i], ["base", /\bbase\b/i]];
+export function phaseDe(label) { const nom = String(label || "").replace(/^[^·]*·\s*/, "").replace(/^S\d+(-\d+)?\s+/, "").trim(); return { nom, type: (TYPES_PHASE.find(([, re]) => re.test(nom)) || ["autre"])[0] }; }
+
+// Fin d'un bloc construit : son bilan (feux, séances, niveau avant / après) et « Construire le bloc suivant », pendant 2 semaines
+function carteBilanBloc(ctx, wNow) {
+  const { doc, data } = ctx, debut = doc.reglages.dateDebut || data.dateDebut, B = ctx.bilan;
+  const vu = id => { try { return !!localStorage.getItem(`grimpe-bilan-bloc-${id}`); } catch { return false; } };
+  return (doc.blocs || []).filter(b => finBloc(b) < wNow && wNow <= finBloc(b) + 2 && !vu(b.id)).map(b => {
+    const fin = dateSeance(debut, finBloc(b), "Dimanche"), F = feuxBloc(b, { programme: ctx.programme, doc, aujourdhui: fin, dateDebut: debut }).filter(f => !f.info);
+    const S = ctx.programme.filter(s => s.bloc === b.id && !s.bonus), faites = S.filter(s => ctx.saisie(s.id).fin).length, disc = (b.plan && b.plan.objectif && b.plan.objectif.disc) || "Bloc";
+    const avant = b.plan && b.plan.depart ? b.plan.depart[disc] : "", apres = (B.consolides[`${disc}-Vertical`] || {}).niveau || "—";
+    return h`<div class="carte carte-bilan-bloc"><div class="cc-tete">${ico("cible")}<b>${b.nom} · ${b.titre} : terminé</b></div>
+      <div class="ligne-res"><span>Séances faites</span><b>${faites}/${S.length}</b></div>
+      <div class="ligne-res"><span>Niveau consolidé en ${disc.toLowerCase()}</span><b>${avant || "—"} → ${apres}</b></div>
+      ${F.map(f => h`<div class="ligne-res"><span>${f.titre}</span><b class="${f.ok ? "ok" : ""}">${f.ok ? "✓ atteint" : "pas encore"}</b></div>`)}
+      <div class="ed-rangee"><button class="principal" data-act="assistantOuvrir" data-suite="${b.id}">Construire le bloc suivant</button><button data-act="bilanBlocVu" data-id="${b.id}">Plus tard</button></div></div>`; });
 }
 
 // App vide (nouvelle installation, téléphone changé…) : proposer tout de suite de restaurer une sauvegarde
@@ -55,11 +82,12 @@ function carteModele(ctx, wNow) {
 
 // La carte du haut : la séance du jour (un appui pour l'ouvrir), sinon la prochaine
 function carteAujourdhui(ctx, auj) {
-  const P = ctx.programme, du = P.filter(s => s.date === auj && etatSeance(s, ctx.saisie(s.id), auj) !== "sautee");
-  const l = du.length ? du : P.filter(s => s.date > auj && etatSeance(s, ctx.saisie(s.id), auj) !== "sautee").slice(0, 1);
+  const P = ctx.programme, ok = s => etatSeance(s, ctx.saisie(s.id), auj) !== "sautee", du = P.filter(s => s.date === auj && ok(s));
+  let l = du.length ? du : P.filter(s => s.date > auj && !s.bonus && ok(s)).slice(0, 1);
+  if (du.length && du.every(s => s.bonus)) l = [...du, ...P.filter(s => s.date > auj && !s.bonus && ok(s)).slice(0, 1)];      // un jour « bonus » : la prochaine vraie séance aussi
   if (!l.length) return h`<div class="carte carte-auj"><p class="petit">Plus de séance prévue au programme.</p></div>`;
   return h`<div class="carte carte-auj"><p class="petit">${du.length ? "Aujourd'hui" : "Prochaine séance"}</p>${l.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), et = etapesSeance(s, sa);
-    return h`<button class="auj-seance" data-act="ouvrirSeance" data-id="${s.id}" data-activite="${activiteAffichee(s, sa)}"><span><b>${activiteAffichee(s, sa)}</b><br><span class="petit">${du.length ? "" : court(s.date) + " · "}≈ ${hm(dureeSeance(s, et, ctx.data, ctx.doc.reglages))}${e === "faite" || e === "abilan" ? " · ✓ faite" : e === "encours" ? " · en cours" : ""}</span></span><span class="auj-go" aria-hidden="true">›</span></button>`; })}</div>`;
+    return h`<button class="auj-seance" data-act="ouvrirSeance" data-id="${s.id}" data-activite="${activiteAffichee(s, sa)}"><span><b>${activiteAffichee(s, sa)}</b>${s.bonus ? h` <span class="tag-bonus">bonus</span>` : ""}<br><span class="petit">${s.date === auj ? "" : court(s.date) + " · "}≈ ${hm(dureeSeance(s, et, ctx.data, ctx.doc.reglages))}${e === "faite" || e === "abilan" ? " · ✓ faite" : e === "encours" ? " · en cours" : ""}</span></span><span class="auj-go" aria-hidden="true">›</span></button>`; })}</div>`;
 }
 
 function semaineDetail(ctx, w, sem, auj) {
@@ -91,20 +119,24 @@ function semaineDetail(ctx, w, sem, auj) {
     <div class="outils-semaine"><button class="petit-btn" data-act="mesuresOuvrir" data-w="${w}">${ico("regle")} Mesures${mesures ? " ✓" : ""}</button><button class="petit-btn" data-act="pauseOuvrir" data-w="${w}">${ico("pause")} Faire une pause</button><button class="petit-btn" data-act="copieSemaineOuvrir" data-w="${w}">Copier · répéter</button></div>`;
 }
 
-export function menuEcran(ctx) { const blocs = ctx.doc.blocs || [];
-  return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "+ Nouveau bloc (assistant)", act: "assistantOuvrir" },
-    ...blocs.flatMap(b => [{ label: `Modifier ${b.nom} · ${b.titre} (assistant)`, act: "assistantOuvrir", data: { bloc: b.id } }, { label: `Retirer ${b.nom} · ${b.titre}`, act: "blocRetirer", data: { id: b.id }, danger: true }]), { label: "+ Passage hors séance", act: "passageAncienOuvrir" }, { label: "Passages hors séance (la liste)", act: "ouvrirVue", data: { vue: "historique" } }, { label: "Aller à cette semaine", act: "semaineAujourdhui" }] }; }
+export function menuEcran() { return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "+ Nouveau bloc (assistant)", act: "assistantOuvrir" },
+  { label: "Passages hors séance", act: "ouvrirVue", data: { vue: "historique" } }, { label: "Aller à cette semaine", act: "semaineAujourdhui" }] }; }
 
 export const actions = {
   semaine: (ctx, d) => { ctx.state.semaineVue = ctx.state.semaineVue === +d.w ? null : +d.w; ctx.rendre();
     if (ctx.state.semaineVue === +d.w) { const t = document.querySelector(`#ecran [data-act=semaine][data-w="${d.w}"]`); if (t) ctx.montrer(t.parentElement); } },
-  semaineAujourdhui: ctx => { ctx.state.semaineVue = semaineDe(ctx.doc.reglages.dateDebut || ctx.data.dateDebut, ctx.aujourdhui()); ctx.rendre(true); },
+  // « Cette semaine » : ouvre le bloc qui la contient (même si un autre bloc est déplié), déplie la semaine et l'amène à l'écran
+  semaineAujourdhui: ctx => { const w = semaineDe(ctx.doc.reglages.dateDebut || ctx.data.dateDebut, ctx.aujourdhui()), s = ctx.programme.find(x => x.semaine === w);
+    ctx.state.semaineVue = w; if (s) forcerOuvert(`prog-bloc-${(s.phase || "").split(" · ")[0] || "p"}`); ctx.rendre();
+    const t = document.querySelector(`#ecran [data-act=semaine][data-w="${w}"]`); if (t) { const haut = (document.getElementById("entete").offsetHeight || 52) + (document.querySelector(".barre-prog") || {}).offsetHeight + 12;
+      window.scrollTo({ top: Math.max(0, window.scrollY + t.getBoundingClientRect().top - haut), behavior: "smooth" }); } },
   ouvrirSeance: (ctx, d) => ctx.ouvrir("seance", { seanceId: d.id, origine: "programme" }),          // la flèche ‹ ramènera ici
   copieSemaineOuvrir: (ctx, d) => ctx.ouvrirModal({ type: "copieSemaine", w: +d.w, mode: "repeter", dest: +d.w + 1, n: 1 }),
   progres: ctx => ctx.ouvrir("progres"),
   modeleEcarter: ctx => { try { localStorage.setItem(CLE_MODELE, "1"); } catch { /* ignore */ } ctx.rendre(); ctx.toast("Retrouve-le dans Options › + Nouveau bloc"); },
   blocRetirer: (ctx, d) => { const b = (ctx.doc.blocs || []).find(x => x.id === d.id); if (!b) return;
     ctx.modifier(`bloc ${b.nom} retiré`, x => { x.blocs = x.blocs.filter(y => y.id !== d.id); }); ctx.toast(`${b.nom} · ${b.titre} retiré : le programme d'avant revient`, () => ctx.agir("annuler")); },
+  bilanBlocVu: (ctx, d) => { try { localStorage.setItem(`grimpe-bilan-bloc-${d.id}`, "1"); } catch { /* ignore */ } ctx.rendre(); },
   departVide: ctx => { try { localStorage.setItem(CLE_VIDE, "1"); } catch { /* ignore */ } ctx.rendre(); },
   seanceMenu: (ctx, d) => { ctx.state.seanceId = d.id; ctx.ouvrirModal({ type: "menu", seanceId: d.id }); },
   passageHorsSeance: ctx => ctx.ouvrirModal({ type: "passageAncien", date: ctx.aujourdhui(), dateInconnue: false, disc: "Voie", cot: "", chiffre: "", profil: "Vertical", res: "", n: 1, couleur: "", nom: "", salle: "" }),

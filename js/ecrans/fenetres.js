@@ -1,6 +1,7 @@
 // ecrans/fenetres.js — les fenêtres du bas. L'état de la fenêtre est ctx.state.modal (M) ; les champs « data-champ » l'écrivent à la frappe.
 import { h, si, choix, echelle, brut, ico, pictoProfil as dessinProfil, ligneChoix, forcerOuvert, info, liste, listeMulti, lier } from "../html.js";
-import { COULEUR_ROUTINES, GENRES_ROUTINE, etiquetteNiveau, couleurCategorie } from "./plus.js";
+import { COULEUR_ROUTINES, GENRES_ROUTINE, etiquetteNiveau, couleurCategorie, FAMILLES, NOMS_FAMILLES } from "./plus.js";
+import { ficheDe } from "../bibliotheque.js";
 import { INFOS } from "../infos.js";
 import { discipline, etapesSeance, nouvelId, idsAPauser, opsCopieSeance, opsCopieSemaine, activiteAffichee } from "../programme.js";
 import { RES_LABEL, resLabel, choixResultat, refPassage, ajouterTentative, cleRattachement, fenetreNoter, actions as ACTIONS_SEANCE } from "./seance.js";
@@ -107,6 +108,7 @@ export function rendre(ctx) {
   const M = ctx.state.modal, { data, doc } = ctx; if (!M) return "";
   const s = M.seanceId ? ctx.seance(M.seanceId) : null, sa = s ? ctx.saisie(s.id) : {};
   switch (M.type) {
+    case "externe": return M.rendu(ctx);                // fenêtre d'un module chargé à la demande (assistant) : il fournit son rendu
     case "pasTop": return h`<h2>Qu'est-ce qui ne va pas ?</h2><p class="petit">Plusieurs réponses possibles.</p>
       <div class="choix">${[["doigts", "Doigts"], ["coudes", "Coudes"], ["epaules", "Épaules"], ["energie", "Énergie"], ["motivation", "Motivation"]].map(([k, l]) => h`<button data-act="mBascule" data-k="${k}" class="${M.quoi.includes(k) ? "choisi" : ""}">${l}</button>`)}</div>
       <label class="champ">Une douleur maintenant ? (0 = non)</label>${echelle("mChamp", 10, M.niveau, { de: 0, data: { champ: "niveau" } })}
@@ -209,7 +211,21 @@ export function rendre(ctx) {
     case "ficheExo": { const x = data.exercices[+M.k]; return h`<h2>${x.nom}</h2><p class="petit"><span class="cat-chip" style="--cat:${couleurCategorie(x.categorie)}">${x.categorie}</span> ${etiquetteNiveau(x.niveau)}${x.discipline ? " · " + x.discipline : ""}</p>
       ${si(x.but, h`<p><b>But.</b> ${x.but}</p>`)}<ol>${x.comment.split("\n").filter(Boolean).map(l => h`<li>${l}</li>`)}</ol>
       ${si(x.erreurs, h`<p><b>Erreurs fréquentes.</b> ${x.erreurs}</p>`)}${si(x.facile, h`<p><b>Plus facile.</b> ${x.facile}</p>`)}${si(x.securite, h`<p class="securite">${ico("bouclier")} ${x.securite}</p>`)}
-      <div class="actions"><button data-act="favori" data-nom="${x.nom}">${doc.favoris.includes(x.nom) ? "★ Favori" : "☆ Favori"}</button><button class="principal" data-act="mFermer">Fermer</button></div>`; }
+      ${si(x.perso, () => h`<p class="petit">${x.perso === "mien" ? "Exercice à toi." : `Fiche modifiée (d'origine : « ${x.base} »).`} Reporté dans Programme.xlsx au prochain « grimpe.py rapport ».</p>`)}
+      <div class="actions"><button data-act="favori" data-nom="${x.nom}">${doc.favoris.includes(x.nom) ? "★ Favori" : "☆ Favori"}</button><button data-act="exoEditer" data-k="${M.k}">${ico("crayon")} Modifier</button><button class="principal" data-act="mFermer">Fermer</button></div>`; }
+    case "exoEdit": { const cats = [...new Set(data.exercices.map(e => e.categorie).filter(Boolean))], groupes = FAMILLES.map(([, l], i) => ({ groupe: NOMS_FAMILLES[i], options: l.filter(c => cats.includes(c)) })).filter(g => g.options.length);
+      const autres = cats.filter(c => !FAMILLES.some(([, l]) => l.includes(c))); if (autres.length) groupes.push({ groupe: "Autres", options: autres });
+      const champ = (k, label, ph, zone = false) => h`<label class="champ">${label}</label>${zone ? h`<textarea data-champ="${k}" rows="${k === "comment" ? 5 : 2}" placeholder="${ph}">${M[k] || ""}</textarea>` : h`<input type="text" data-champ="${k}" value="${M[k] || ""}" placeholder="${ph}">`}`;
+      return h`<h2>${M.edition ? "Modifier l'exercice" : "Nouvel exercice"}</h2>${si(M.base, () => h`<p class="petit">Fiche d'origine : « ${M.base} ». Les séances qui la citent suivent la nouvelle version.</p>`)}
+      ${champ("nom", "Nom", "Pieds silencieux")}
+      ${liste("categorie", groupes, M.categorie, { act: "mListe", vide: "Catégorie…", label: "Catégorie" })}
+      <label class="champ">Niveau</label>${choix("mChamp", ["Débutant", "Intermédiaire", "Avancé"], M.niveau, { data: { champ: "niveau" } })}
+      <label class="champ">Discipline</label>${choix("mChamp", [...new Set(["Voie et bloc", "Voie", "Bloc", M.discipline].filter(Boolean))], M.discipline || "Voie et bloc", { data: { champ: "discipline" } })}
+      ${champ("but", "But", "à quoi il sert")}${champ("comment", "Comment faire (une étape par ligne)", "Regarde la prise…", true)}${champ("securite", "Sécurité", "facultatif", true)}
+      ${champ("erreurs", "Erreurs fréquentes", "facultatif")}${champ("facile", "Plus facile", "facultatif")}
+      <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="exoEnregistrer">Enregistrer</button></div>
+      ${si(M.id && M.base, h`<div class="zone-danger"><button class="danger" data-act="exoRetablir">Rétablir la fiche d'origine</button></div>`)}
+      ${si(M.id && !M.base, h`<div class="zone-danger"><button class="danger" data-act="exoSupprimer">Supprimer cet exercice</button></div>`)}`; }
 
     case "mesures": { const prec = k => { const w = Object.keys(doc.mesures).map(Number).filter(x => x < M.semaine && doc.mesures[x][k] != null && doc.mesures[x][k] !== "").sort((a, b) => b - a)[0]; return w ? { w, v: doc.mesures[w][k] } : null; };
       return h`<h2>Mesures · semaine ${M.semaine}</h2><p class="petit">Quelques tests simples, une fois par semaine, reposé : pour voir si tu progresses. Tout est facultatif. ${info("mesures", "Quels tests, comment ?")}</p>
@@ -470,6 +486,18 @@ export const actions = {
     ctx.modifier("pause du programme", d => { d.ops.push({ id: nouvelId("o"), op: "pause", depuis: m.depuis, n: m.n, ids }); }); ctx.fermerModal();
     ctx.toast(`${ids.length} séance${ids.length > 1 ? "s" : ""} décalée${ids.length > 1 ? "s" : ""}${gardees ? ` ; ${gardees} déjà commencée${gardees > 1 ? "s" : ""} ou faite${gardees > 1 ? "s" : ""} reste${gardees > 1 ? "nt" : ""} en place` : ""}`, () => ctx.store.annuler()); },
   mesuresOk: ctx => { const m = M(ctx); ctx.modifier("mesures", d => { d.mesures[m.semaine] = Object.fromEntries(MESURES.map(([k]) => [k, m[k]]).filter(([, v]) => v !== "" && v != null)); }); ctx.fermerModal(); },
+  // Bibliothèque modifiable : tes fiches (doc.exos), qui complètent ou modifient celles du programme
+  exoNouveau: ctx => ctx.ouvrirModal({ type: "exoEdit", ...ficheDe({}), niveau: "Débutant", discipline: "Voie et bloc", edition: false }),
+  exoEditer: (ctx, d) => { const x = ctx.data.exercices[+d.k]; ctx.ouvrirModal({ type: "exoEdit", ...ficheDe(x), edition: true }); },
+  exoEnregistrer: ctx => { const m = M(ctx), nom = (m.nom || "").trim();
+    if (!nom) { ctx.toast("Donne un nom à l'exercice"); return; } if (!m.categorie) { ctx.toast("Choisis une catégorie"); return; }
+    const autre = ctx.data.exercices.find(e => e.nom.toLowerCase() === nom.toLowerCase() && (e.persoId || "") !== (m.id || "") && e.nom !== m.base);
+    if (autre) { ctx.toast(`« ${nom} » existe déjà dans la bibliothèque`); return; }
+    const fiche = { id: m.id || nouvelId("x"), base: m.base || "", nom, categorie: m.categorie, niveau: m.niveau || "", discipline: m.discipline || "Voie et bloc", but: (m.but || "").trim(), comment: (m.comment || "").trim(), securite: (m.securite || "").trim(), erreurs: (m.erreurs || "").trim(), facile: (m.facile || "").trim() };
+    ctx.modifier(m.edition ? `exercice « ${nom} » modifié` : `exercice « ${nom} » ajouté`, x => { x.exos = (x.exos || []).filter(e => e.id !== fiche.id); x.exos.push(fiche); });
+    ctx.fermerModal(); ctx.toast(m.edition ? "Fiche enregistrée" : "Exercice ajouté à la bibliothèque", () => ctx.agir("annuler")); },
+  exoRetablir: ctx => { const m = M(ctx); ctx.modifier(`fiche « ${m.base} » rétablie`, x => { x.exos = (x.exos || []).filter(e => e.id !== m.id); }); ctx.fermerModal(); ctx.toast("Fiche d'origine rétablie", () => ctx.agir("annuler")); },
+  exoSupprimer: ctx => { const m = M(ctx); ctx.modifier(`exercice « ${m.nom} » supprimé`, x => { x.exos = (x.exos || []).filter(e => e.id !== m.id); }); ctx.fermerModal(); ctx.toast("Exercice supprimé", () => ctx.agir("annuler")); },
   favori: (ctx, d) => { ctx.modifier("favori", x => { const i = x.favoris.indexOf(d.nom); i >= 0 ? x.favoris.splice(i, 1) : x.favoris.push(d.nom); }); ctx.rendre(); },
   ajoutRapideOk: ctx => { const m = M(ctx), n = +m.nb || 1; forcerOuvert(`sec-${m.salleId}-${m.secteurId || ""}`);
     ctx.modifier(`${n} voie${n > 1 ? "s" : ""} ajoutée${n > 1 ? "s" : ""}`, d => { const sl = salleDe(d, m.salleId);
