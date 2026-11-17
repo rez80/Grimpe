@@ -1,4 +1,4 @@
-# Grimpe 8.14 — l'app d'escalade
+# Grimpe 8.15 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -11,6 +11,10 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 
 ## 1. Ce que fait l'app
 
+**Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
+
+**Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier, Passages hors séance), L'app (Réglages, Aide).
+
 **Programme.** L'app s'ouvre sur le programme. La carte « Aujourd'hui » (ou « Prochaine séance ») est un bouton teinté de la couleur de son activité : un appui ouvre la séance. Si une séance est en cours, l'app s'ouvre directement dessus. Les semaines se déplient. Les pastilles des jours et les cartes de séance sont teintées, en transparence, de la couleur de l'activité (la même que le bandeau de la séance). En haut, le rappel de la séance précédente pas encore réglée : Faite → bilan, Sautée ou Plus tard. Chaque séance a son menu ⋯ :
 - bilan ;
 - modifier le plan ;
@@ -21,12 +25,14 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 
 **Séance.**
 - **Commencer** lance la séance, sans questionnaire.
-- **📋 Consignes** est sous le bandeau, en évidence et ouvert, avant, pendant et après la séance. Une fois replié, il montre le début de la première consigne.
-- **La frise** sous le titre montre le déroulé prévu : une couleur par type d'étape, et la durée de chaque phase en minutes.
-- **La carte Maintenant** montre l'étape en cours, ses minuteurs (repos, chrono, fractions, routine guidée) et « ✓ Fait · suivant ». Le **Détail de l'étape** est dans la carte.
+- **Consignes** : avant et après la séance, sous la bannière, ouvertes. Pendant la séance, sous la carte « En cours », repliées en une ligne qui montre le début de la première consigne.
+- **La frise** montre le déroulé prévu : une couleur par type d'étape, et la durée de chaque phase en minutes.
+- **Pendant la séance, une seule carte « En cours »**, teintée de la couleur de l'activité. De haut en bas : l'activité, le temps écoulé et la fin estimée ; la frise, avec un repère sur l'étape en cours ; « Étape 2 sur 7 » et son nom ; ses minuteurs (repos, chrono, fractions, routine guidée) ; le gros bouton « ✓ Fait · suivant : … » ; le **Détail de l'étape**, replié, et encadré une fois ouvert.
+- **Dernière étape** : le bouton devient « ✓ Fait · terminer la séance » et ouvre le bilan. Si tout est coché autrement, la carte affiche « ✓ Toutes les étapes sont faites » avec « Terminer la séance », et l'app le propose aussi par un message.
 - **La forme** se dit en un appui : 🙂 😐 😣.
-- **⚠ Douleur** note une douleur pendant la séance.
-- **■ Fin de séance** demande l'effort, la douleur après, et, si tu n'as rien noté, « en gros ce que tu as grimpé ». Ça fait trois appuis.
+- **Douleur** et **Fin de séance** restent toujours visibles en bas de l'écran pendant la séance (Fin de séance en bouton rouge).
+- **Douleur** note une douleur pendant la séance.
+- **Fin de séance** demande l'effort, la douleur après, et, si tu n'as rien noté, « en gros ce que tu as grimpé ». Ça fait trois appuis.
 - **Une séance restée ouverte** se ferme toute seule après quatre heures.
 - **Le lendemain**, une séance oubliée revient en une carte en haut du Programme : faite, sautée, ou plus tard.
 
@@ -34,7 +40,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 - **Salle : … ›** choisit la salle du jour : une de tes salles, « Salle inconnue » ou « + Nouvelle salle… ». La même règle vaut en voie et en bloc : par défaut, c'est la dernière salle choisie, si elle accepte la discipline. « Salle inconnue » vaut pour la séance.
 - **+ Noter un passage** ouvre une fenêtre :
   - en haut, « + Nouvelle voie » et « Sans voie précise » (cotation seule) ;
-  - dessous, les voies de la salle, filtrées par couleur et par cotation, avec tes cibles et les voies d'aujourd'hui en premier ;
+  - dessous, les voies de la salle : filtres par couleur (ronds), par état (✗ projets, jamais essayées, ✓ réussies) et par niveau (listes), avec tes cibles et les voies d'aujourd'hui en premier. ✓ et ✗ sur les tuiles comme sur le mur ;
   - toucher une voie propose ✓ / sec / ✗. Après un échec, la cause se choisit dans une liste, et le choix enregistre le passage.
 - **Tes cibles** : les voies ★ à essayer et tes projets, notés en un appui.
 - **Voie déjà faite, sans la chercher** : une rangée compacte par cotation de la séance (✓ / sec / ✗). Un appui compte une voie déjà faite, pour aller vite et compter les voies connues. Si c'était une nouvelle voie, touche « Nouvelle voie » dans le message qui s'affiche.
@@ -118,7 +124,11 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 - **Icônes au trait** partout, comme la barre du bas (plus d'émojis en couleur, sauf les visages de « Forme ? »). Les feux verts : un rond vide, plein et vert quand il est atteint.
 - **Un seul style par rôle** : un seul bouton principal par fenêtre ; « + » au contour ocre ; supprimer et effacer au contour rouge.
 - **Créer ou modifier une voie** : la même présentation, une ligne par réglage ; en création, Couleur et Cotation sont déjà ouvertes.
-- **Le mur** : tuiles plus petites (5 par rangée), l'inclinaison n'est écrite sur la tuile que si elle diffère de celle du secteur ; avec un filtre, seuls les secteurs qui ont quelque chose à montrer restent.
+- **Salles** (onglet) : la salle du jour en premier, avec l'étiquette « Aujourd'hui » ; chaque carte compte ✓ réussis et ✗ projets ; appui long : ouvrir le mur, modifier la salle, inventaire rapide, plusieurs voies d'un coup.
+- **Réussis, projets, jamais essayés** : une voie en place est **réussie** (✓) si tu l'as réussie au moins une fois, **projet** (✗) si tu l'as essayée sans la réussir, sinon **jamais essayée**. C'est le compte exact de tes passages notés sur les voies de la salle. Dans « En bref » : une ligne de compte, et chaque bâton en trois parties (plein = réussis, hachuré = projets, clair = jamais essayés, avec une légende). Les mêmes mots dans Progrès › Projets, qui indique aussi la salle.
+- **Filtres en listes déroulantes**, sur une ligne : Type (salle mixte), État, Caractéristique dans une salle ; Niveau et Afficher (Tout, Cette semaine, ★ Favoris) dans la Bibliothèque. Les filtres actifs restent en étiquettes ✕. Les choix dans une fenêtre restent des boutons quand il y en a 4 ou moins.
+- **Écrans vides** : partout le même modèle, une icône au trait, une phrase courte, le bouton pour avancer (« Retirer les filtres », « Inventaire rapide »…).
+- **Le mur** : « Sélectionner » est dans Options ; tuiles plus petites (5 par rangée), l'inclinaison n'est écrite sur la tuile que si elle diffère de celle du secteur ; avec un filtre, seuls les secteurs qui ont quelque chose à montrer restent.
 - **Mode sombre** : les couleurs foncées (Noir…) gardent un fin contour clair.
 - **Salle par défaut** : si une seule salle propose la discipline de la séance, elle est choisie d'office.
 - **Échelles en boutons** : cotation, nombre, « Comment ? », effort et douleur restent des boutons (un seul appui) ; les autres choix de plus de 4 options sont des listes.
