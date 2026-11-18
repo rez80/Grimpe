@@ -169,8 +169,17 @@ export const consigneDeversDefaut = k => DEVERS_CONSIGNES[k % DEVERS_CONSIGNES.l
 export const consigneDevers = (plan, k) => (plan.consignesDevers || [])[k] || consigneDeversDefaut(k);
 // Consignes dévers nouvelles : les exercices de la catégorie Dévers pas encore utilisés (semaines légères : « Hanches collées »)
 export function themesDevers(plan, exercices, dejaUtilises = []) {
-  const deja = new Set(dejaUtilises), l = exercices.filter(e => e.categorie === "Dévers" && !deja.has(e.nom) && e.nom !== "Hanches collées").sort((a, b) => (ORDRE_NIV[a.niveau] ?? 1) - (ORDRE_NIV[b.niveau] ?? 1));
-  let n = 0; return plan.semaines.map(s => s.type === "respiration" || s.type === "decharge" || !l.length ? "Hanches collées" : l[n++ % l.length].nom);
+  const tous = exercices.filter(e => e.categorie === "Dévers" && e.nom !== "Hanches collées").sort((a, b) => (ORDRE_NIV[a.niveau] ?? 1) - (ORDRE_NIV[b.niveau] ?? 1)).map(e => e.nom);
+  const legeres = ["Hanches collées", "Profil alterné"].filter(n => n === "Hanches collées" || tous.includes(n));
+  return choisirThemes(plan.semaines, tous.filter(n => !legeres.includes(n) || n === "Profil alterné"), legeres, dejaUtilises);
+}
+// Thèmes d'un bloc : jamais deux fois le même dans le bloc tant que c'est possible ; d'abord ceux jamais faits, puis les moins utilisés
+// dans les blocs précédents (l'ordre proposé est gardé à égalité) ; les semaines légères prennent un thème facile et connu.
+function choisirThemes(semaines, candidats, legeres, deja) {
+  const n = {}; for (const x of deja) n[x] = (n[x] || 0) + 1; const usage = x => n[x] || 0;
+  const pool = [...candidats].sort((a, b) => usage(a) - usage(b)), leg = [...legeres].sort((a, b) => usage(a) - usage(b)), pris = new Set();
+  return semaines.map(s => { const leger = s.type === "respiration" || s.type === "decharge";
+    const x = (leger ? leg : pool).find(y => !pris.has(y)) || (leger ? pool : leg).find(y => !pris.has(y)) || leg[0]; pris.add(x); return x; });
 }
 // Un même exercice deux fois dans une séance (par exemple ajouté à la main et déjà prévu par le fil rouge) : un conseil, pas une erreur
 export function doublons(bloc) {
@@ -187,18 +196,18 @@ export function doublons(bloc) {
 // les semaines légères (respiration, décharge) gardent une consigne facile et connue
 const CATS_THEMES = ["Pieds", "Prises et positions", "Corps et équilibre", "Apprendre"], ORDRE_NIV = { "Débutant": 0, "Intermédiaire": 1, "Avancé": 2 };
 export function themesNouveaux(plan, exercices, dejaUtilises = []) {
-  const deja = new Set(dejaUtilises), legeres = ["Grimpe au ralenti", "Pieds silencieux", "Bras tendus"];
+  const legeres = ["Grimpe au ralenti", "Pieds silencieux", "Bras tendus"];
   // une catégorie après l'autre (pieds, prises, corps, lecture…), les plus accessibles d'abord dans chacune
-  const parCat = CATS_THEMES.map(c => exercices.filter(e => e.categorie === c && !deja.has(e.nom) && !legeres.includes(e.nom)).sort((a, b) => (ORDRE_NIV[a.niveau] ?? 1) - (ORDRE_NIV[b.niveau] ?? 1)));
-  const l = []; for (let i = 0; parCat.some(x => x.length > i); i++) for (const x of parCat) if (x[i]) l.push(x[i]);
-  let n = 0, f = 0; return plan.semaines.map(s => s.type === "respiration" || s.type === "decharge" ? legeres[f++ % legeres.length] : (l[n++] || {}).nom || legeres[0]);
+  const parCat = CATS_THEMES.map(c => exercices.filter(e => e.categorie === c && !legeres.includes(e.nom)).sort((a, b) => (ORDRE_NIV[a.niveau] ?? 1) - (ORDRE_NIV[b.niveau] ?? 1)));
+  const l = []; for (let i = 0; parCat.some(x => x.length > i); i++) for (const x of parCat) if (x[i]) l.push(x[i].nom);
+  return choisirThemes(plan.semaines, l, legeres, dejaUtilises);
 }
 
 // --- Exercices : retirer, remplacer, ajouter (par type de séance ; « planB » = la version sans partenaire) ---
 //   plan.exos = { retires: { role: [nom] }, remplaces: { role: { ancien: nouveau } }, ajouts: { role: [{ nom, n, detail, phase, effort }] } }
 export const TYPES_SEANCE = { dure: "Séance dure", volume: "Volume", voie: "Voie", planB: "Plan B (sans partenaire)" };
 const echapper = t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-export const ligneAjout = a => `${Math.max(1, +a.n || 1)}× « ${a.nom} »${a.detail ? ` · ${a.detail}` : ""} {repos 2min} {${a.effort ? "effort" : "facile"}}`;
+export const ligneAjout = a => `${Math.max(1, +a.n || 1)}× « ${a.nom} »${a.detail ? ` · ${a.detail}` : ""} {repos 2min}${+a.duree > 0 ? ` {chrono ${+a.duree}min}` : ""} {${a.effort ? "effort" : "facile"}}`;
 function retoucher(lignes, role, type, exos, ajouter = true) {
   const R = (exos.retires || {})[role] || [], M = (exos.remplaces || {})[role] || {}, A = ((exos.ajouts || {})[role] || []).filter(a => a.nom && (!a.phase || a.phase === type));
   let out = [];

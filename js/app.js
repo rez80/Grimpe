@@ -1,7 +1,7 @@
 // app.js — démarrage, état d'écran, rendu, routage des actions. Aucune règle métier ici.
 import { DATA } from "../data.js";
 import { ouvrirStore } from "./store.js";
-import { programmeEffectif, clotureAutomatique, etapesSeance, activiteAffichee } from "./programme.js";
+import { programmeEffectif, clotureAutomatique, etapesSeance, activiteAffichee, nomSeance } from "./programme.js";
 import { bilanComplet as calculerBilan } from "./analyse.js";
 import { construireExport } from "./export.js";
 import { creerSync, lireJeton, configValide } from "./sync.js";
@@ -17,7 +17,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.22";
+export const APP_VERSION = "8.24";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
 const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", assistant: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
@@ -122,7 +122,7 @@ function rendreBande() {
   const min = Math.floor((Date.now() - sa.debut - (sa.pauseTotale || 0)) / 60000), T = minuteur.minuteurActif();
   const chrono = T ? `${T.type === "repos" ? "Repos" : (T.phases[T.phase] || {}).label || "Chrono"} ${minuteur.resteTexte()} · ` : "";
   b.dataset.activite = nom; b.style.display = "flex"; document.body.classList.add("avec-bande");
-  b.innerHTML = String(h`<button data-act="bandeOuvrir" data-id="${s.id}"><span class="bande-pt">▶</span><span class="bande-txt"><b>${chrono}${nom}</b> · étape ${Math.min(faites + 1, act.length)}/${act.length} · ${min} min</span><span class="bande-go">›</span></button>`);
+  b.innerHTML = String(h`<button data-act="bandeOuvrir" data-id="${s.id}"><span class="bande-pt">▶</span><span class="bande-txt"><b>${chrono}${nomSeance(s, sa)}</b> · étape ${Math.min(faites + 1, act.length)}/${act.length} · ${min} min</span><span class="bande-go">›</span></button>`);
   if (!bandeTick) bandeTick = setInterval(rendreBande, 1000);
 }
 function rendreToast() {
@@ -194,6 +194,17 @@ document.addEventListener("pointerdown", e => { const el = e.target.closest("[da
   appuiLong = { x, y, t: setTimeout(() => { appuiLong = null; const f = ACTIONS[el.dataset.appui]; if (!f) return; ignorerClic = true; if (navigator.vibrate) navigator.vibrate(15); f(ctx, el.dataset, el); }, 500) }; });
 const finAppuiLong = () => { if (appuiLong) { clearTimeout(appuiLong.t); appuiLong = null; } };
 document.addEventListener("pointerup", finAppuiLong); document.addEventListener("pointercancel", finAppuiLong);
+// iOS 26, app sur l'écran d'accueil : après la fermeture du clavier, l'écran garde un décalage et les barres fixes (titre, onglets) se déplacent.
+// Dès que plus aucun champ n'a le clavier (ou au retour dans l'app), on force le recalage avec un défilement d'un pixel aller-retour.
+function recalerEcran() {
+  const a = document.activeElement; if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+  const vv = window.visualViewport; if (vv && vv.offsetTop === 0 && vv.height >= window.innerHeight - 1) return;
+  const y = window.scrollY; window.scrollTo(0, y + 1); window.scrollTo(0, y);
+}
+const recalerBientot = () => setTimeout(recalerEcran, 150);
+document.addEventListener("focusout", recalerBientot);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", recalerBientot);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) recalerBientot(); });
 document.addEventListener("pointermove", e => { if (appuiLong && (Math.abs(e.clientX - appuiLong.x) > 8 || Math.abs(e.clientY - appuiLong.y) > 8)) finAppuiLong(); });
 document.addEventListener("contextmenu", e => { if (e.target.closest("[data-appui]")) e.preventDefault(); });
 

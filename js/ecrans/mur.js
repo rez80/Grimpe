@@ -48,14 +48,14 @@ export function rendre(ctx) {
     <p class="legende-etats"><span><i class="seg reussie"></i> réussis</span><span><i class="seg projet"></i> projets</span><span><i class="seg jamais"></i> jamais essayés</span></p>
     ${si(fCot, () => h`<p class="recap-filtre">Niv ${cotationDe(s, fCot.disc).mode === "couleurs" ? fCot.cot.toLowerCase() : fCot.cot} : ${(n => `${n} ${motVoie(fCot.disc, n)}`)(enPlace.filter(v => v.disc === fCot.disc && niveauDe(s, v) === fCot.cot).length)} <button class="lien" data-act="filtreCotMur" data-disc="${fCot.disc}" data-valeur="${fCot.cot}">✕ tout afficher</button></p>`)}
     <p class="petit">${s.secteurs.length} secteur${s.secteurs.length > 1 ? "s" : ""}${nDem ? ` · ${nDem} démontée${nDem > 1 ? "s" : ""}` : ""} · touche un bâton pour ne voir que ce niveau</p>`,
-    { resume: [enPlace.filter(v => v.disc === "Voie").length && `${enPlace.filter(v => v.disc === "Voie").length} voies`, enPlace.filter(v => v.disc === "Bloc").length && `${enPlace.filter(v => v.disc === "Bloc").length} blocs`].filter(Boolean).join(" · "), classe: "carte recap-salle" });
+    { resume: compteVoies(enPlace, s), classe: "carte recap-salle" });
   const nE = e => s.voies.filter(v => v.statut !== "demontee" && etatDe(v) === e).length;
   // L'échelle de la salle : ses niveaux et leur équivalent dans l'échelle de l'app (officielle)
   const echelle = ["Voie", "Bloc"].filter(d => s.type === "Bloc et voie" || s.type === d).map(d => { const c = cotationDe(s, d);
     return h`<div class="echelle-disc"><b>${d}</b>${c.mode === "liste" && c.liste.length ? h`<table class="tableau echelle"><tr><th>${s.nom}</th><th>≈ échelle de l'app</th></tr>${c.liste.map(x => h`<tr><td><b>${x.salle}</b></td><td>${x.app || "—"}</td></tr>`)}</table>`
       : c.mode === "couleurs" ? h`<table class="tableau echelle"><tr><th>Couleur</th><th>≈ échelle de l'app</th></tr>${c.liste.map(x => h`<tr><td><span class="pastille" style="background:${hexDe(doc, x.salle, s)}"></span> ${x.salle}</td><td>${x.app || "—"}</td></tr>`)}</table>`
       : h`<p class="petit">${c.mode === "aucune" ? "Pas de cotation dans cette salle." : "Échelle officielle : la même que l'app."}</p>`}</div>`; });
-  const blocEchelle = pli(`echelle-${s.id}`, false, "Échelle de la salle", () => h`${echelle}<p class="petit">À modifier dans Plus › Salles › ${s.nom}. Partout dans l'app, une cotation s'écrit « salle · ≈ app ».</p>`, { classe: "carte", resume: "équivalences" });
+  const blocEchelle = pli(`echelle-${s.id}`, false, "Échelle de la salle", () => h`${echelle}<p class="petit">À modifier dans Options › Modifier la salle. Partout dans l'app, une cotation s'écrit « salle · ≈ app ».</p>`, { classe: "carte", resume: "équivalences" });
   const html = h`${si(!ranger && !demontees && enPlace.length, () => recap)}${si(!ranger && !demontees, () => blocEchelle)}<div class="barre-mur">
       ${si(!demontees && !ranger, h`<button class="petit-btn btn-ajout" data-act="voieNouvelle" data-secteur="${s.secteurs.some(x => x.id === state.dernierSecteur) ? state.dernierSecteur : ""}" data-disc="${discDefaut}">+ ${discDefaut === "Bloc" ? "Bloc" : "Voie"}</button>`)}
       ${si(!demontees, h`<button class="petit-btn btn-ajout" data-act="secteurNouveau">+ Secteur</button>`)}</div>

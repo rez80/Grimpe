@@ -479,9 +479,9 @@ button.btn-ajout.rond { width: 34px; height: 34px; min-height: 34px; padding: 0;
 .pli-bloc.carte:has(> [data-cle="pg-niveau"]) { --lis: var(--voie); } .pli-bloc.carte:has(> [data-cle="pg-travailler"]) { --lis: #E08A2E; }
 .pli-bloc.carte:has(> [data-cle="pg-charge"]) { --lis: #7A5BB5; } .pli-bloc.carte:has(> [data-cle="pg-meilleures"]) { --lis: var(--ocre); }
 .pli-bloc.carte:has(> [data-cle="pg-douleurs"]) { --lis: var(--rouge); } .pli-bloc.carte:has(> [data-cle="pg-mesures"]) { --lis: #1AA3A3; }
-.pli-bloc.carte:has(> [data-cle="reg-affichage"]) { --lis: #7A5BB5; } .pli-bloc.carte:has(> [data-cle="reg-repos"]) { --lis: var(--voie); }
-.pli-bloc.carte:has(> [data-cle="reg-minuteur"]) { --lis: #E08A2E; } .pli-bloc.carte:has(> [data-cle="reg-programme"]) { --lis: var(--ocre); }
-.pli-bloc.carte:has(> [data-cle="sv-github"]) { --lis: #2E9E6B; } .pli-bloc.carte:has(> [data-cle="sv-fichier"]) { --lis: var(--voie); } .pli-bloc.carte:has(> [data-cle="sv-effacer"]) { --lis: var(--rouge); }
+/* Réglages et Sauvegarde : la couleur de l'app partout (couleur neutre) ; seul « Tout effacer » garde le rouge (danger) */
+.pli-bloc.carte:has(> [data-cle^="reg-"]), .pli-bloc.carte:has(> [data-cle^="sv-"]) { --lis: var(--ocre); }
+.pli-bloc.carte:has(> [data-cle="sv-effacer"]) { --lis: var(--rouge); }
 /* les cartes de séance, du plan et des voies gardent leur propre style */
 .pli-bloc.carte.voies, .pli-bloc.carte.pli-plan, .pli-bloc.carte.recap-salle, .pli-bloc.carte:has(> [data-cle="consignes-seance"]) { border-left-width: 0; }
 /* Progrès : barres colorées (en cours : ocre ; atteint : vert), bâtons de charge, tableaux à lignes alternées */
@@ -748,3 +748,34 @@ body.avec-bande:has(.barre-seance) #toast { bottom: calc(var(--hauteur-onglets, 
 .as-ajout-sec { margin: 8px 0 4px; } .as-ajout-sec .liste { width: 100%; min-height: 44px; }
 .as-conseil-feu { margin: 6px 0 2px; }
 .as-cadre .liste, .as-groupe > .liste { width: 100%; min-height: 44px; }
+
+/* 8.23 — « Autre sport » : le même gris partout (liste, Aujourd'hui, hier, bandeau, bande En cours) */
+.auj-seance[data-activite="Autre sport"], .hier[data-activite="Autre sport"], #bande-encours[data-activite="Autre sport"], .carte.encours[data-activite="Autre sport"], .pastille-seance[data-activite="Autre sport"] { --a: var(--gris); }
+.hier[data-activite="Autre sport"] { border-left-color: var(--gris); }
+body[data-activite="Autre sport"] .bandeau-seance { background: var(--gris); }
+.disc-saisie { margin: 4px 0 10px; } .carte.voies .disc-saisie { margin-top: 8px; }
+.disc-saisie { border: 1px solid var(--trait); } .disc-saisie button { background: var(--carte); color: var(--texte); font-weight: 600; min-height: 40px; }
+.disc-saisie button.choisi { background: var(--accent); color: var(--accent-txt); }
+.cot-ligne b { width: auto; min-width: 44px; white-space: nowrap; } .cot-rapide.compacte .cot-ligne b { min-width: 34px; }
+
+/* 8.24 — Séance commencée : la carte « En cours » garde la couleur de l'activité (comme le bandeau avant le départ) */
+.carte.encours { --b: var(--accent); background: var(--b); border-color: var(--b); color: #fff; }
+.carte.encours[data-activite="Voie"] { --b: var(--bandeau-voie); } .carte.encours[data-activite="Bloc"] { --b: var(--bandeau-bloc); }
+.carte.encours[data-activite="Maison"] { --b: var(--bandeau-maison); } .carte.encours[data-activite="Course"] { --b: var(--bandeau-course); }
+.carte.encours[data-activite="Escalade extérieur"] { --b: var(--exterieur); } .carte.encours[data-activite="Autre sport"] { --b: var(--gris); }
+.carte.encours .encours-nom b, .carte.encours .encours-etape > .petit, .carte.encours .tout-fait b, .carte.encours .maintenant-etape b { color: #fff; }
+.carte.encours .petit, .carte.encours .tout-fait .petit { color: rgba(255,255,255,.88); }
+.carte.encours .gros.principal { background: #fff; color: var(--b); border-color: #fff; }
+.carte.encours .gros.contour { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,.85); }
+.carte.encours .boutons-maintenant button, .carte.encours .boutons-maintenant .bouton, .carte.encours .forme-ligne button { background: rgba(255,255,255,.16); color: #fff; border: 1px solid rgba(255,255,255,.55); }
+.carte.encours .frise-seg.ici { outline-color: #fff; }
+.carte.encours .pli-maintenant, .carte.encours .pli-maintenant .pli-tete, .carte.encours .pli-maintenant .pli-tete * { background: transparent; color: #fff; border-color: rgba(255,255,255,.4); }
+.carte.encours .detail-cadre { background: var(--carte); color: var(--texte); border-radius: 12px; padding: 10px 12px; }
+.carte.encours .detail-cadre .petit { color: var(--texte-2); }
+.carte.encours a:not(.bouton), .carte.encours .lien { color: #fff; }
+.liens-bandeau { display: flex; gap: 8px; margin-top: 8px; } .liens-bandeau .petit-blanc { flex: 1; min-height: 38px; background: rgba(255,255,255,.16); color: #fff; border: 1px solid rgba(255,255,255,.6); border-radius: 10px; font-weight: 600; font-size: 15px; }
+.grille-ligne b { white-space: nowrap; }
+/* Lignes rapides : une colonne de cotation de largeur fixe, puis des boutons tous de la même taille */
+.cot-rapide .cot-ligne { display: grid; grid-template-columns: 44px; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.cot-rapide.large .cot-ligne { grid-template-columns: 84px; }
+.cot-rapide .cot-ligne b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

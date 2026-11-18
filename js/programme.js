@@ -58,6 +58,8 @@ export function dureeEtape(e, s, data, reglages) {
   if (e.chrono) return e.n * e.chrono * (e.cote ? 2 : 1) + entre;
   if (e.grimpe) { const parPassage = (e.grimpe.disc === "Voie" ? data.params.temps_voie ?? 4 : data.params.temps_bloc ?? 1.5) * 60;
     return e.n * parPassage * Math.max(1, e.serie) + entre; }
+  const fiche = (e.exos || []).map(n => (data.exercices || []).find(x => x.nom === n)).find(x => x && +x.duree > 0);   // la durée habituelle de la fiche
+  if (fiche) return e.n * fiche.duree * 60 + entre;
   return e.n * 120 + entre;
 }
 export const dureeSeance = (s, etapes, data, reglages) => etapes.reduce((t, e) => t + dureeEtape(e, s, data, reglages), 0);
@@ -143,3 +145,6 @@ export function opsCopieSemaine(programme, doc, w, dests) {
 
 // Activité affichée : une séance de voie faite en variante bloc s'affiche « Bloc » (programme, bandeau, cartes)
 export const activiteAffichee = (s, saisie) => s.activite === "Voie" && discipline(s, saisie || {}) === "Bloc" ? "Bloc" : s.activite;
+// Le nom à lire : pour « Autre sport », le sport choisi dans l'assistant (« 1× Vélo · 45 min »), sinon l'activité. La couleur reste celle de l'activité.
+export const nomSeance = (s, saisie) => { const a = activiteAffichee(s, saisie); if (a !== "Autre sport") return a;
+  const m = String(s.contenu || "").match(/^\s*1×\s*(.+?)\s*·\s*\d+\s*min/m); return m ? m[1].replace(/[«»]/g, "").trim() : a; };

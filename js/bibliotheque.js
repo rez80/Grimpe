@@ -3,7 +3,7 @@
 //   base = le nom de la fiche d'origine qu'elle modifie ; vide = une fiche à toi.
 // Les liens « Nom » des séances trouvent une fiche par son nom, ou par son nom d'origine si tu l'as renommée.
 // grimpe.py rapport reporte ces fiches dans Programme.xlsx (feuille Exercices) ; une fois data.js régénéré, la fiche modifiée redevient identique à l'origine.
-export const CHAMPS_EXO = ["nom", "categorie", "niveau", "discipline", "but", "comment", "securite", "erreurs", "facile"];
+export const CHAMPS_EXO = ["nom", "categorie", "niveau", "discipline", "duree", "but", "comment", "securite", "erreurs", "facile"];      // duree : minutes, facultative
 const champs = p => Object.fromEntries(CHAMPS_EXO.filter(k => p[k] != null).map(k => [k, p[k]]));
 const identique = (e, p) => CHAMPS_EXO.every(k => String(e[k] ?? "") === String(p[k] ?? ""));
 export function exercicesEffectifs(base, perso = []) {

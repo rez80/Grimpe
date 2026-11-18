@@ -1,5 +1,5 @@
 // sw.js — hors ligne : tout est mis en cache à l'installation ; la VERSION est réécrite par outil/grimpe.py à chaque génération.
-const VERSION = "20261117-214429";
+const VERSION = "20261118-001621";
 const CACHE = "grimpe-" + VERSION;
 const FICHIERS = ["./", "./index.html", "./style.css", "./data.js", "./manifest.webmanifest", "./icone.svg", "./icone-180.png", "./icone-192.png", "./icone-512.png", "./apple-touch-icon.png",
   "./js/app.js", "./js/store.js", "./js/dates.js", "./js/html.js", "./js/parseur.js", "./js/programme.js", "./js/analyse.js", "./js/export.js", "./js/minuteur.js", "./js/sync.js", "./js/salles.js", "./js/infos.js",

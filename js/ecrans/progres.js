@@ -51,7 +51,7 @@ export function rendre(ctx) {
     ${si(critCap, () => h`<span class="jauge cc-jauge"><i style="width:${Math.min(100, 100 * critCap.val / (critCap.cible || 1))}%"></i></span>`)}
     ${si(alerteForme, () => h`<p class="cc-forme">${alerteForme}</p>`)}
     ${si(prochaineDure, () => h`<button class="petit-btn" data-act="ouvrirSeance" data-id="${prochaineDure.id}">Prochaine séance dure : ${prochaineDure.jour.toLowerCase()} ${court(prochaineDure.date)} ›</button>`)}</div>
-    <div class="carte compacte ligne-forme forme-${B.formeJour ? B.formeJour.forme : "aucune"}"><div class="ligne-res"><span>Forme</span><b>${B.formeJour ? h`<span class="point ${B.formeJour.forme}"></span>${FORME[B.formeJour.forme]} <span class="petit">(${court(B.formeJour.date)})</span>` : h`<span class="petit">pas encore notée (au début d'une séance)</span>`}</b></div>
+    <div class="carte compacte ligne-forme forme-${B.formeJour ? B.formeJour.forme : "aucune"}"><div class="ligne-res"><span>Forme</span><b>${B.formeJour ? h`<span class="point ${B.formeJour.forme}"></span>${FORME[B.formeJour.forme]} <span class="petit">(${court(B.formeJour.date)})</span>` : h`<span class="petit">pas encore notée (au début ou au bilan d'une séance)</span>`}</b></div>
     ${B.vigilance.filter(v => v.niveau !== "vert").map(v => h`<div class="vig ${v.niveau}">${v.texte}</div>`)}</div>`;
 
   // Projets en cours (toutes salles)

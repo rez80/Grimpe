@@ -3,7 +3,7 @@ import { h, si, choix, echelle, brut, ico, pictoProfil as dessinProfil, ligneCho
 import { COULEUR_ROUTINES, GENRES_ROUTINE, etiquetteNiveau, couleurCategorie, FAMILLES, NOMS_FAMILLES } from "./plus.js";
 import { ficheDe } from "../bibliotheque.js";
 import { INFOS } from "../infos.js";
-import { discipline, etapesSeance, nouvelId, idsAPauser, opsCopieSeance, opsCopieSemaine, activiteAffichee } from "../programme.js";
+import { discipline, etapesSeance, nouvelId, idsAPauser, opsCopieSeance, opsCopieSemaine, activiteAffichee, nomSeance } from "../programme.js";
 import { RES_LABEL, resLabel, choixResultat, refPassage, ajouterTentative, cleRattachement, fenetreNoter, actions as ACTIONS_SEANCE } from "./seance.js";
 import { court, semaineDe, nomJour, ajouterJours, mmss, duree as dureeTexte } from "../dates.js";
 import { verifierImport, lireTexte } from "../export.js";
@@ -78,7 +78,9 @@ const champsTentative = (m, ctx) => {
 
 const reussiT = t => t.res === "ok";
 // Champs toujours en texte, même s'ils ressemblent à un nombre (niveaux de salle, cotations, identifiants)
-const TEXTE = new Set(["cotSalle", "cot", "salle", "salleCible", "nom", "zone", "raison", "cause", "style", "essaisAvant", "comment", "fond", "typeSalle", "disc", "res"]);
+// La forme du jour notée au bilan (mêmes valeurs que les boutons du début de séance)
+const RECUP_FORME = { bien: { doigts: 5, coudes: 5, epaules: 5, energie: 5, motivation: 5 }, moyen: { doigts: 3, coudes: 3, epaules: 3, energie: 4, motivation: 4 }, pastop: { doigts: 2, coudes: 2, epaules: 2, energie: 2, motivation: 2 } };
+const TEXTE = new Set(["forme", "gDisc", "cotSalle", "cot", "salle", "salleCible", "nom", "zone", "raison", "cause", "style", "essaisAvant", "comment", "fond", "typeSalle", "disc", "res"]);
 // Séance de grimpe en cours de cette discipline (pour « Noter un passage maintenant » depuis la fiche d'une voie)
 const seanceEnCoursPour = (ctx, disc) => ctx.programme.find(s => { const sa = ctx.doc.seances[s.id]; return sa && sa.debut && !sa.fin && discipline(s, sa) === disc; });
 
@@ -175,21 +177,27 @@ export function rendre(ctx) {
 
     case "sauter": return h`<h2>Séance sautée</h2>${liste("raison", ["Fatigue", "Douleur", "Pas de partenaire", "Pas le temps", "Autre"], M.raison, { label: "Raison", vide: "facultative" })}${actionsBas("Marquer sautée", "sauterOk")}`;
 
-    case "bilan": { const disc = M.disc, estGrimpe = ["Voie", "Bloc"].includes(disc), cots = data.echelles[disc] || [], precises = (sa.tentatives || []).filter(t => !t.approx).length;
-      const presentes = [...new Set([...etapesSeance(s, sa).filter(e => e.grimpe && e.grimpe.cot).map(e => e.grimpe.cot), ...Object.keys(M.grille).map(k => k.split("|")[0])])].filter(Boolean).sort((a, b) => cots.indexOf(a) - cots.indexOf(b));
-      return h`<h2>Bilan · ${court(s.date)} ${s.activite}</h2>
+    case "bilan": { const disc = M.disc, estGrimpe = ["Voie", "Bloc"].includes(disc), precises = (sa.tentatives || []).filter(t => !t.approx).length;
+      // La grille : la discipline de la séance, ou l'autre (salle avec voies et blocs) ; cotations au format de la salle (« 4 · ≈ 5+ »)
+      const salleB = salleDe(doc, sa.salle), mixteB = !!salleB && salleB.type === "Bloc et voie", gd = mixteB ? M.gDisc || disc : disc, cl = cotationDe(salleB, gd), ech = data.echelles[gd] || [];
+      const cots = salleB && cl.mode === "liste" && cl.liste.length ? [...new Set(cl.liste.filter(x => x.app).map(x => String(x.app)))].sort((a, b) => ech.indexOf(a) - ech.indexOf(b)) : ech;      // salle à liste : ses cotations
+      const cle = (c, r) => `${c}|${r}|${gd}`, deGd = k => (k.split("|")[2] || disc) === gd;
+      const presentes = [...new Set([...etapesSeance(s, sa).filter(e => e.grimpe && e.grimpe.cot && e.grimpe.disc === gd).map(e => e.grimpe.cot), ...Object.keys(M.grille).filter(deGd).map(k => k.split("|")[0])])].filter(Boolean).sort((a, b) => cots.indexOf(a) - cots.indexOf(b));
+      return h`<h2>Bilan · ${court(s.date)} · ${nomSeance(s, sa)}</h2>
+      <label class="champ">Forme du jour <span class="petit">${M.formeAvant ? "notée au début, à corriger si besoin" : "facultatif"}</span></label>${choix("mChamp", [["bien", "🙂 Bien"], ["moyen", "😐 Moyen"], ["pastop", "😣 Pas top"]], M.forme || "", { data: { champ: "forme" } })}
       <label class="champ">Effort (1 = très facile, 10 = maximal)</label>${echelle("mChamp", 10, M.effort, { data: { champ: "effort" } })}
       <label class="champ">Douleur après (0 = aucune)</label>${echelle("mChamp", 10, M.apres, { de: 0, data: { champ: "apres" } })}
       ${si(M.apres > 0, () => liste("zone", data.zones.filter(z => z !== "Aucune"), M.zone, { label: "Zone", vide: "Choisir…" }))}
       ${si(estGrimpe, h`<label class="champ">En gros, ce que tu as grimpé <span class="petit">${precises ? `en plus des ${precises} passages déjà notés` : "(approximatif)"}</span></label>
-        <div class="grille">${presentes.map(c => h`<div class="grille-ligne"><b>${c}</b>${["ok", "ko"].map(r => h`<span class="compteur"><button data-act="mGrille" data-k="${c}|${r}" data-pas="-1">−</button><span>${M.grille[c + "|" + r] || 0} ${r === "ok" ? "✓" : "✗"}</span><button data-act="mGrille" data-k="${c}|${r}" data-pas="1">+</button></span>`)}</div>`)}
+        ${si(mixteB, h`<div class="segment disc-saisie">${["Voie", "Bloc"].map(x => h`<button data-act="mChamp" data-champ="gDisc" data-valeur="${x}" class="${gd === x ? "choisi" : ""}">${x}</button>`)}</div>`)}
+        <div class="grille">${presentes.map(c => h`<div class="grille-ligne"><b>${deuxCot(salleB, gd, "", c)}</b>${["ok", "ko"].map(r => h`<span class="compteur"><button data-act="mGrille" data-k="${cle(c, r)}" data-pas="-1">−</button><span>${M.grille[cle(c, r)] || 0} ${r === "ok" ? "✓" : "✗"}</span><button data-act="mGrille" data-k="${cle(c, r)}" data-pas="1">+</button></span>`)}</div>`)}
         <button class="fiche-ligne" data-act="mPlier" data-k="autresCots"><span>Une autre cotation</span><span class="val">${M.autresCots ? "▾" : "›"}</span></button>
-        ${si(M.autresCots, () => h`<div class="fiche-contenu"><div class="choix compact">${cots.filter(c => !presentes.includes(c)).map(c => h`<button data-act="mGrille" data-k="${c}|ok" data-pas="1">${c}</button>`)}</div></div>`)}</div>`)}
+        ${si(M.autresCots, () => h`<div class="fiche-contenu"><div class="choix compact">${cots.filter(c => !presentes.includes(c)).map(c => h`<button data-act="mGrille" data-k="${cle(c, "ok")}" data-pas="1">${deuxCot(salleB, gd, "", c)}</button>`)}</div></div>`)}</div>`)}
       <button class="fiche-ligne" data-act="mPlier" data-k="details"><span>Heures, notes</span><span class="val">${M.hDebut} → ${M.hFin}${dureeHeures(M) != null ? ` · ${dureeHeures(M)} min` : ""} ${M.details ? "▾" : "›"}</span></button>
       ${si(M.details, () => h`<div class="fiche-contenu"><div class="ed-rangee"><label class="champ">Début</label><input type="time" data-champ="hDebut" value="${M.hDebut}"><label class="champ">Fin</label><input type="time" data-champ="hFin" value="${M.hFin}"></div><label class="champ">Notes</label><textarea data-champ="notes" rows="3">${M.notes}</textarea></div>`)}
       ${actionsBas(sa.fin ? "Enregistrer" : "Terminer la séance", "bilanOk", M.effort === "")}`; }
 
-    case "menu": return h`<h2>${court(s.date)} · ${activiteAffichee(s, sa)}</h2><div class="menu">
+    case "menu": return h`<h2>${court(s.date)} · ${nomSeance(s, sa)}</h2><div class="menu">
       ${si(!M.surPage, h`<button data-act="menuBilan">Bilan / terminer</button>`)}<button data-act="menuEditer">✎ Modifier le plan</button><button data-act="menuDeplacer">${ico("calendrier")} Déplacer</button><button data-act="menuCopier">${ico("copier")} Copier vers une autre date</button>
       ${si(!(M.surPage && M.avant), h`<button data-act="menuSauter">Séance sautée</button>`)}${si(ctx.store.annulable, h`<button data-act="annuler">${ico("annuler")} Annuler : ${ctx.store.annulable}</button>`)}
       <button class="danger" data-act="menuReinit">Effacer les saisies de cette séance</button>${si(s.libre || s.copie, h`<button class="danger" data-act="menuSupprimerSeance">Supprimer cette séance</button>`)}</div><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
@@ -216,7 +224,7 @@ export function rendre(ctx) {
       return h`<h2>${M.nom}</h2><p class="petit"><span class="cat-chip" style="--cat:${COULEUR_ROUTINES}">Routine</span> ${GENRES_ROUTINE[(e[0] || {}).genre] || ""}${tot ? ` · ${dureeTexte(tot)} en tout` : ""}</p>
       <ol class="routine">${e.map(x => h`<li><b>${x.etape}</b>${x.duree ? h` <span class="petit">${dureeTexte(x.duree)}</span>` : ""}<div>${lier(x.quoi, data.exercices)}</div></li>`)}</ol>
       <div class="actions"><button data-act="favori" data-nom="${M.nom}">${doc.favoris.includes(M.nom) ? "★ Favori" : "☆ Favori"}</button><button class="principal" data-act="mFermer">Fermer</button></div>`; }
-    case "ficheExo": { const x = data.exercices[+M.k]; return h`<h2>${x.nom}</h2><p class="petit"><span class="cat-chip" style="--cat:${couleurCategorie(x.categorie)}">${x.categorie}</span> ${etiquetteNiveau(x.niveau)}${x.discipline ? " · " + x.discipline : ""}</p>
+    case "ficheExo": { const x = data.exercices[+M.k]; return h`<h2>${x.nom}</h2><p class="petit"><span class="cat-chip" style="--cat:${couleurCategorie(x.categorie)}">${x.categorie}</span> ${etiquetteNiveau(x.niveau)}${x.discipline ? " · " + x.discipline : ""}${+x.duree > 0 ? ` · ≈ ${x.duree} min` : ""}</p>
       ${si(x.but, h`<p><b>But.</b> ${x.but}</p>`)}<ol>${x.comment.split("\n").filter(Boolean).map(l => h`<li>${l}</li>`)}</ol>
       ${si(x.erreurs, h`<p><b>Erreurs fréquentes.</b> ${x.erreurs}</p>`)}${si(x.facile, h`<p><b>Plus facile.</b> ${x.facile}</p>`)}${si(x.securite, h`<p class="securite">${ico("bouclier")} ${x.securite}</p>`)}
       ${si(x.perso, () => h`<p class="petit">${x.perso === "mien" ? "Exercice à toi." : `Fiche modifiée (d'origine : « ${x.base} »).`} Reporté dans Programme.xlsx au prochain « grimpe.py rapport ».</p>`)}
@@ -229,6 +237,7 @@ export function rendre(ctx) {
       ${liste("categorie", groupes, M.categorie, { act: "mListe", vide: "Catégorie…", label: "Catégorie" })}
       <label class="champ">Niveau</label>${choix("mChamp", ["Débutant", "Intermédiaire", "Avancé"], M.niveau, { data: { champ: "niveau" } })}
       <label class="champ">Discipline</label>${choix("mChamp", [...new Set(["Voie et bloc", "Voie", "Bloc", M.discipline].filter(Boolean))], M.discipline || "Voie et bloc", { data: { champ: "discipline" } })}
+      <label class="champ">Durée habituelle <span class="petit">(minutes, facultatif : sert à estimer la durée des séances)</span></label><input type="number" inputmode="numeric" min="0" max="180" data-champ="duree" value="${M.duree ?? ""}" placeholder="ex. 5">
       ${champ("but", "But", "à quoi il sert")}${champ("comment", "Comment faire (une étape par ligne)", "Regarde la prise…", true)}${champ("securite", "Sécurité", "facultatif", true)}
       ${champ("erreurs", "Erreurs fréquentes", "facultatif")}${champ("facile", "Plus facile", "facultatif")}
       <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="exoEnregistrer">Enregistrer</button></div>
@@ -471,7 +480,8 @@ export const actions = {
       sa.debut = debut; sa.fin = debut + minutes * 60000; sa.duree = minutes; delete sa.pauseTotale; delete sa.statut; delete sa.pause;
       sa.effort = +m.effort; sa.douleur = { ...(sa.douleur || {}), apres: +m.apres || 0, zone: +m.apres ? m.zone : "" }; sa.notes = m.notes;
       sa.tentatives = (sa.tentatives || []).filter(t => !t.approx);
-      for (const [k, n] of Object.entries(m.grille)) { const [cot, res] = k.split("|"); for (let i = 0; i < n; i++) sa.tentatives.push({ t: now, disc: m.disc, cot, profil: "", res, approx: true }); } });
+      for (const [k, n] of Object.entries(m.grille)) { const [cot, res, dd] = k.split("|"); for (let i = 0; i < n; i++) sa.tentatives.push({ t: now, disc: dd || m.disc, cot, profil: "", res, approx: true, ...(sa.salle ? { salle: sa.salle } : {}) }); }
+      if (m.forme && m.forme !== m.formeAvant) sa.recup = { ...RECUP_FORME[m.forme] }; });
     ctx.fermerModal(); ctx.rendre(true);
     // Sans sauvegarde GitHub, et sans export depuis 7 jours : un rappel, avec le bouton
     ctx.synchroniser("fin de séance").then(ok => { const d = ctx.doc.dernierExport, jours = d ? (Date.now() - new Date(d)) / 864e5 : 99;
@@ -502,7 +512,7 @@ export const actions = {
     if (!nom) { ctx.toast("Donne un nom à l'exercice"); return; } if (!m.categorie) { ctx.toast("Choisis une catégorie"); return; }
     const autre = ctx.data.exercices.find(e => e.nom.toLowerCase() === nom.toLowerCase() && (e.persoId || "") !== (m.id || "") && e.nom !== m.base);
     if (autre) { ctx.toast(`« ${nom} » existe déjà dans la bibliothèque`); return; }
-    const fiche = { id: m.id || nouvelId("x"), base: m.base || "", nom, categorie: m.categorie, niveau: m.niveau || "", discipline: m.discipline || "Voie et bloc", but: (m.but || "").trim(), comment: (m.comment || "").trim(), securite: (m.securite || "").trim(), erreurs: (m.erreurs || "").trim(), facile: (m.facile || "").trim() };
+    const fiche = { id: m.id || nouvelId("x"), base: m.base || "", nom, categorie: m.categorie, niveau: m.niveau || "", discipline: m.discipline || "Voie et bloc", but: (m.but || "").trim(), comment: (m.comment || "").trim(), securite: (m.securite || "").trim(), erreurs: (m.erreurs || "").trim(), facile: (m.facile || "").trim(), duree: +m.duree > 0 ? Math.min(180, Math.round(+m.duree)) : "" };
     ctx.modifier(m.edition ? `exercice « ${nom} » modifié` : `exercice « ${nom} » ajouté`, x => { x.exos = (x.exos || []).filter(e => e.id !== fiche.id); x.exos.push(fiche); });
     ctx.fermerModal(); ctx.toast(m.edition ? "Fiche enregistrée" : "Exercice ajouté à la bibliothèque", () => ctx.agir("annuler")); },
   exoRetablir: ctx => { const m = M(ctx); ctx.modifier(`fiche « ${m.base} » rétablie`, x => { x.exos = (x.exos || []).filter(e => e.id !== m.id); }); ctx.fermerModal(); ctx.toast("Fiche d'origine rétablie", () => ctx.agir("annuler")); },

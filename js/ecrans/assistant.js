@@ -5,6 +5,7 @@ import { h, si, liste, forcerOuvert } from "../html.js";
 import { JOURS, semaineDe, dateSeance, jourMois, hm } from "../dates.js";
 import { programmeEffectif, etapesSeance, dureeSeance } from "../programme.js";
 import { lignesDe } from "../parseur.js";
+import { salleDe, salleParDefautPour, cotationDe, deuxCot } from "../salles.js";
 import { libelleCritere, finBloc, feuxBloc } from "../blocs.js";
 import { FAMILLES, NOMS_FAMILLES, sansAccent } from "./plus.js";
 import { PHASES, ORDRE_PHASES, ROLES, PROFILS, MODELES, modele, planVide, normaliser, semainesParDefaut, feuxParDefaut, genererBloc, crans,
@@ -35,17 +36,18 @@ export function initial(ctx, d = {}) {
   return { etape, plan, apercu: (plan.premiere || 1) - 1, pourquoi: false, section: null, wNow, edition: !!existant };
 }
 // « Partir du bloc précédent » : mêmes jours, réglages et exercices ; niveaux mis à jour ; objectif suivant s'il est atteint, sinon le même
-function planSuite(ctx, b) {
+function planSuite(ctx, b, supposeReussi = false) {      // supposeReussi : bloc pas encore fini, mais on prépare la suite comme s'il était réussi
   const E = ctx.data.echelles, q = normaliser(b.plan), der = derniereSemaine(ctx), rang = (d, c) => (E[d] || []).indexOf(String(c)), debutProg = ctx.doc.reglages.dateDebut || ctx.data.dateDebut;
   const p = { ...JSON.parse(JSON.stringify(q)), modele: `suite:${b.id}`, nom: nomPour(ctx, der + 1, false), titre: "", debut: der + 1, remplace: false, premiere: 1, feux: null, feuxModifies: false, consignes: null, consignesDevers: null };
   delete p.id;
   const c = ctx.bilan.consolides || {};
   for (const d of ["Voie", "Bloc"]) { const n = (c[`${d}-Vertical`] || {}).niveau; if (n && rang(d, n) > rang(d, p.depart[d])) p.depart[d] = n; }
-  const F = feuxBloc(b, { programme: ctx.programme, doc: ctx.doc, aujourdhui: ctx.aujourdhui(), dateDebut: debutProg }), o = q.objectif, atteint = (F.find(f => f.role === "objectif") || {}).ok;
+  const F = feuxBloc(b, { programme: ctx.programme, doc: ctx.doc, aujourdhui: ctx.aujourdhui(), dateDebut: debutProg }), o = q.objectif, atteint = supposeReussi || (F.find(f => f.role === "objectif") || {}).ok;
   if (atteint && rang(o.disc, o.cot) > rang(o.disc, p.depart[o.disc])) p.depart[o.disc] = o.cot;
   p.objectif = { disc: o.disc, cot: atteint || rang(o.disc, o.cot) <= rang(o.disc, p.depart[o.disc]) ? (E[o.disc] || [])[rang(o.disc, p.depart[o.disc]) + 1] || o.cot : o.cot };
   p.secondaires = (q.secondaires || []).map(x => x.type === "devers" || x.type === "dalle" ? { ...x, niveau: p.depart.Bloc } : x);
-  const filFait = (F.find(f => f.role === "fil") || {}).ok; if (filFait) p.fil = "";
+  const filFait = supposeReussi || (F.find(f => f.role === "fil") || {}).ok; if (filFait) p.fil = "";
+  p.supposeReussi = supposeReussi;
   const deja = (ctx.doc.blocs || []).filter(x => x.plan).flatMap(x => { const r = normaliser(x.plan); return r.semaines.map((_, k) => consigne(r, k)); });
   p.consignes = themesNouveaux(p, ctx.data.exercices, deja);
   if ((p.secondaires || []).some(x => x.type === "devers")) p.consignesDevers = themesDevers(p, ctx.data.exercices, (ctx.doc.blocs || []).filter(x => x.plan).flatMap(x => { const r = normaliser(x.plan); return r.semaines.map((_, k) => consigneDevers(r, k)); }));
@@ -70,6 +72,10 @@ const puces = (chemin, options, actuel, { num = false, garder = false } = {}) =>
 // − valeur + (chiffres)
 const pas = (chemin, val, { min = 0, max = 99, d = 1, suffixe = "" } = {}) => h`<span class="as-pas"><button data-act="asPas" data-chemin="${chemin}" data-d="${-d}" data-min="${min}" data-max="${max}" aria-label="moins">−</button><b>${val}${suffixe}</b><button data-act="asPas" data-chemin="${chemin}" data-d="${d}" data-min="${min}" data-max="${max}" aria-label="plus">+</button></span>`;
 // Liste déroulante (plus de 4 choix) : la valeur change sans refermer la ligne
+// Une cotation de l'app avec son équivalent dans la salle habituelle (« 4 · ≈ 5+ »), comme partout ailleurs dans l'app
+const salleEq = (ctx, disc) => salleDe(ctx.doc, salleParDefautPour(ctx.doc, disc)) || (ctx.doc.salles || []).find(s => (s.type === disc || s.type === "Bloc et voie") && cotationDe(s, disc).mode === "liste") || null;
+const eq = (ctx, disc, cot) => cot ? deuxCot(salleEq(ctx, disc), disc, "", cot) : cot;
+const eqOptions = (ctx, disc, l) => l.map(c => [c, eq(ctx, disc, c)]);
 const deroulant = (chemin, options, valeur, vide = null) => liste("", options, valeur, { act: "asChamp", vide, data: { chemin } });
 const champTexte = (chemin, valeur, ph, max = 40) => h`<input type="text" class="as-texte" value="${valeur || ""}" placeholder="${ph}" data-act="asChamp" data-chemin="${chemin}" maxlength="${max}">`;
 const rangee = (label, contenu) => h`<div class="as-rangee"><span>${label}</span>${contenu}</div>`;
@@ -101,9 +107,13 @@ function etapeDepart(ctx, A, P, E) {
   const precedents = (ctx.doc.blocs || []).filter(b => b.plan && b.id !== P.id).map(b => [`suite:${b.id}`, `Partir de ${b.nom} · ${b.titre}`, "mêmes jours et exercices, niveaux à jour, objectif suivant s'il est atteint"]);
   const choixModeles = [...precedents, ...MODELES.map(m => [m.id, m.titre, m.resume]), ["", "Partir de zéro", "tous les choix à faire"]], nomModele = (choixModeles.find(x => x[0] === (P.modele || "")) || [, "Partir de zéro"])[1];
   return h`${si(!A.edition, () => groupe("Point de départ du plan", ligne(A, "modele", "Modèle", nomModele, () => h`<div class="liste">${choixModeles.map(([id, t, r]) => h`<button class="item" data-act="asModele" data-id="${id}"><span><b>${t}</b><br><span class="petit">${r}</span></span><span>${(P.modele || "") === id ? "✓" : ""}</span></button>`)}</div>`)))}
+    ${(() => { const src = !A.edition && String(P.modele || "").startsWith("suite:") && (ctx.doc.blocs || []).find(b => `suite:${b.id}` === P.modele);
+      if (!src || finBloc(src) < A.wNow) return "";      // bloc fini : ses feux verts décident
+      return groupe(`${src.nom} n'est pas encore fini`, h`${ligne(A, "suppose", `${src.nom} réussi ?`, P.supposeReussi ? "oui, le supposer" : "selon ses feux verts", () => h`${puces("supposeReussi", [["", "Selon ses feux verts"], ["1", "Oui, le supposer"]], P.supposeReussi ? "1" : "")}
+        <p class="petit">Oui : l'assistant prépare la suite comme si ${src.nom} était réussi : objectif au cran suivant, niveaux et dévers à jour, nouveau fil rouge à choisir. Tes autres réglages de l'étape 1 sont gardés.</p>`)}`); })()}
     ${groupe("Toi", h`${ligne(A, "profil", "Profil", PROFILS[P.profil].label, () => h`${puces("profil", Object.entries(PROFILS).map(([k, p]) => [k, p.label]), P.profil)}<p class="petit">${PROFILS[P.profil].pourquoi}</p>`)}
-      ${ligne(A, "dv", "Niveau consolidé en voie", P.depart.Voie, () => puces("depart.Voie", plage(E, "Voie", P.depart.Voie), P.depart.Voie))}
-      ${ligne(A, "db", "Niveau consolidé en bloc", P.depart.Bloc, () => puces("depart.Bloc", plage(E, "Bloc", P.depart.Bloc), P.depart.Bloc))}
+      ${ligne(A, "dv", "Niveau consolidé en voie", eq(ctx, "Voie", P.depart.Voie), () => puces("depart.Voie", eqOptions(ctx, "Voie", plage(E, "Voie", P.depart.Voie)), P.depart.Voie))}
+      ${ligne(A, "db", "Niveau consolidé en bloc", eq(ctx, "Bloc", P.depart.Bloc), () => puces("depart.Bloc", eqOptions(ctx, "Bloc", plage(E, "Bloc", P.depart.Bloc)), P.depart.Bloc))}
       <p class="petit">Proposé d'après tes passages (≥ 5 essais à ≥ 70 % sur la cotation).</p>`)}
     ${groupe("Le bloc", h`${ligne(A, "quand", "Quand", valQuand, () => h`<div class="liste">${quand.map(([v, l]) => h`<button class="item ${String(P.remplace ? P.debut : "apres") === v ? "choisi" : ""}" data-act="asValeur" data-chemin="quand" data-valeur="${v}"><span>${l}</span></button>`)}</div>`)}
       ${ligne(A, "duree", "Durée", `${P.semaines.length} semaines`, () => h`${puces("nbSemaines", DUREES.map(n => [String(n), String(n)]), String(P.semaines.length), { num: true })}<p class="petit">8 semaines : le compromis habituel. 4 à 6 : un bloc court, sans respiration. 11 à 12 : deux semaines de respiration.</p>`)}
@@ -127,12 +137,12 @@ function cadreAutre(x, n, E, P) {
 function etapeObjectif(ctx, A, P, E) {
   const o = P.objectif, secs = P.secondaires || [], libres = Object.keys(SECONDAIRES).filter(t => t === "autre" || !secs.some(x => x.type === t));
   return h`${groupe("Objectif principal", h`${ligne(A, "disc", "Discipline", o.disc, () => puces("objectif.disc", ["Bloc", "Voie"], o.disc))}
-      ${ligne(A, "cot", "Cotation à consolider", o.cot || "à choisir", () => deroulant("objectif.cot", plage(E, o.disc, P.depart[o.disc], 1, 6), o.cot, "Cotation…"))}`)}
+      ${ligne(A, "cot", "Cotation à consolider", o.cot ? eq(ctx, o.disc, o.cot) : "à choisir", () => deroulant("objectif.cot", eqOptions(ctx, o.disc, plage(E, o.disc, P.depart[o.disc], 1, 6)), o.cot, "Cotation…"))}`)}
     ${alertes(alertesObjectif(P, E))}
     ${groupe("Objectifs secondaires", h`${secs.map((x, n) => { const S = SECONDAIRES[x.type];
-        return ligne(A, `sec-${n}`, x.type === "autre" ? (x.titre || "Objectif à toi") : S.label, x.type === "autre" ? (ROLES_PERSO[x.ou || "volume"] || "").toLowerCase() : x.type === "gainage" ? `${x.niveau} s` : x.niveau, () => h`${x.type === "autre" ? cadreAutre(x, n, E, P)
+        return ligne(A, `sec-${n}`, x.type === "autre" ? (x.titre || "Objectif à toi") : S.label, x.type === "autre" ? (ROLES_PERSO[x.ou || "volume"] || "").toLowerCase() : x.type === "gainage" ? `${x.niveau} s` : eq(ctx, S.disc, x.niveau), () => h`${x.type === "autre" ? cadreAutre(x, n, E, P)
           : x.type === "gainage" ? rangee("Planche visée", pas(`secondaires.${n}.niveau`, x.niveau, { min: 30, max: 300, d: 10, suffixe: " s" }))
-          : h`<label class="champ">Niveau</label>${deroulant(`secondaires.${n}.niveau`, plage(E, S.disc, x.niveau, 3, 4), x.niveau)}`}
+          : h`<label class="champ">Niveau</label>${deroulant(`secondaires.${n}.niveau`, eqOptions(ctx, S.disc, plage(E, S.disc, x.niveau, 3, 4)), x.niveau)}`}
           ${si(x.type !== "autre", () => h`<p class="petit">Travaillé ${S.ou}. Feu vert : ${S.feu(x.niveau).map(c => libelleCritere(c) + (c.min != null ? ` ≥ ${c.min}` : "")).join(" · ")}.</p>`)}
           <button class="petit-btn danger" data-act="asSecRetirer" data-n="${n}">Retirer cet objectif</button>`); })}
       ${si(secs.length < 2, () => h`<div class="as-ajout-sec">${liste("", libres.map(t => [t, `${SECONDAIRES[t].label}${t !== "autre" ? ` · ${SECONDAIRES[t].ou}` : ""}`]), "", { act: "asSecAjouter", vide: "+ Ajouter un objectif secondaire…" })}</div>`)}
@@ -254,7 +264,7 @@ function etapeRecap(ctx, A, P, E) {
   const secs = (P.secondaires || []).map(x => SECONDAIRES[x.type].titre(x.niveau));
   return h`<div class="carte as-groupe"><h3 class="as-sous">${bloc.nom} · ${bloc.titre}</h3>
       <p class="petit">Semaines ${bloc.debut} → ${fin} · ${bloc.remplace ? "remplace ce qui était prévu (les séances commencées ou faites restent)" : "ajouté au programme"}</p>
-      <p class="petit">Objectif ${P.objectif.disc.toLowerCase()} ${P.objectif.cot}${secs.length ? ` · ${secs.join(" · ")}` : ""}${P.fil ? ` · fil rouge : ${FILS[P.fil].label.toLowerCase()}` : ""} · ${PROFILS[P.profil].label}</p>
+      <p class="petit">Objectif ${P.objectif.disc.toLowerCase()} ${eq(ctx, P.objectif.disc, P.objectif.cot)}${secs.length ? ` · ${secs.join(" · ")}` : ""}${P.fil ? ` · fil rouge : ${FILS[P.fil].label.toLowerCase()}` : ""} · ${PROFILS[P.profil].label}</p>
       <p class="petit">${JOURS.filter(j => P.jours[j] && P.jours[j] !== "repos").map(j => `${j.slice(0, 3)}. ${ROLES[P.jours[j]].label.toLowerCase()}`).join(" · ")}</p></div>
     ${si(chevauche.length, () => h`<div class="avert">${chevauche.map(b => `${b.nom} · ${b.titre}`).join(", ")} couvre déjà ces semaines : il sera retiré.</div>`)}
     <div class="carte as-groupe"><table class="tableau as-table"><tr><th>Sem.</th><th>Séances</th><th>Temps</th><th>Essais ${P.objectif.cot}</th></tr>
@@ -281,6 +291,7 @@ function fenetreExo(ctx) {
     ${si(ajout, () => h`<div class="fiche-contenu as-cadre">${rangee("Fois", h`<span class="as-pas"><button data-act="asM" data-k="n" data-valeur="${Math.max(1, (M.n || 1) - 1)}">−</button><b>${M.n || 1}</b><button data-act="asM" data-k="n" data-valeur="${Math.min(20, (M.n || 1) + 1)}">+</button></span>`)}
       <label class="champ">Quand</label><div class="choix as-puces">${[["", "Toutes les semaines"], ...ORDRE_PHASES.map(x => [x, PHASES[x].label])].map(([v, l]) => h`<button data-act="asM" data-k="phase" data-valeur="${v}" class="${(M.phase || "") === v ? "choisi" : ""}">${l}</button>`)}</div>
       <label class="champ">Type</label><div class="choix as-puces">${[["", "Facile"], ["1", "Effort"]].map(([v, l]) => h`<button data-act="asM" data-k="effort" data-valeur="${v}" class="${(M.effort ? "1" : "") === v ? "choisi" : ""}">${l}</button>`)}</div>
+      <label class="champ">Durée de chaque fois</label>${rangee("Minutes", h`<span class="as-pas"><button data-act="asM" data-k="duree" data-valeur="${Math.max(0, (+M.duree || 0) - 1)}">−</button><b>${+M.duree > 0 ? `${M.duree} min` : "—"}</b><button data-act="asM" data-k="duree" data-valeur="${Math.min(60, (+M.duree || 0) + 1)}">+</button></span>`)}
       <label class="champ">Précision</label><input type="text" class="as-texte" data-champ="detail" value="${M.detail || ""}" placeholder="3 essais, contrôlé" maxlength="60"></div>
       <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="asExoValider">Ajouter</button></div>`)}
     ${si(!ajout, () => h`<div class="actions"><button data-act="mFermer">Annuler</button></div>`)}`;
@@ -306,6 +317,10 @@ const fixer = (o, chemin, v) => { const k = chemin.split("."); let x = o; for (l
 const lire = (o, chemin) => chemin.split(".").reduce((x, k) => x == null ? x : x[k], o);
 const feuxDe = P => { P.feux = P.feux || feuxParDefaut(P); P.feuxModifies = true; return P.feux; };
 function appliquer(ctx, A, c, v) {
+  if (/^joursAutre\.\w+\.nom$/.test(c)) v = String(v || "").replace(/\s+/g, " ").trim();
+  if (c === "supposeReussi") { const P = A.plan, src = (ctx.doc.blocs || []).find(b => `suite:${b.id}` === P.modele); if (!src) return;
+    const garde = { nom: P.nom, titre: P.titre, debut: P.debut, remplace: P.remplace, profil: P.profil, duree: P.duree, premiere: P.premiere };
+    A.plan = { ...planSuite(ctx, src, !!v), ...Object.fromEntries(Object.entries(garde).filter(([, x]) => x !== undefined)) }; return; }
   const P = A.plan;
   if (c === "apercu") A.apercu = +v;
   else if (c === "quand") { P.remplace = v !== "apres"; P.debut = v === "apres" ? derniereSemaine(ctx) + 1 : +v; P.nom = nomPour(ctx, P.debut, P.remplace); }
@@ -350,13 +365,13 @@ export const actions = {
   asM: (ctx, d) => { const M = ctx.state.modal; M[d.k] = d.k === "n" || d.k === "min" ? +d.valeur : d.k === "effort" ? !!d.valeur : d.valeur;
     if (d.k === "disc") M.cot = ""; if (d.k === "mesure") M.min = d.valeur === "taux" ? 70 : 5; ctx.rendre(); },
   asExoChoisir: (ctx, d) => { const M = ctx.state.modal, A = ctx.state.assistant, P = A.plan;
-    if (M.mode === "ajout") { M.choix = d.nom; ctx.rendre(); return; }
+    if (M.mode === "ajout") { M.choix = d.nom; const f = ctx.data.exercices.find(e => e.nom === d.nom); M.duree = f && +f.duree > 0 ? +f.duree : ""; ctx.rendre(); return; }
     if (M.mode === "remplacer") { const X = P.exos = P.exos || {}; X.remplaces = X.remplaces || {}; X.remplaces[M.t] = { ...(X.remplaces[M.t] || {}), [M.nom]: d.nom }; }
     if (M.mode === "consigne") { P.consignes = P.consignes || []; P.consignes[+M.k] = d.nom; }
     if (M.mode === "consigneDevers") { P.consignesDevers = P.consignesDevers || []; P.consignesDevers[+M.k] = d.nom; }
     ctx.fermerModal(); },
   asExoValider: ctx => { const M = ctx.state.modal, P = ctx.state.assistant.plan; if (!M.choix) { ctx.toast("Choisis d'abord un exercice dans la liste"); return; }
-    const X = P.exos = P.exos || {}; X.ajouts = X.ajouts || {}; X.ajouts[M.t] = [...(X.ajouts[M.t] || []), { nom: M.choix, n: M.n || 1, detail: (M.detail || "").trim(), phase: M.phase || "", effort: !!M.effort }];
+    const X = P.exos = P.exos || {}; X.ajouts = X.ajouts || {}; X.ajouts[M.t] = [...(X.ajouts[M.t] || []), { nom: M.choix, n: M.n || 1, detail: (M.detail || "").trim(), phase: M.phase || "", effort: !!M.effort, ...(+M.duree > 0 ? { duree: +M.duree } : {}) }];
     ctx.state.assistant.section = `ex-${M.t}`; ctx.fermerModal(); },
   asThemes: ctx => { const P = ctx.state.assistant.plan, autres = (ctx.doc.blocs || []).filter(b => b.id !== P.id && b.plan).map(b => normaliser(b.plan));
     P.consignes = themesNouveaux(P, ctx.data.exercices, autres.flatMap(q => q.semaines.map((_, k) => consigne(q, k))));

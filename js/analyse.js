@@ -6,6 +6,7 @@
 import { ecartJours, semaineDe, ajouterJours, lundiDe } from "./dates.js";
 import { blocEnCours, feuxBloc } from "./blocs.js";
 
+const minuscule = s => String(s || "").charAt(0).toLowerCase() + String(s || "").slice(1);      // « Bloc 6A+ » → « bloc 6A+ » (la cotation garde sa casse)
 export const DEVERS = ["Léger dévers", "Dévers", "Surplomb", "Fort dévers", "Toit"];
 export const enDevers = p => DEVERS.includes(p);
 export const groupeProfil = p => enDevers(p) ? "Dévers" : "Vertical";
@@ -270,7 +271,7 @@ export function phrases({ bilan: B, ts, programme, doc, aujourdhui, echelles, pr
   // 3. Le prochain cap
   const prochain = B.feux.find(f => !f.ok && !f.info && projectionFeux[f.id]), assezDeRecul = ecartJours(B.dateDebut, aujourdhui) >= 28;
   if (prochain) { const p = projectionFeux[prochain.id];
-    out.push({ cle: "cap", texte: `Prochain cap : ${prochain.titre.toLowerCase()} — ${p.critere.toLowerCase()} : ${p.val} sur ${p.cible}${!assezDeRecul ? "" : p.semaines ? `, à ce rythme ${p.semaines > 26 ? "dans plus de six mois" : p.semaines === 1 ? "dans une semaine" : `dans ${p.semaines} semaines`}` : p.val > 0 ? ", pas d'avancée sur quatre semaines" : ""}.` }); }   // « à ce rythme » seulement après 4 semaines
+    out.push({ cle: "cap", texte: `Prochain cap : ${minuscule(prochain.titre)} — ${minuscule(p.critere)} : ${p.val} sur ${p.cible}${!assezDeRecul ? "" : p.semaines ? `, à ce rythme ${p.semaines > 26 ? "dans plus de six mois" : p.semaines === 1 ? "dans une semaine" : `dans ${p.semaines} semaines`}` : p.val > 0 ? ", pas d'avancée sur quatre semaines" : ""}.` }); }   // « à ce rythme » seulement après 4 semaines
   return out;
 }
 
