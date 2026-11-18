@@ -1,4 +1,4 @@
-# Grimpe 8.22 — l'app d'escalade
+# Grimpe 8.24 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,24 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.24** (harmonie).
+- **Séance commencée** : la carte « En cours » garde la couleur de l'activité ; ordre : Consignes (repliées) tout en haut, puis l'étape en cours, puis Voies et blocs, puis le plan.
+- **Avant la séance** : « Sautée » et « Déjà faite → bilan » en petits boutons blancs sur le bandeau.
+- **Lignes rapides** : colonne de cotation de largeur fixe, boutons tous de la même taille ; « 5 · ≈ 6A+ » sur une ligne (aussi dans le bilan).
+- **Couleurs** : Réglages et Sauvegarde prennent la couleur de l'app (seul « Tout effacer » reste rouge) ; Progrès garde ses couleurs (chaque tuile a la couleur de sa section).
+- Textes : « Bilan · Ven. 20/11 · Bloc » ; « Avant le bloc · passé » ; la forme se note « au début ou au bilan ».
+
+**Nouveautés 8.23** (après le test complet « de zéro »).
+- **Écran** : correctif pour iOS 26 (titre et onglets qui se décalaient après le clavier) ; la barre « Cette semaine · + Séance · + Hors séance » est tout en haut du Programme.
+- **Programme** : la semaine du programme de départ avant un bloc est à part (« Avant le bloc ») ; « Autre sport » s'affiche avec son nom (Vélo…) et le même gris partout.
+- **Options** : n'y figure plus ce qui est déjà sur la page.
+- **Assistant** : niveaux au format de la salle (« 4 · ≈ 5+ ») ; « B1 réussi ? » pour préparer la suite d'un bloc pas encore fini ; durée d'un exercice ajouté.
+- **Thèmes** : pas deux fois le même thème dans un bloc, les moins utilisés d'abord.
+- **Exercices** : « Durée habituelle » sur la fiche, utilisée pour estimer les séances, reportée dans Programme.xlsx (colonne « Durée (min) »).
+- **Séance** : dans une salle avec voies et blocs, choix **Voie | Bloc** pour noter ; « + une autre cotation » ajoute une ligne aux passages rapides ; lignes rapides en bloc au format de la salle.
+- **Bilan** : « Forme du jour » (si oubliée au début) ; grille au format de la salle, avec Voie | Bloc.
+- Textes : « 1 voie », « Options › Modifier la salle », « bloc 6A+ » (et non 6a+).
 
 **Nouveautés 8.22** (assistant plus souple, équivalences de cotation partout).
 - **Assistant de bloc** : objectif secondaire et fil rouge « Autre (à définir)… » (titre, séance, validation par case à cocher ou seuil) ; disponibilités par jour en liste déroulante avec « Autre sport… » (nom, durée, intensité facile/soutenue) ; case « séance bonus » par jour ; durée de séance et phase de chaque semaine en liste déroulante.
