@@ -57,7 +57,11 @@ export function deuxCot(salle, disc, cotSalle, cot) {
   const sa = cotSalle || cotSalleDe(salle, disc, cot), ap = cot || cotApp(salle, disc, cotSalle);
   return sa && ap && String(sa) !== String(ap) ? `${sa} · ≈ ${ap}` : String(sa || ap || "");
 }
-export const libelleVoie = v => [v.cotSalle || v.cot || "?", v.couleur ? v.couleur.toLowerCase() : "", v.nom].filter(Boolean).join(" ");
+// Le nom d'une voie : sa cotation (« 7 · ≈ 6B+ » quand la salle a sa propre échelle), sa couleur, son nom
+export const cotLibelle = v => v.cotSalle && v.cot && String(v.cotSalle) !== String(v.cot) ? `${v.cotSalle} · ≈ ${v.cot}` : String(v.cotSalle || v.cot || "?");
+export const libelleVoie = v => [cotLibelle(v), v.couleur ? v.couleur.toLowerCase() : "", v.nom].filter(Boolean).join(" ");
+// La salle de référence d'une discipline : la salle du jour ou par défaut, sinon la première qui a sa propre échelle
+export const salleReference = (doc, disc) => salleDe(doc, salleParDefautPour(doc, disc)) || (doc.salles || []).find(s => (s.type === disc || s.type === "Bloc et voie") && cotationDe(s, disc).mode === "liste") || null;
 
 export const voiesEnPlace = (salle, disc) => salle ? salle.voies.filter(v => v.statut !== "demontee" && (!disc || v.disc === disc)).sort((a, b) => (a.secteurId || "") < (b.secteurId || "") ? -1 : (a.secteurId || "") > (b.secteurId || "") ? 1 : (a.ordre ?? 0) - (b.ordre ?? 0)) : [];
 

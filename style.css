@@ -483,7 +483,12 @@ button.btn-ajout.rond { width: 34px; height: 34px; min-height: 34px; padding: 0;
 .pli-bloc.carte:has(> [data-cle^="reg-"]), .pli-bloc.carte:has(> [data-cle^="sv-"]) { --lis: var(--ocre); }
 .pli-bloc.carte:has(> [data-cle="sv-effacer"]) { --lis: var(--rouge); }
 /* les cartes de séance, du plan et des voies gardent leur propre style */
-.pli-bloc.carte.voies, .pli-bloc.carte.pli-plan, .pli-bloc.carte.recap-salle, .pli-bloc.carte:has(> [data-cle="consignes-seance"]) { border-left-width: 0; }
+/* Séance : Consignes en ocre, Voies et blocs à la couleur de la discipline choisie, le plan à la couleur de l'activité */
+.pli-bloc.carte.recap-salle { border-left-width: 0; }
+.pli-bloc.carte.pli-consignes { --lis: var(--ocre); }
+.pli-bloc.carte.voies.disc-voie { --lis: var(--voie); } .pli-bloc.carte.voies.disc-bloc { --lis: var(--bloc); }
+.pli-bloc.carte.pli-plan.act-voie { --lis: var(--voie); } .pli-bloc.carte.pli-plan.act-bloc { --lis: var(--bloc); } .pli-bloc.carte.pli-plan.act-maison { --lis: var(--maison); }
+.pli-bloc.carte.pli-plan.act-course { --lis: var(--course); } .pli-bloc.carte.pli-plan.act-autre { --lis: var(--gris); }
 /* Progrès : barres colorées (en cours : ocre ; atteint : vert), bâtons de charge, tableaux à lignes alternées */
 .barre span { background: var(--ocre); } .barre.ok span { background: #2E9E6B; }
 .histo .col-barre { background: #7A5BB5; border-radius: 4px 4px 0 0; }
@@ -779,3 +784,23 @@ body[data-activite="Autre sport"] .bandeau-seance { background: var(--gris); }
 .cot-rapide .cot-ligne { display: grid; grid-template-columns: 44px; grid-auto-flow: column; grid-auto-columns: 1fr; }
 .cot-rapide.large .cot-ligne { grid-template-columns: 84px; }
 .cot-rapide .cot-ligne b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* 8.26 — Carte « Voies et blocs » compacte : salle + Voie | Bloc sur une ligne, lignes de cotation avec les pastilles des voies */
+.voies-tete { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; } .voies-tete .disc-saisie { flex: 1; margin: 0; max-width: 190px; margin-left: auto; }
+.salle-chip { background: none; border: none; padding: 6px 0; font-weight: 600; color: var(--texte); font-size: 15px; text-align: left; min-height: 0; }
+.lignes-cot { display: flex; flex-direction: column; gap: 6px; }
+.ligne-cot { display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 8px; min-height: 40px; }
+.lignes-cot.large .ligne-cot { grid-template-columns: 84px 1fr auto; }
+.ligne-cot > b { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pastilles-voies { display: flex; flex-wrap: wrap; gap: 6px; }
+.pastille-voie { width: 38px; height: 38px; min-height: 38px; padding: 0; border-radius: 10px; border: 1px solid rgba(0,0,0,.15); font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.pastille-voie.sans-couleur { background: var(--carte) !important; color: var(--texte) !important; border-style: dashed; }
+.pastille-voie.aujourdhui { box-shadow: 0 0 0 3px var(--texte); }
+.ligne-cot .anon { display: flex; gap: 6px; } .ligne-cot .anon button { min-height: 38px; font-weight: 600; color: #fff; border: none; border-radius: 10px; }
+.ligne-cot .anon .ok { background: #2E9E6B; } .ligne-cot .anon .ko { background: #C9483B; } .ligne-cot .anon .sec { background: #E8B04B; color: #1d2a2f; }
+.ligne-cot .anon:not(.petits) { grid-column: 2 / 4; } .ligne-cot .anon:not(.petits) button { flex: 1; }
+.ligne-cot .anon.petits button { width: 34px; min-height: 34px; padding: 0; font-size: 14px; opacity: .85; }
+.voies-outils { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; } .voies-outils .petit-btn { flex: 1 1 auto; }
+.forme-mini { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; } .forme-mini button { min-height: 30px; padding: 0 6px; font-size: 18px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.55); border-radius: 8px; }
+.carte.encours .forme-mini .petit { color: #fff; }
+.bandeau-seance .frise { margin: 8px 0 10px; }

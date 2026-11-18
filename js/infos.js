@@ -1,5 +1,9 @@
 // infos.js — les explications « ⓘ » : ce que ça veut dire, comment c'est calculé. Un seul endroit pour les textes.
 export const INFOS = {
+  lignesCot: ["Noter vite pendant la séance", [
+    "Une ligne par cotation prévue (et celles ajoutées avec « + une autre cotation »). Les pastilles sont les voies ou blocs en place de cette cotation dans la salle : touche-en une pour Réussi ou Raté. Le passage va dans son historique et compte pour la cotation.",
+    "Repères : ✓ déjà réussie, ✗ et le nombre d'essais pour un projet, ★ à essayer. Bord plus épais : déjà grimpée aujourd'hui.",
+    "Les petits ✓ ✗ en bout de ligne : une voie ou un bloc qui n'est pas (encore) dans l'app. « + Nouvelle voie » l'ajoute pour de bon ; « Autre voie… » cherche dans toute la salle (couleur, état, niveau)."]],
   feux: ["Feux verts", [
     "Un feu vert dit qu'une étape suivante est raisonnable : un projet en 5c, un premier essai en 6a, un projet de bloc 6A, plus de volume.",
     "Chaque feu a ses critères (barres) ; il passe au vert quand tous sont atteints. Les feux marqués ⓘ (dévers) indiquent seulement quoi travailler.",

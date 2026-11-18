@@ -179,7 +179,7 @@ export function rendre(ctx) {
 
     case "bilan": { const disc = M.disc, estGrimpe = ["Voie", "Bloc"].includes(disc), precises = (sa.tentatives || []).filter(t => !t.approx).length;
       // La grille : la discipline de la séance, ou l'autre (salle avec voies et blocs) ; cotations au format de la salle (« 4 · ≈ 5+ »)
-      const salleB = salleDe(doc, sa.salle), mixteB = !!salleB && salleB.type === "Bloc et voie", gd = mixteB ? M.gDisc || disc : disc, cl = cotationDe(salleB, gd), ech = data.echelles[gd] || [];
+      const salleB = salleDe(doc, sa.salle !== undefined ? sa.salle : salleParDefautPour(doc, disc)), mixteB = !!salleB && salleB.type === "Bloc et voie", gd = mixteB ? M.gDisc || disc : disc, cl = cotationDe(salleB, gd), ech = data.echelles[gd] || [];
       const cots = salleB && cl.mode === "liste" && cl.liste.length ? [...new Set(cl.liste.filter(x => x.app).map(x => String(x.app)))].sort((a, b) => ech.indexOf(a) - ech.indexOf(b)) : ech;      // salle à liste : ses cotations
       const cle = (c, r) => `${c}|${r}|${gd}`, deGd = k => (k.split("|")[2] || disc) === gd;
       const presentes = [...new Set([...etapesSeance(s, sa).filter(e => e.grimpe && e.grimpe.cot && e.grimpe.disc === gd).map(e => e.grimpe.cot), ...Object.keys(M.grille).filter(deGd).map(k => k.split("|")[0])])].filter(Boolean).sort((a, b) => cots.indexOf(a) - cots.indexOf(b));
@@ -362,7 +362,7 @@ export function rendre(ctx) {
       ${v ? h`<p><span class="pastille" style="background:${hexDe(doc, v.couleur, sl)}"></span> <b>${libelleVoie(v)}</b> <span class="petit">· ${sl.nom}</span></p>` : ""}
       ${si(!v && !M.couleur && !M.nom, () => h`<button class="ligne-nouvelle ${M.nouvelle ? "choisi" : ""}" data-act="mBool" data-k="nouvelle">${M.nouvelle ? "☑" : "☐"} Nouvelle voie <span class="petit">(sinon : une voie déjà faite)</span></button>`)}
       ${si(!v, () => h`${ligneChoix(M, "disc", "Discipline", M.disc, () => choix("mChamp", ["Voie", "Bloc"], M.disc, { data: { champ: "disc" } }))}
-        <label class="champ">Cotation</label>${selecteurCot(ctx, M.disc, M.cot)}
+        ${cotationResultat(ctx, M, M.disc)}
         ${ligneChoix(M, "profil", "Inclinaison", M.profil, () => choixProfil("mProfil", M.profil))}
         ${ligneChoix(M, "plus", "Couleur, nom", [M.couleur, M.nom].filter(Boolean).join(" · ") || "facultatif", () => h`${pastilles(ctx, "mCouleur", M.couleur)}<input type="text" data-champ="nom" value="${M.nom || ""}" placeholder="Nom (facultatif)">`)}
         ${si(doc.salles.length, () => liste("salle", doc.salles.map(x => [x.id, x.nom]), M.salle, { label: "Salle", vide: "Salle inconnue" }))}
@@ -405,14 +405,17 @@ export const actions = {
   mFermer: ctx => { const p = ctx.state.modal && ctx.state.modal.precedent; p ? ctx.ouvrirModal(p) : ctx.fermerModal(); },
   ficheExo: (ctx, d) => ctx.ouvrirModal({ type: "ficheExo", k: d.k, precedent: ctx.state.modal }),
   collerOk: ctx => { try { const v = verifierImport(lireTexte(M(ctx).texte || ""), ctx.data); ctx.ouvrirModal({ type: "import", ...v, source: "texte collé" }); } catch (e) { ctx.toast(e.message); } },
-  mListe: (ctx, d, el) => { const m = M(ctx); m[d.champ] = el.value; m.section = ""; ctx.rendre(); },
+  mListe: (ctx, d, el) => { const m = M(ctx); m[d.champ] = el.value; m.section = "";
+    if (m.type === "passageAncien" && d.champ === "salle") m.cotSalle = m.cot ? cotSalleDe(salleDe(ctx.doc, m.salle), m.disc, m.cot).split(" / ")[0] || "" : "";     // l'autre salle : sa cotation à elle
+    ctx.rendre(); },
   mListeMulti: (ctx, d, el) => { M(ctx)[el.dataset.champMulti] = [...el.selectedOptions].map(o => o.value); ctx.rendre(); },
   mSecteurListe: (ctx, d, el) => { M(ctx).secteurId = el.value; ctx.state.dernierSecteur = el.value; ctx.rendre(); },
   voieRapideCause: (ctx, d, el) => { if (el.value) actions.voieRapideOk(ctx, { cause: el.value }); },
   noterDepuisFiche: ctx => { const m = M(ctx), s = seanceEnCoursPour(ctx, m.disc); if (!s) return; ctx.ouvrirModal({ type: "voieRapide", seanceId: s.id, salleId: m.salleId, voieId: m.id, disc: m.disc, res: "", sec: 1, cause: "" }); },
   mBool: (ctx, d) => { const m = M(ctx); m[d.k] = !m[d.k]; ctx.rendre(); },
   mBascVal: (ctx, d) => { const m = M(ctx); m[d.champ] = m[d.champ] === d.valeur ? "" : d.valeur; if (m.type === "apresReussite") enregistrerApresReussite(ctx, m); ctx.rendre(); },
-  mChamp: (ctx, d) => { const m = M(ctx); m[d.champ] = TEXTE.has(d.champ) || isNaN(d.valeur) || d.valeur === "" ? d.valeur : +d.valeur; m.section = "";      // un niveau « 6 » reste du texte
+  mChamp: (ctx, d) => { const m = M(ctx); if (m.type === "passageAncien" && d.champ === "disc" && d.valeur !== m.disc) { m.cot = ""; m.cotSalle = ""; m.chiffre = ""; }
+    m[d.champ] = TEXTE.has(d.champ) || isNaN(d.valeur) || d.valeur === "" ? d.valeur : +d.valeur; m.section = "";      // un niveau « 6 » reste du texte
     if (d.champ === "disc") { m.cot = ""; m.cotSalle = ""; m.chiffre = ""; if (m.res === "sec" && d.valeur === "Bloc") m.res = ""; }   // autre échelle : on repart de zéro
     ctx.rendre(); },
   mBasculeEtoile: ctx => { const m = M(ctx); m.etoile = m.etoile ? "" : ctx.aujourdhui(); ctx.rendre(); },
@@ -578,7 +581,7 @@ export const actions = {
       sl.voies.filter(v => ids.includes(v.id) && (m.quoi === "profil" || v.disc === m.disc)).forEach(v => { if (m.quoi === "profil") v.profil = d.valeur; else { v.cotSalle = m.cotSalle || ""; v.cot = cotApp(sl, v.disc, v.cotSalle, v.couleur); } }); propagerVoies(doc, sl); });
     ctx.state.classer = null; ctx.fermerModal(); ctx.toast(`${ids.length} voie${ids.length > 1 ? "s" : ""} modifiée${ids.length > 1 ? "s" : ""}`, () => ctx.store.annuler()); },
   passageAncienOk: ctx => { const m = M(ctx), sl = m.salle ? salleDe(ctx.doc, m.salle) : null, v = m.voieId && sl ? sl.voies.find(x => x.id === m.voieId) : null;
-    const base = v ? { disc: v.disc, cot: v.cot, cotSalle: v.cotSalle, profil: v.profil, couleur: v.couleur, nom: v.nom, salle: sl.id, voieId: v.id } : { disc: m.disc, cot: m.cot, profil: m.profil, couleur: m.couleur, nom: m.nom, salle: m.salle, nouvelle: !m.couleur && !m.nom && m.nouvelle ? true : undefined };
+    const base = v ? { disc: v.disc, cot: v.cot, cotSalle: v.cotSalle, profil: v.profil, couleur: v.couleur, nom: v.nom, salle: sl.id, voieId: v.id } : { disc: m.disc, cot: m.cot, ...(m.cotSalle ? { cotSalle: m.cotSalle } : {}), profil: m.profil, couleur: m.couleur, nom: m.nom, salle: m.salle, nouvelle: !m.couleur && !m.nom && m.nouvelle ? true : undefined };
     const plusieurs = m.res !== "ok", dates = plusieurs ? [...(m.dates || []), ...Array(m.inconnues || 0).fill("")] : [m.dateInconnue ? "" : m.date], fois = plusieurs && !v ? (m.n || 1) : 1;
     let n = 0;
     ctx.modifier("passage hors séance", d => { for (const date of dates) for (let i = 0; i < fois; i++) d.passagesAnciens.push(nettoyer({ id: nouvelId("pa"), t: Date.now() + n++, date, dateInconnue: date ? undefined : true, ...base, res: m.res, sec: m.res === "sec" ? 1 : undefined, ...(m.res === "ok" ? champsTentative(m, ctx) : {}) })); });

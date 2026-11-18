@@ -17,7 +17,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.24";
+export const APP_VERSION = "8.26";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
 const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", assistant: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
