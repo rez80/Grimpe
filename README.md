@@ -1,4 +1,4 @@
-# Grimpe 8.24 — l'app d'escalade
+# Grimpe 8.26 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,18 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.26** (noter plus vite en séance).
+- **Voies et blocs** : en-tête sur une ligne (salle › et Voie | Bloc) ; une ligne par cotation avec les **pastilles des voies en place** (✓ réussie, ✗n projet, ★ à essayer) : un appui → Réussi / Échec, rangé dans l'historique de la voie ; petits ✓ ✗ en bout de ligne pour une voie pas encore dans l'app ; « + une autre cotation » · « + Nouvelle voie » · « Autre voie… » en petits boutons ; plus de lien « Voir tout le mur ».
+- **Ligne de temps** en haut du bandeau dès avant le départ ; **consignes** repliées en une ligne (aperçu) ; **Forme ?** en émojis sur la ligne du chrono.
+- **Couleurs** : Consignes en ocre, Voies et blocs à la couleur de la discipline, Plan de séance à la couleur de l'activité.
+
+**Nouveautés 8.25** (équivalences partout).
+- **Consignes** toujours tout en haut de la séance, avant comme pendant.
+- **Bilan** : la grille et « Une autre cotation » retrouvent la salle comme la séance (salle du jour ou habituelle) et montrent « 4 · ≈ 5+ ».
+- **Passage hors séance** : la cotation se choisit sur l'échelle de la salle choisie (ou l'officielle).
+- **Listes** (Aujourd'hui, Projets, hors séance, fiches) : « 7 · ≈ 6B+ » ; message des lignes rapides : « Réussi · 4 · ≈ 5+ · bloc déjà fait ».
+- **Progrès** reste sur l'échelle de l'app, avec l'équivalent de ta salle habituelle entre parenthèses (« 5+ (salle : 4) »).
 
 **Nouveautés 8.24** (harmonie).
 - **Séance commencée** : la carte « En cours » garde la couleur de l'activité ; ordre : Consignes (repliées) tout en haut, puis l'étape en cours, puis Voies et blocs, puis le plan.
