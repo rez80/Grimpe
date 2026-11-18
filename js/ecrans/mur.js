@@ -1,7 +1,7 @@
 // ecrans/mur.js — le mur d'une salle : les voies par secteur, en tuiles, rangées au doigt (glisser-déposer).
 import { h, si, brut, pictoProfil, ouvert, pli, liste as listeDeroulante, forcerOuvert, ecranVide } from "../html.js";
 import { salleDe, hexDe, texteSur, ranger, cotationDe, ordreNiveau as ordreNiv, profilHabituel, inclinaisonSecteur, passagesDe, supprimerVoies, couleursDe, cotApp } from "../salles.js";
-import { parVoie, tentatives as toutesTentatives, reussi, rang } from "../analyse.js";
+import { parVoie, tentatives as toutesTentatives, reussi, rang, marqueVoie } from "../analyse.js";
 import { court } from "../dates.js";
 
 export function rendre(ctx) {
@@ -17,7 +17,7 @@ export function rendre(ctx) {
   const groupes = [...s.secteurs.map(sec => ({ id: sec.id, nom: sec.nom, profil: inclinaisonSecteur(s, sec.id), voies: liste.filter(v => v.secteurId === sec.id) })), { id: "", nom: "Sans secteur", profil: "", voies: liste.filter(v => !v.secteurId || !s.secteurs.some(x => x.id === v.secteurId)) }];
   const classer = state.classer, ranger = state.ranger;
   const tuile = v => { const hv = voies.find(x => x.voieId === v.id), hex = hexDe(doc, v.couleur, s);
-    return h`<div class="tuile-voie glissable ${hex === "transparent" ? "sans-couleur" : ""} ${classer && classer.has(v.id) ? "selectionnee" : ""}" draggable="false" data-id="${v.id}" data-act="${classer ? "classerBascule" : "voieEditer"}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${v.cotSalle && v.cot && String(v.cotSalle) !== String(v.cot) ? h`<small class="tuile-eq">≈ ${v.cot}</small>` : ""}${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (v.profil && v.profil !== inclinaisonSecteur(s, v.secteurId || null) ? v.profil.toLowerCase() : "")}</span>${(e => e === "jamais" ? "" : h`<span class="marque ${e === "reussie" ? "ok" : "ko"}" aria-label="${e === "reussie" ? "réussie" : "projet"}">${e === "reussie" ? "✓" : "✗"}</span>`)(etatDe(v))}${si(v.statut === "demontee", h`<span class="tuile-histo">démontée ${v.demontee ? court(v.demontee) : ""}</span>`)}</div>`; };
+    return h`<div class="tuile-voie glissable ${hex === "transparent" ? "sans-couleur" : ""} ${classer && classer.has(v.id) ? "selectionnee" : ""}" draggable="false" data-id="${v.id}" data-act="${classer ? "classerBascule" : "voieEditer"}" style="background:${hex};color:${texteSur(hex)}"><b>${v.etoile ? "★ " : ""}${v.cotSalle || v.cot || "?"}</b>${v.cotSalle && v.cot && String(v.cotSalle) !== String(v.cot) ? h`<small class="tuile-eq">≈ ${v.cot}</small>` : ""}${pictoProfil(v.profil, "picto-tuile")}<span>${v.nom || (v.profil && v.profil !== inclinaisonSecteur(s, v.secteurId || null) ? v.profil.toLowerCase() : "")}</span>${(m => m ? h`<span class="marque ${m.cls}" aria-label="${m.label}">${m.txt}</span>` : "")(marqueVoie(voies.find(x => x.voieId === v.id)))}${si(v.statut === "demontee", h`<span class="tuile-histo">démontée ${v.demontee ? court(v.demontee) : ""}</span>`)}</div>`; };
   if (classer) { const n = classer.size;
     const dis = n ? "" : "disabled", cotable = ["standard", "liste"].includes(cotationDe(s, filtre || (s.type === "Bloc" ? "Bloc" : "Voie")).mode);
     return { titre: h`<b>${s.nom}</b>`, infos: "Sélection", html: h`<p class="petit">Touche les ${motSalle(s)} à modifier ou supprimer ensemble.</p>

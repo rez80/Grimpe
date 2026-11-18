@@ -12,6 +12,8 @@ export const enDevers = p => DEVERS.includes(p);
 export const groupeProfil = p => enDevers(p) ? "Dévers" : "Vertical";
 export const baseCot = c => String(c ?? "").replace(/\+$/, "");       // 5b+ compte comme 5b
 export const reussi = t => t.res === "ok";
+// Le repère d'une voie : ✓ réussie ; ↑ arrivé en haut avec des « sec » (pas encore enchaînée) ; ✗ projet ; rien : jamais essayée
+export const marqueVoie = hv => !hv || !hv.essais ? null : hv.reussies ? { cls: "ok", txt: "✓", label: "réussie" } : hv.sec ? { cls: "sec", txt: "↑", label: "en haut avec sec" } : { cls: "ko", txt: "✗", label: "projet" };
 export const rang = (echelles, disc, cot) => (echelles[disc] || []).indexOf(String(cot));
 
 const avant = (a, b) => (a.date || "") < (b.date || "") || ((a.date || "") === (b.date || "") && (a.t || 0) < (b.t || 0));

@@ -804,3 +804,21 @@ body[data-activite="Autre sport"] .bandeau-seance { background: var(--gris); }
 .forme-mini { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; } .forme-mini button { min-height: 30px; padding: 0 6px; font-size: 18px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.55); border-radius: 8px; }
 .carte.encours .forme-mini .petit { color: #fff; }
 .bandeau-seance .frise { margin: 8px 0 10px; }
+.tuile-voie .marque.sec { color: #b7791f; }      /* ↑ en haut avec sec (pas encore enchaînée) */
+
+/* 8.28 — Une cote = une ligne (cote + ✓ sec ✗, toujours de même taille), puis dessous les tuiles de ses voies (comme sur le mur) */
+.bloc-cot { padding: 6px 0 8px; border-top: 1px solid var(--trait); } .bloc-cot:first-child { border-top: none; }
+.ligne-cot { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 8px; min-height: 40px; }
+.lignes-cot.large .ligne-cot { grid-template-columns: 84px 1fr; }
+.ligne-cot .anon { display: grid; gap: 6px; } .ligne-cot .anon.n2 { grid-template-columns: 1fr 1fr; } .ligne-cot .anon.n3 { grid-template-columns: 1fr 1fr 1fr; }
+.ligne-cot .anon button { min-height: 38px; width: auto; font-size: 16px; opacity: 1; }
+.tuiles-cot { margin-top: 6px; } .tuile-voie .tuile-lieu { font-size: 11px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.lien-autres { margin-top: 4px; font-size: 14px; }
+/* Tuiles des cotes : 5 par ligne, compactes (cote, ≈, secteur, repère) */
+.tuiles.tuiles-cot { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
+.tuiles-cot .tuile-voie { min-height: 0; padding: 4px 4px 3px; border-radius: 8px; font-size: 11px; line-height: 1.15; }
+.tuiles-cot .tuile-voie b { font-size: 16px; } .tuiles-cot .tuile-voie .tuile-eq { font-size: 10px; }
+.tuiles-cot .tuile-voie .picto-tuile { width: 12px; height: 12px; top: 3px; right: 3px; }
+.tuiles-cot .tuile-voie .tuile-histo { display: none; } .tuiles-cot .tuile-voie .tuile-lieu { font-size: 10px; }
+.tuiles-cot .tuile-voie .marque { width: 14px; height: 14px; font-size: 9px; right: 2px; bottom: 2px; }
+html.grand .tuiles-cot .tuile-voie b { font-size: 20px; }
