@@ -1,4 +1,4 @@
-# Grimpe 8.26 — l'app d'escalade
+# Grimpe 8.28 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,16 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.28** (séance : une cote, ses voies dessous).
+- Chaque cote : une ligne (cote, puis ✓ · sec · ✗ toujours de même taille, pour une voie pas dans l'app), et dessous les **tuiles** de ses voies ou blocs en place, 5 par ligne : couleur, cote, ≈, **secteur** (et nom), repère ✓ ↑ ✗ ★, contour si grimpée aujourd'hui.
+- Ordre : grimpées aujourd'hui, projets et « à essayer », puis par secteur ; au-delà de 10, « + N autres ».
+
+**Nouveautés 8.27** (les « sec »).
+- Un « sec » est toujours **un seul passage** avec son nombre de repos : dans les lignes rapides, « sec » demande « Combien de sec ? 1 à 6 » (comme sur une pastille).
+- Une voie arrivée en haut avec des sec, pas encore enchaînée, affiche **↑** (pastille, mur, fiche) au lieu de ✗ ; repères : « ✓ », « ↑ 3 sec », « ✗2 ».
+- Taux de réussite inchangé : un sec compte comme un essai non enchaîné.
+- Les petits boutons en bout de ligne ont aussi « sec » en voie.
 
 **Nouveautés 8.26** (noter plus vite en séance).
 - **Voies et blocs** : en-tête sur une ligne (salle › et Voie | Bloc) ; une ligne par cotation avec les **pastilles des voies en place** (✓ réussie, ✗n projet, ★ à essayer) : un appui → Réussi / Échec, rangé dans l'historique de la voie ; petits ✓ ✗ en bout de ligne pour une voie pas encore dans l'app ; « + une autre cotation » · « + Nouvelle voie » · « Autre voie… » en petits boutons ; plus de lien « Voir tout le mur ».
