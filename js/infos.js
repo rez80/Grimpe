@@ -1,5 +1,17 @@
 // infos.js — les explications « ⓘ » : ce que ça veut dire, comment c'est calculé. Un seul endroit pour les textes.
 export const INFOS = {
+  murAide: ["Le mur de la salle", [
+    "Touche une voie ou un bloc pour sa fiche (historique, ajouter un passage, corriger).",
+    "Pour la déplacer, garde le doigt dessus ½ seconde : elle se soulève ; lâche-la sur une autre voie, dans un secteur ouvert, ou sur le nom d'un secteur replié.",
+    "Plusieurs voies d'un coup, voies démontées, modifier la salle : Options en haut."]],
+  horsSeance: ["Passages hors séance", [
+    "Ce que tu as grimpé sans séance dans l'app et sans voie de salle connue (avant le programme, en extérieur…).",
+    "Pour une voie d'une salle : sa fiche › Historique › + Ajouter.",
+    "Sans date, un passage compte dans les niveaux, les feux verts et les projets, pas dans la charge ni dans le bilan de la semaine."]],
+  fichierJson: ["Le fichier de sauvegarde", [
+    "Le même document en JSON : séances, réglages, salles, bilan calculé.",
+    "C'est la sauvegarde, et l'entrée de l'outil PC (grimpe.py rapport fichier.json).",
+    "Dans Mail, vérifie que la pièce jointe « Grimpe-sauvegarde-….json » est bien là avant d'envoyer."]],
   lignesCot: ["Noter vite pendant la séance", [
     "Une ligne par cotation prévue (et celles ajoutées avec « + une autre cotation »). Les pastilles sont les voies ou blocs en place de cette cotation dans la salle : touche-en une pour Réussi ou Raté. Le passage va dans son historique et compte pour la cotation.",
     "Repères : ✓ déjà réussie, ✗ et le nombre d'essais pour un projet, ★ à essayer. Bord plus épais : déjà grimpée aujourd'hui.",

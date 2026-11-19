@@ -19,7 +19,7 @@ export function rendre(ctx) {
   // Un bout du programme de départ qui porte le même nom qu'un bloc construit (ex. semaine 1 avant B1) : à part, « Avant le bloc »
   for (const ph of phases) ph.avant = !ph.id && phases.some(x => x.id && x.bloc === ph.bloc);
   const proch = prochaineSeance(ctx, auj);
-  let out = h`<div class="barre-prog"><button class="petit-btn btn-ajout" data-act="semaineAujourdhui">Cette semaine</button>${proch ? h`<button class="petit-btn btn-ajout btn-prochaine" data-act="ouvrirSeance" data-id="${proch.id}">Prochaine séance <span class="petit">${court(proch.date)} · ${nomSeance(proch, ctx.saisie(proch.id))}</span></button>` : ""}</div>${carteRestaurer(ctx)}${carteModele(ctx, wNow)}${carteBilanBloc(ctx, wNow)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}`;   // la barre d'abord : toujours en haut
+  let out = h`<div class="barre-prog"><button class="petit-btn btn-nav" data-act="semaineAujourdhui">Cette semaine</button>${proch ? h`<button class="petit-btn btn-nav btn-prochaine" data-act="ouvrirSeance" data-id="${proch.id}">Prochaine séance <span class="petit">${court(proch.date)} · ${nomSeance(proch, ctx.saisie(proch.id))}</span></button>` : ""}<button class="petit-btn btn-ajout" data-act="creationOuvrir">+ Séance</button></div>${carteRestaurer(ctx)}${carteSauvegarde(ctx)}${carteModele(ctx, wNow)}${carteBilanBloc(ctx, wNow)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}`;   // la barre d'abord : toujours en haut
   // Les blocs (B1, B2…) : une carte par bloc, son état se voit (en cours : ouvert, bord ocre ; terminé : atténué ; à venir : pointillés).
   // Dedans, une ligne par semaine, avec la phase en pastille de couleur (mêmes couleurs que l'assistant).
   for (const ph of phases) {
@@ -66,6 +66,16 @@ function carteBilanBloc(ctx, wNow) {
 
 // App vide (nouvelle installation, téléphone changé…) : proposer tout de suite de restaurer une sauvegarde
 const CLE_VIDE = "grimpe-depart-vide-vu";
+// D2 : rappel de sauvegarde : 3 séances faites ou plus depuis le dernier export (ou le dernier envoi GitHub réussi).
+// Ne fait que rappeler : le bouton ouvre la page Sauvegarde, rien n'est changé à la sauvegarde elle-même.
+function carteSauvegarde(ctx) {
+  if (ctx.state.sauvegardePlusTard) return "";
+  const d = ctx.doc, sync = d.derniereSync, ref = Math.max(d.dernierExport ? new Date(d.dernierExport).getTime() : 0, sync && sync.ok ? new Date(sync.quand).getTime() : 0);
+  const n = Object.values(d.seances || {}).filter(s => s.fin && s.fin > ref).length;
+  if (n < 3) return "";
+  return h`<div class="carte carte-sauvegarde"><b>${n} séances depuis ta dernière sauvegarde</b><p class="petit">${ref ? `Dernière : ${new Date(ref).toLocaleDateString("fr-BE")}.` : "Aucune sauvegarde pour l'instant."} Un fichier suffit, en un appui.</p>
+    <div class="ed-rangee"><button class="principal" data-act="ouvrirVue" data-vue="sauvegarde">Sauvegarder ›</button><button data-act="sauvegardePlusTard">Plus tard</button></div></div>`;
+}
 function carteRestaurer(ctx) {
   const d = ctx.doc, vide = !Object.keys(d.seances || {}).length && !(d.salles || []).length && !(d.passagesAnciens || []).length;
   let vu = false; try { vu = !!localStorage.getItem(CLE_VIDE); } catch { /* ignore */ }
@@ -97,6 +107,18 @@ function carteAujourdhui(ctx, auj) {
     return h`<button class="auj-seance" data-act="ouvrirSeance" data-id="${s.id}" data-activite="${activiteAffichee(s, sa)}"><span><b>${nomSeance(s, sa)}</b>${s.bonus ? h` <span class="tag-bonus">bonus</span>` : ""}<br><span class="petit">${s.date === auj ? "" : `prévue ${court(s.date)} · `}${fait && reel != null ? `✓ faite en ${hm(reel)}` : `≈ ${hm(dureeSeance(s, et, ctx.data, ctx.doc.reglages))}${fait ? " · ✓ faite" : e === "encours" ? " · en cours" : ""}`}</span></span><span class="auj-go" aria-hidden="true">›</span></button>`; })}</div>`;
 }
 
+// Les séances passées (7 jours avant la semaine compris) sans bilan ni « sautée »
+function seancesARegler(ctx, auj, lundi) {
+  return ctx.programme.filter(s => s.date < auj && s.date >= ajouterJours(lundi, -7) && (s.bonus ? ["abilan", "encours"] : ["abilan", "encours", "passee"]).includes(etatSeance(s, ctx.saisie(s.id), auj)));
+}
+// La fenêtre « à régler » : chaque séance, avec « Faite › » (ouvre la séance pour le bilan) et « Sautée »
+function fenetreARegler(ctx) {
+  const auj = ctx.aujourdhui(), { doc, data } = ctx, debut = doc.reglages.dateDebut || data.dateDebut, lundi = dateSeance(debut, semaineDe(debut, auj), "Lundi"), l = seancesARegler(ctx, auj, lundi);
+  return h`<h2>Séances à régler</h2><p class="petit">Pour chacune : faite (tu donnes le bilan) ou sautée.</p>
+    ${l.length ? h`<div class="a-regler">${l.map(s => h`<div class="a-regler-ligne" data-activite="${activiteAffichee(s, ctx.saisie(s.id))}"><span><b>${nomSeance(s, ctx.saisie(s.id))}</b><br><span class="petit">${court(s.date)}</span></span>
+      <button class="petit-btn" data-act="aReglerSautee" data-id="${s.id}">Sautée</button><button class="petit-btn principal" data-act="ouvrirSeance" data-id="${s.id}">Faite ›</button></div>`)}</div>` : h`<p>Tout est réglé ✓</p>`}
+    <div class="actions"><button data-act="mFermer">Fermer</button></div>`;
+}
 function semaineDetail(ctx, w, sem, auj) {
   const { doc, data } = ctx, debut = doc.reglages.dateDebut || data.dateDebut, lundi = dateSeance(debut, w, "Lundi");
   const jours = JOURS.map((j, i) => { const d = ajouterJours(lundi, i); return { j, d, seances: ctx.programme.filter(s => s.date === d) }; });
@@ -104,8 +126,10 @@ function semaineDetail(ctx, w, sem, auj) {
   // À faire (semaine en cours) : les séances à régler et les mesures, sans reproche
   const aFaire = [];
   if (w === wNow) {
-    ctx.programme.filter(s => s.date < auj && s.date >= ajouterJours(lundi, -7) && (s.bonus ? ["abilan", "encours"] : ["abilan", "encours", "passee"]).includes(etatSeance(s, ctx.saisie(s.id), auj)))
-      .forEach(s => aFaire.push(h`<button class="item" data-act="ouvrirSeance" data-id="${s.id}"><span>${court(s.date)} · ${nomSeance(s, ctx.saisie(s.id))}</span><span class="petit">${etatSeance(s, ctx.saisie(s.id), auj) === "passee" ? "faite ? sautée ?" : "bilan"} ›</span></button>`));
+    const aRegler = seancesARegler(ctx, auj, lundi);
+    // Plusieurs séances passées sans nouvelles : une seule ligne, qui ouvre une fenêtre pour tout régler d'un coup
+    if (aRegler.length > 1) aFaire.push(h`<button class="item" data-act="aReglerOuvrir"><span>${aRegler.length} séances passées sans nouvelles</span><span class="petit">régler ›</span></button>`);
+    else aRegler.forEach(s => aFaire.push(h`<button class="item" data-act="ouvrirSeance" data-id="${s.id}"><span>${court(s.date)} · ${nomSeance(s, ctx.saisie(s.id))}</span><span class="petit">${etatSeance(s, ctx.saisie(s.id), auj) === "passee" ? "faite ? sautée ?" : "bilan"} ›</span></button>`));
     const j = jourSemaine(auj), sansMesures = x => !(doc.mesures[x] && Object.keys(doc.mesures[x]).length);
     if (j >= 5 && sansMesures(w)) aFaire.push(h`<button class="item" data-act="mesuresOuvrir" data-w="${w}"><span>Mesures de la semaine</span><span class="petit">week-end ›</span></button>`);
     if (j === 0 && w > 1 && sansMesures(w - 1)) aFaire.push(h`<button class="item" data-act="mesuresOuvrir" data-w="${w - 1}"><span>Mesures de la semaine ${w - 1}</span><span class="petit">si tu les as ›</span></button>`);
@@ -116,7 +140,7 @@ function semaineDetail(ctx, w, sem, auj) {
   // Passages hors séance de la semaine : une ligne, qu'on touche pour les voir
   const dim = ajouterJours(lundi, 6), hors = (doc.passagesAnciens || []).filter(p => p.date && p.date >= lundi && p.date <= dim);
   const ligneHors = hors.length ? h`<button class="item ligne-hors" data-act="ouvrirVue" data-vue="historique"><span>Hors séance · ${hors.length} passage${hors.length > 1 ? "s" : ""}${(n => n ? ` · ${n} réussi${n > 1 ? "s" : ""}` : "")(hors.filter(p => p.res === "ok").length)}</span><span class="petit">voir ›</span></button>` : "";
-  return h`${si(bilanSem, h`<p class="bilan-sem">${bilanSem}</p>`)}${ligneHors}${si(aFaire.length, () => h`<div class="a-faire"><b>À faire</b><div class="liste">${aFaire}</div></div>`)}<div class="jours">${jours.map(x => h`<div class="jour ${x.d === auj ? "auj" : ""}"><div class="jour-nom">${x.j.slice(0, 3)}<br><span class="petit">${x.d.slice(8, 10)}</span></div>
+  return h`${si(bilanSem, h`<p class="bilan-sem">${bilanSem}</p>`)}${ligneHors}${si(aFaire.length, () => h`<div class="a-faire"><b>À faire</b><div class="liste">${aFaire}</div></div>`)}<div class="jours">${jours.map(x => h`<div class="jour ${x.d === auj ? "auj" : ""}">${x.seances.length === 1 ? h`<button class="jour-nom jour-btn" data-act="ouvrirSeance" data-id="${x.seances[0].id}">${x.j.slice(0, 3)}<br><span class="petit">${x.d.slice(8, 10)}</span></button>` : h`<div class="jour-nom">${x.j.slice(0, 3)}<br><span class="petit">${x.d.slice(8, 10)}</span></div>`}
       ${x.seances.map(s => { const e = etatSeance(s, ctx.saisie(s.id), auj); const a = activiteAffichee(s, ctx.saisie(s.id)); return h`<button class="pastille-seance etat-${e}" data-act="ouvrirSeance" data-appui="seanceMenu" data-id="${s.id}" data-activite="${a}" aria-label="${nomSeance(s, ctx.saisie(s.id))}">${ICONE[e] || a[0]}</button>`; })}</div>`)}</div>
     ${sem.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), t = sa.tentatives || [], et = etapesSeance(s, sa);
       const a = activiteAffichee(s, sa);
@@ -127,7 +151,7 @@ function semaineDetail(ctx, w, sem, auj) {
 }
 
 export function menuEcran(ctx) { const carte = !!document.querySelector("#ecran .carte-modele [data-act=assistantOuvrir], #ecran .carte-bilan-bloc [data-act=assistantOuvrir]");   // pas de doublon avec la page
-  return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "Hors séance…", act: "ouvrirVue", data: { vue: "historique" } },
+  return { titre: "Programme", items: [{ label: "Hors séance…", act: "ouvrirVue", data: { vue: "historique" } },
     { label: "Modifier une semaine…", act: "semaineModifOuvrir" }, ...((ctx.doc.blocs || []).length ? [{ label: "Modifier un bloc…", act: "blocModifOuvrir" }] : []), ...(carte ? [] : [{ label: "+ Nouveau bloc (assistant)", act: "assistantOuvrir" }])] }; }
 
 // Options › « Modifier une semaine… » / « Modifier un bloc… » : choisir dans des listes, puis l'action
@@ -153,6 +177,9 @@ function fenetreBloc(ctx, M = ctx.state.modal) {
     <div class="actions"><button data-act="mFermer">Fermer</button></div>`;
 }
 export const actions = {
+  sauvegardePlusTard: ctx => { ctx.state.sauvegardePlusTard = true; ctx.rendre(); },
+  aReglerOuvrir: ctx => ctx.ouvrirModal({ type: "externe", rendu: fenetreARegler }),
+  aReglerSautee: (ctx, d) => { ctx.modifierSeance(d.id, "séance sautée", sa => { sa.statut = "sautee"; delete sa.debut; delete sa.fin; }); ctx.rendre(); },
   semaineModifOuvrir: ctx => { const debut = ctx.doc.reglages.dateDebut || ctx.data.dateDebut, w = ctx.state.semaineVue || semaineDe(debut, ctx.aujourdhui()), ws = [...new Set(ctx.programme.map(s => s.semaine))];
     const w2 = ws.includes(w) ? w : Math.min(...ws); ctx.ouvrirModal({ type: "externe", rendu: fenetreSemaine, w: w2, g: groupeDe(ctx, w2) }); },
   semModifAller: (ctx, d) => { const m = ctx.state.modal; m.w = +d.w; m.g = groupeDe(ctx, m.w); ctx.rendre(); },

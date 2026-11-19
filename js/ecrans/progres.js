@@ -1,5 +1,5 @@
 // ecrans/progres.js — d'abord un tableau de bord (4 tuiles, et la douleur récente), une ligne de conseil, ensuite le détail. Rien n'est calculé ici.
-import { h, si, lier, pli, info, ico, forcerOuvert } from "../html.js";
+import { h, si, lier, pli, info, ico, forcerOuvert, brut } from "../html.js";
 import { court, semaineDe, ecartJours, hm } from "../dates.js";
 import { etapesSeance, dureeSeance, etatSeance } from "../programme.js";
 import { dureeMinutes } from "../analyse.js";
@@ -8,6 +8,21 @@ import { hexDe, salleDe, salleReference, cotSalleDe } from "../salles.js";
 const FORME = { vert: "Bonne forme", orange: "Forme moyenne", rouge: "Forme basse" };
 const barre = (val, max, classe = "") => h`<span class="barre ${classe}"><span style="width:${max ? Math.min(100, val / max * 100) : 0}%"></span></span>`;
 
+// D3 : la courbe du niveau consolidé (vertical), semaine après semaine, voie et bloc
+function courbeNiveaux(B, ech) {
+  const E = (B.evolution || []).filter(x => x.Voie || x.Bloc);
+  if (E.length < 2) return h`<p class="petit">La courbe de ton niveau apparaît dès 2 semaines avec un niveau consolidé.</p>`;
+  const W = 320, H = 150, g = 34, d = 12, rang = (disc, c) => ech[disc].indexOf(String(c));
+  // L'axe vertical : un rang commun (voie et bloc ont leurs propres cotes, chacune sur sa propre échelle normalisée)
+  const series = ["Voie", "Bloc"].map(disc => ({ disc, pts: E.map((x, i) => x[disc] ? [i, rang(disc, x[disc]), x[disc]] : null).filter(Boolean) })).filter(s => s.pts.length);
+  const tous = series.flatMap(s => s.pts.map(p => p[1])), lo = Math.min(...tous) - 1, hi = Math.max(...tous) + 1;
+  const X = i => g + (i * (W - g - d)) / Math.max(1, E.length - 1), Y = r => H - 22 - ((r - lo) * (H - 34)) / Math.max(1, hi - lo);
+  const chemin = pts => pts.map((p, k) => (k ? `H${X(p[0]).toFixed(1)}V${Y(p[1]).toFixed(1)}` : `M${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`)).join("");
+  return h`<figure class="courbe-niveau"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution du niveau consolidé">
+    ${E.map((x, i) => (i % Math.ceil(E.length / 8) === 0 || i === E.length - 1) ? brut(`<text x="${X(i).toFixed(1)}" y="${H - 6}" class="cn-axe" text-anchor="middle">S${x.semaine}</text>`) : "")}
+    ${series.map(s => brut(`<path d="${chemin(s.pts)}" class="cn-ligne cn-${s.disc.toLowerCase()}"/>` + s.pts.filter((p, k) => k === 0 || p[2] !== s.pts[k - 1][2]).map(p => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3.5" class="cn-pt cn-${s.disc.toLowerCase()}"/><text x="${(X(p[0]) + 5).toFixed(1)}" y="${(Y(p[1]) - 6).toFixed(1)}" class="cn-val cn-${s.disc.toLowerCase()}">${p[2]}</text>`).join("")))}
+  </svg><figcaption class="petit">${series.map(s => h`<span class="cn-leg cn-${s.disc.toLowerCase()}">● ${s.disc}</span> `)}· niveau consolidé en fin de semaine</figcaption></figure>`;
+}
 export function rendre(ctx) {
   const B = ctx.bilan, { data, doc, state } = ctx;
   let out = h``;
@@ -16,7 +31,7 @@ export function rendre(ctx) {
   // Douleur récente (épisode en cours, ou moins de 14 jours) : un bandeau rouge au-dessus de tout ; sinon rien
   const recente = B.episodes.filter(e => !e.fin || ecartJours(e.dernier, B.aujourdhui) <= 14).sort((a, b) => b.dernier < a.dernier ? -1 : 1)[0];
   if (recente) { const j = ecartJours(recente.dernier, B.aujourdhui);
-    out = h`${out}<button class="bandeau-douleur" data-act="pgOuvrir" data-cle="pg-douleurs">${ico("alerte")} <span><b>Douleur : ${recente.zone} ${recente.max}/10</b> · ${j === 0 ? "aujourd'hui" : j === 1 ? "hier" : `il y a ${j} jours`}${recente.fin ? "" : " · en cours"}</span><span class="bande-go">›</span></button>`; }
+    out = h`${out}<button class="bandeau-douleur ${recente.max <= 3 ? "legere" : ""}" data-act="pgOuvrir" data-cle="pg-douleurs">${ico("alerte")} <span><b>Douleur : ${recente.zone} ${recente.max}/10</b> · ${j === 0 ? "aujourd'hui" : j === 1 ? "hier" : `il y a ${j} jours`}${recente.fin ? "" : " · en cours"}</span><span class="bande-go">›</span></button>`; }
 
   // Le tableau de bord : 4 tuiles (un appui ouvre la section détaillée)
   const ech = data.echelles, wNow = semaineDe(B.dateDebut, B.aujourdhui);
@@ -35,7 +50,7 @@ export function rendre(ctx) {
   const minFaites = Math.round(ctx.programme.filter(x => x.semaine === wNow && grimpe(x) && ctx.saisie(x.id).fin).reduce((t, x) => t + (dureeMinutes(ctx.saisie(x.id)) || 0), 0));
   const rapport = moy ? cur / moy : null, nbProj = B.voies.filter(v => v.essais > 0 && v.reussies === 0 && (v.voieId || v.couleur || v.nom)).length;
   out = h`${out}<div class="tuiles-bord">
-    <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-niveau" style="--t:var(--voie)"><span class="tb-titre">Niveau</span><span class="tb-val">${niv.map(([d, n]) => h`<span class="tb-niv"><span class="petit">${d}</span> <b>${n || "—"}</b>${n ? parSalle(d, n) : ""}${n && fleche(d) ? h` <span class="tb-up">${fleche(d)}</span>` : ""}</span>`)}</span></button>
+    <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-niveau" style="--t:var(--voie)"><span class="tb-titre">Niveau</span><span class="tb-val">${niv.every(([, n]) => !n) ? h`<span class="petit tb-vide">pas encore assez de passages (5 essais d'une cotation)</span>` : ""}${niv.filter(([, n]) => n).map(([d, n]) => h`<span class="tb-niv"><span class="petit">${d}</span> <b>${n}</b>${n ? parSalle(d, n) : ""}${n && fleche(d) ? h` <span class="tb-up">${fleche(d)}</span>` : ""}</span>`)}</span></button>
     <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-feux" style="--t:#2E9E6B"><span class="tb-titre">Feux verts</span><span class="tb-val"><b class="tb-grand">${feuxOk}</b> <span class="petit">/ ${feuxP.length}</span></span><span class="jauge"><i style="width:${feuxP.length ? 100 * feuxOk / feuxP.length : 0}%"></i></span></button>
     <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-charge" style="--t:#7A5BB5"><span class="tb-titre">Escalade cette semaine</span><span class="tb-val"><b class="tb-grand">${hm(minFaites * 60)}</b> <span class="petit">sur ≈ ${hm(minPrevues * 60)}</span></span><span class="jauge"><i style="width:${minPrevues ? Math.min(100, 100 * minFaites / minPrevues) : 0}%"></i></span><span class="petit">${faitesSem}/${semPrevues.length} séance${semPrevues.length > 1 ? "s" : ""} · heures de grimpe, hors course et autres sports</span></button>
     <button class="tuile-bord" data-act="pgOuvrir" data-cle="pg-projets" style="--t:var(--rouge)"><span class="tb-titre">Projets</span><span class="tb-val"><span class="tb-ko">✗</span> <b class="tb-grand">${nbProj}</b></span><span class="petit">essayés, pas encore réussis</span></button>
@@ -53,7 +68,7 @@ export function rendre(ctx) {
     ${conseil ? h`<p>${conseil.texte}</p>` : h`<p>Pas encore de quoi dire quelque chose : grimpe, note deux ou trois voies, et reviens.</p>`}
     ${si(critCap, () => h`<span class="jauge cc-jauge"><i style="width:${Math.min(100, 100 * critCap.val / (critCap.cible || 1))}%"></i></span>`)}
     ${si(alerteForme, () => h`<p class="cc-forme">${alerteForme}</p>`)}
-    ${si(prochaineDure, () => h`<button class="petit-btn" data-act="ouvrirSeance" data-id="${prochaineDure.id}">Prochaine séance dure : ${prochaineDure.jour.toLowerCase()} ${court(prochaineDure.date)} ›</button>`)}</div>
+    ${si(prochaineDure, () => h`<button class="petit-btn" data-act="ouvrirSeance" data-id="${prochaineDure.id}">Prochaine séance dure : ${court(prochaineDure.date)} ›</button>`)}</div>
     <div class="carte compacte ligne-forme forme-${B.formeJour ? B.formeJour.forme : "aucune"}"><div class="ligne-res"><span>Forme</span><b>${B.formeJour ? h`<span class="point ${B.formeJour.forme}"></span>${FORME[B.formeJour.forme]} <span class="petit">(${court(B.formeJour.date)})</span>` : h`<span class="petit">pas encore notée (au début ou au bilan d'une séance)</span>`}</b></div>
     ${B.vigilance.filter(v => v.niveau !== "vert").map(v => h`<div class="vig ${v.niveau}">${v.texte}</div>`)}</div>`;
 
@@ -68,7 +83,7 @@ export function rendre(ctx) {
       : h`<div class="crit"><span>${c.t}</span>${barre(c.val, c.cible, c.ok ? "ok" : "")}<b>${c.val}${c.pct ? " %" : ""} / ${c.cible}${c.pct ? " %" : ""}</b></div>`)}
     ${si(p && B.recul, () => h`<p class="petit">${p.semaines ? `À ce rythme : ${p.semaines > 26 ? "plus de six mois" : p.semaines === 1 ? "une semaine" : p.semaines + " semaines"}.` : p.val > 0 ? "Pas d'avancée sur quatre semaines." : ""}</p>`)}</div>`; })}`, { resume: `${B.feux.filter(f => f.ok && !f.info).length} / ${B.feux.filter(f => !f.info).length}`, classe: "carte" })}`;
 
-  out = h`${out}${pli("pg-niveau", false, "Niveau consolidé", () => h`${info("niveau")}<p class="petit">≥ ${Math.round(B.params.consolide_taux * 100)} % de réussite sur ≥ ${B.params.consolide_essais} essais.</p>
+  out = h`${out}${pli("pg-niveau", false, "Niveau consolidé", () => h`${courbeNiveaux(B, ech)}${info("niveau")}<p class="petit">≥ ${Math.round(B.params.consolide_taux * 100)} % de réussite sur ≥ ${B.params.consolide_essais} essais.</p>
     <div class="grille-niv">${Object.values(B.consolides).map(c => h`<div class="niv"><span class="petit">${c.disc} · ${c.groupe}</span>${c.niveau ? h`<span class="niv-tag niv-cot niv-${c.disc === "Bloc" ? "bloc" : "voie"}">${c.niveau}</span>${parSalle(c.disc, c.niveau)}` : h`<b>—</b>`}</div>`)}</div>
     ${pli("pg-niveau-detail", false, "Détail par cotation", () => Object.values(B.consolides).filter(c => c.detail.length).map(c => h`<p class="petit"><b>${c.disc} · ${c.groupe}</b></p>${c.detail.map(d => h`<div class="crit"><span>${d.cot}${parSalle(c.disc, d.cot)}</span>${barre(d.taux, 1, d.taux >= B.params.consolide_taux ? "ok" : "")}<b>${Math.round(d.taux * 100)} % · ${d.essais}</b></div>`)}`))}`, { resume: Object.values(B.consolides).filter(c => c.niveau).map(c => `${c.disc}${c.groupe === "Dévers" ? " dévers" : ""} ${c.niveau}`).join(" · "), classe: "carte" })}`;
 

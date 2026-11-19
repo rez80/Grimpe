@@ -1,5 +1,5 @@
 // ecrans/mur.js — le mur d'une salle : les voies par secteur, en tuiles, rangées au doigt (glisser-déposer).
-import { h, si, brut, pictoProfil, ouvert, pli, liste as listeDeroulante, forcerOuvert, ecranVide } from "../html.js";
+import { h, si, brut, pictoProfil, ouvert, pli, liste as listeDeroulante, forcerOuvert, ecranVide, info } from "../html.js";
 import { salleDe, hexDe, texteSur, ranger, cotationDe, ordreNiveau as ordreNiv, profilHabituel, inclinaisonSecteur, passagesDe, supprimerVoies, couleursDe, cotApp } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, reussi, rang, marqueVoie } from "../analyse.js";
 import { court } from "../dates.js";
@@ -41,7 +41,7 @@ export function rendre(ctx) {
       const mot = n => disc === "Bloc" ? (n > 1 ? "blocs" : "bloc") : (n > 1 ? "voies" : "voie"), nom = k => c.mode === "couleurs" ? k.toLowerCase() : k;
       const E = l => ({ reussie: l.filter(v => etatDe(v) === "reussie").length, projet: l.filter(v => etatDe(v) === "projet").length, jamais: l.filter(v => etatDe(v) === "jamais").length }), T = E(l);
       return h`<div class="recap-disc"><b>${disc === "Bloc" ? "Blocs" : "Voies"} · ${l.length}</b>
-        <p class="compte-etats"><span class="ce ok">✓ ${T.reussie} réussi${disc === "Bloc" ? "" : "e"}${T.reussie > 1 ? "s" : ""}</span><span class="ce ko">✗ ${T.projet} projet${T.projet > 1 ? "s" : ""}</span><span class="ce jamais">${T.jamais} jamais essayé${disc === "Bloc" ? "" : "e"}${T.jamais > 1 ? "s" : ""}</span></p>
+        <p class="compte-etats"><span class="ce ok ${T.reussie ? "" : "zero"}">✓ ${T.reussie} réussi${disc === "Bloc" ? "" : "e"}${T.reussie > 1 ? "s" : ""}</span><span class="ce ko ${T.projet ? "" : "zero"}">✗ ${T.projet} projet${T.projet > 1 ? "s" : ""}</span><span class="ce jamais">${T.jamais} jamais essayé${disc === "Bloc" ? "" : "e"}${T.jamais > 1 ? "s" : ""}</span></p>
         <div class="batons">${ordre.map(k => { const actif = fCot && fCot.disc === disc && fCot.cot === k, e = E(G[k]), H = Math.round(8 + 64 * G[k].length / max), part = n => Math.round(H * n / G[k].length);
         return h`<button class="baton ${actif ? "choisi" : ""}" data-act="filtreCotMur" data-disc="${disc}" data-valeur="${k}" aria-label="Niveau ${nom(k)} : ${G[k].length} ${mot(G[k].length)}, ${e.reussie} réussis, ${e.projet} projets"><span class="baton-n">${G[k].length}</span>
           <span class="baton-barre empile" style="height:${H}px;--c:${teinte(k)}">${si(e.jamais, h`<i class="seg jamais" style="flex:${e.jamais}"></i>`)}${si(e.projet, h`<i class="seg projet" style="flex:${e.projet}"></i>`)}${si(e.reussie, h`<i class="seg reussie" style="flex:${e.reussie}"></i>`)}</span><span class="baton-niv">${c.mode === "couleurs" ? "" : k}${c.mode === "liste" && cotApp(s, disc, k) && cotApp(s, disc, k) !== k ? h`<small>≈${cotApp(s, disc, k)}</small>` : ""}</span></button>`; })}</div></div>`; })}
@@ -60,7 +60,7 @@ export function rendre(ctx) {
       ${si(!demontees && !ranger, h`<button class="petit-btn btn-ajout" data-act="voieNouvelle" data-secteur="${s.secteurs.some(x => x.id === state.dernierSecteur) ? state.dernierSecteur : ""}" data-disc="${discDefaut}">+ ${discDefaut === "Bloc" ? "Bloc" : "Voie"}</button>`)}
       ${si(!demontees, h`<button class="petit-btn btn-ajout" data-act="secteurNouveau">+ Secteur</button>`)}</div>
     ${si(s.voies.length && !ranger, () => h`<div class="barre-filtres">
-      ${si(s.type === "Bloc et voie", () => listeDeroulante("type-mur", [["Voie", "Voies"], ["Bloc", "Blocs"]], filtre, { act: "filtreMurListe", vide: "Voies et blocs" }))}
+      ${si(s.type === "Bloc et voie", () => h`<div class="segment segment-filtre">${[["", "Tout"], ["Voie", "Voies"], ["Bloc", "Blocs"]].map(([v, l]) => h`<button data-act="filtreMurSeg" data-valeur="${v}" class="${(filtre || "") === v ? "choisi" : ""}">${l}</button>`)}</div>`)}
       ${si(!demontees, () => listeDeroulante("etat-mur", [["reussie", `✓ Réussi${s.type === "Bloc" ? "s" : "es"} (${nE("reussie")})`], ["projet", `✗ Projets (${nE("projet")})`], ["jamais", `Jamais essayé${s.type === "Bloc" ? "s" : "es"} (${nE("jamais")})`]], fEtat, { act: "filtreEtat", vide: "Tous les états" }))}
       ${si(caracsPresentes.length, () => listeDeroulante("carac", caracsPresentes, fCarac, { act: "filtreCarac", vide: "Toutes caractéristiques" }))}</div>`)}
     ${(() => { const f = [filtre && [filtre === "Bloc" ? "Blocs" : "Voies", "filtreMur", { valeur: "" }], fEtat && [{ reussie: "✓ Réussis", projet: "✗ Projets", jamais: "Jamais essayés" }[fEtat], "filtreEtat", { valeur: "" }], fCot && [`Niv ${fCot.cot}`, "filtreCotMur", { disc: fCot.disc, valeur: fCot.cot }], fCarac && [fCarac, "filtreCaracRetirer", {}], demontees && ["Démontées", "filtreDemontees", {}]].filter(Boolean);
@@ -72,9 +72,9 @@ export function rendre(ctx) {
         ${si(o, () => h`<div class="tuiles zone-depot" data-secteur="${g.id}">${g.voies.map(tuile)}${si(!g.voies.length, h`<span class="petit depot-vide">${ranger ? "déposer ici" : s.type === "Bloc" ? "aucun bloc" : "aucune voie"}</span>`)}</div>`)}</div>`; })}
     ${si(filtreActif && !liste.length && s.voies.length, () => ecranVide("prise", `${s.type === "Bloc" ? "Aucun bloc" : "Aucune voie"} avec ces filtres.`, h`<button class="petit-btn" data-act="filtresMurRaz">Retirer les filtres</button>`))}
     ${si(!s.voies.length, () => ecranVide("prise", `Aucun${s.type === "Bloc" ? " bloc" : "e voie"} pour l'instant. Ajoute-les avec « + ${discDefaut === "Bloc" ? "Bloc" : "Voie"} », ou directement pendant une séance.`, h`<button class="gros principal" data-act="inventaireOuvrir">Inventaire rapide : combien de ${motSalle(s)} par niveau ?</button>`))}
-    ${si(!ranger && s.voies.length, h`<p class="petit">Touche ${s.type === "Bloc" ? "un bloc" : "une voie"} pour sa fiche. Pour ${s.type === "Bloc" ? "le" : "la"} déplacer, garde le doigt dessus ½ seconde : ${s.type === "Bloc" ? "il" : "elle"} se soulève ; lâche-${s.type === "Bloc" ? "le" : "la"} sur ${s.type === "Bloc" ? "un autre bloc" : "une autre voie"}, dans un secteur ouvert, ou sur le nom d'un secteur replié. Plusieurs ${motSalle(s)} d'un coup, démonté${s.type === "Bloc" ? "s" : "es"}, salle : Options en haut.</p>`)}`;
+    ${si(!ranger && s.voies.length, () => h`<p class="petit">Touche ${s.type === "Bloc" ? "un bloc" : "une voie"} pour sa fiche ; garde le doigt dessus pour ${s.type === "Bloc" ? "le" : "la"} déplacer. ${info("murAide")}</p>`)}`;
   document.body.classList.toggle("mode-ranger", !!ranger);
-  return { html, titre: h`<b>${s.nom}</b>`, infos: `${cotationDe(s, "Voie").mode !== "standard" || cotationDe(s, "Bloc").mode !== "standard" ? "cotation propre à la salle" : ""}` };
+  return { html, titre: h`<b>${s.nom}</b>` };            // une seule ligne de titre (la cotation est dans « Échelle de la salle »)
 }
 
 // Les mots selon ce qu'on compte : « 3 voies · 2 blocs », « 7 blocs » dans une salle de blocs
@@ -134,11 +134,14 @@ export function apresRendu(ctx) {
 // ⋯ de l'en-tête sur le mur
 export function menuEcran(ctx) { const s = salleDe(ctx.doc, ctx.state.salleId); if (!s) return null; const dem = !!ctx.state.filtre.demontees;
   return { titre: s.nom, items: [
-    ...(dem ? [] : [{ label: `Inventaire rapide (nombre de ${motSalle(s)} par niveau)`, act: "inventaireOuvrir" }, { label: `+ Plusieurs ${motSalle(s)} d'un coup`, act: "ajoutRapideOuvrir" }]),
+    ...(dem ? [] : [{ label: `+ Ajouter plusieurs ${motSalle(s)}…`, act: "ajoutPlusieursOuvrir" }]),
     { label: `Sélectionner plusieurs ${motSalle(s)}`, act: "classerDebut" },
     { label: dem ? `Voir les ${motSalle(s)} en place` : `Voir les ${motSalle(s)} démonté${s.type === "Bloc" ? "s" : "es"}`, act: "filtreDemontees" }, { label: "✎ Modifier la salle", act: "salleEditer" }] }; }
 
 export const actions = {
+  // Un seul point d'entrée pour l'ajout en série : par niveau (inventaire) ou une par une (couleur, cote)
+  ajoutPlusieursOuvrir: ctx => { const s = salleDe(ctx.doc, ctx.state.salleId); if (!s) return;
+    ctx.ouvrirModal({ type: "menuEcran", titre: `Ajouter plusieurs ${motSalle(s)}`, items: [{ label: `Par niveau : combien de ${motSalle(s)} en 4, en 5…`, act: "inventaireOuvrir" }, { label: `Une par une : couleur et cotation de chaque ${s.type === "Bloc" ? "bloc" : "voie"}`, act: "ajoutRapideOuvrir" }] }); },
   rangerBascule: ctx => { ctx.state.ranger = !ctx.state.ranger; ctx.rendre(); },
   classerDebut: ctx => { ctx.state.ranger = false; ctx.state.classer = new Set(); ctx.rendre(); },
   classerFin: ctx => { ctx.state.classer = null; ctx.rendre(); },
@@ -172,6 +175,7 @@ export const actions = {
   filtreCaracRetirer: ctx => { ctx.state.filtre.carac = ""; ctx.rendre(); },
   filtreMur: (ctx, d) => { ctx.state.filtre.mur = d.valeur; ctx.rendre(); },
   filtresMurRaz: ctx => { Object.assign(ctx.state.filtre, { mur: "", carac: "", etat: "", cotMur: null, demontees: false }); ctx.rendre(); },
+  filtreMurSeg: (ctx, d) => { ctx.state.filtre.mur = d.valeur || ""; ouvrirTout(ctx); ctx.rendre(); },
   filtreMurListe: (ctx, d, el) => { ctx.state.filtre.mur = el.value; ouvrirTout(ctx); ctx.rendre(); },
   filtreEtat: (ctx, d, el) => { ctx.state.filtre.etat = el ? el.value : d.valeur || ""; if (ctx.state.filtre.etat) ouvrirTout(ctx); ctx.rendre(); },
   filtreCarac: (ctx, d, el) => { ctx.state.filtre.carac = el.value; if (el.value) for (const sec of [...(ctx.doc.salles.find(x => x.id === ctx.state.salleId) || { secteurs: [] }).secteurs.map(x => x.id), ""]) forcerOuvert(`sec-${ctx.state.salleId}-${sec}`); ctx.rendre(); },

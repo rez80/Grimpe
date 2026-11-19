@@ -206,7 +206,19 @@ export function bilan({ data, doc, programme, aujourdhui }) {
   return { aujourdhui, dateDebut, params, nbTentatives: ts.length, feux, bloc: bloc ? { id: bloc.id, nom: bloc.nom, titre: bloc.titre } : null, consolides: niveauxConsolides(tsCalc, data.echelles, params), signalements: sig, episodes: ep,
            charge, formeJour, pointsFaibles: pointsFaibles(tsCalc, data.conseils, params, aujourdhui),
            vigilance: vigilance({ programme, doc, params, aujourdhui, formeJour, episodesEnCours: ep.filter(e => !e.fin), charge, feux }),
-           meilleures: meilleuresParSemaine(ts, data.echelles, dateDebut) };
+           meilleures: meilleuresParSemaine(ts, data.echelles, dateDebut), evolution: evolutionNiveaux(tsCalc, data.echelles, params, dateDebut, aujourdhui) };
+}
+
+// --- Évolution : le niveau consolidé (vertical) à la fin de chaque semaine, depuis la première semaine avec des passages datés ---
+// Un passage sans date (hors séance) compte dès le début.
+export function evolutionNiveaux(ts, echelles, params, dateDebut, aujourdhui) {
+  const dates = ts.filter(t => t.date).map(t => t.date).sort(); if (!dates.length) return [];
+  const w0 = Math.max(1, semaineDe(dateDebut, dates[0])), w1 = semaineDe(dateDebut, aujourdhui), out = [];
+  for (let w = w0; w <= w1; w++) {
+    const l = ts.filter(t => !t.date || semaineDe(dateDebut, t.date) <= w), c = niveauxConsolides(l, echelles, params);
+    out.push({ semaine: w, Voie: c["Voie-Vertical"].niveau, Bloc: c["Bloc-Vertical"].niveau });
+  }
+  return out;
 }
 export function meilleuresParSemaine(ts, echelles, dateDebut) {
   const W = {};

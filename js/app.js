@@ -1,12 +1,12 @@
 // app.js — démarrage, état d'écran, rendu, routage des actions. Aucune règle métier ici.
 import { DATA } from "../data.js";
 import { ouvrirStore } from "./store.js";
-import { programmeEffectif, clotureAutomatique, etapesSeance, activiteAffichee, nomSeance, definirRoutines } from "./programme.js";
+import { programmeEffectif, clotureAutomatique, etapesSeance, activiteAffichee, nomSeance, definirRoutines, etatSeance } from "./programme.js";
 import { bilanComplet as calculerBilan } from "./analyse.js";
 import { construireExport } from "./export.js";
 import { creerSync, lireJeton, configValide } from "./sync.js";
 import { aujourdhui as dateDuJour, semaineDe } from "./dates.js";
-import { $, h, basculer, forcerOuvert } from "./html.js";
+import { $, h, basculer, forcerOuvert, ico } from "./html.js";
 import { PALETTE } from "./salles.js";
 import { exercicesEffectifs } from "./bibliotheque.js";
 import * as minuteur from "./minuteur.js";
@@ -17,7 +17,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.31";
+export const APP_VERSION = "8.32";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
 const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", assistant: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
@@ -95,9 +95,15 @@ function rendre(enHaut = false) {
   $("suiv").style.visibility = r.fleches && !versProgramme ? "visible" : "hidden";                   // séance voisine : en glissant
   rendreBande();
   $("btn-menu").style.visibility = state.vue === "aide" ? "hidden" : "visible";                       // « Options » partout : les actions de l'écran, et Annuler
+  // Un écran sans action à lui (Plus, Réglages, Sauvegarde…) : le bouton devient « ↶ Annuler », grisé s'il n'y a rien à annuler
+  { const ecr = ECRANS[state.vue] || plus, m = state.vue === "seance" ? { items: [1] } : (ecr.menuEcran ? ecr.menuEcran(ctx) : null), seul = !(m && m.items && m.items.length), b = $("btn-menu");
+    b.dataset.act = seul ? "annuler" : "menuEcran"; b.classList.toggle("annuler-seul", seul); b.disabled = seul && !store.annulable;
+    b.setAttribute("aria-label", seul ? "Annuler le dernier geste" : "Options de l'écran");
+    b.innerHTML = seul ? `${String(ico("annuler"))}<span class="options-txt">Annuler</span>` : `<span class="options-txt">Options</span> <span class="options-fl">▾</span>`; }
   document.body.dataset.activite = r.activite || "";
   $("fond-modal").style.display = state.modal ? "flex" : "none";
   $("modal").innerHTML = state.modal ? String(fenetres.rendre(ctx)) : "";
+  $("modal").classList.toggle("plein", !!state.modal && state.modal.type === "editeur");          // B6 : l'éditeur de séance occupe tout l'écran, comme l'assistant
   const pastille = $("pastille-plus"), joursExport = store.doc.dernierExport ? (Date.now() - new Date(store.doc.dernierExport)) / 864e5 : 99;
   pastille.style.display = joursExport > 7 ? "" : "none";
   // Changer de page : en haut, pour ne rien rater ; le retour ‹ ramène où l'on était
@@ -134,7 +140,11 @@ function rendreToast() {
 
 // --- Actions : chaque écran exporte { rendre, actions } ; un seul écouteur pour tout ---
 const ACTIONS = {
-  onglet: (c, d) => { if (state.vue === d.onglet) { state.scroll[d.onglet] = 0; state.ouverts = new Set(); } ouvrir(d.onglet); },
+  // Onglet Salles : une seule salle (ou une séance en cours dans une salle connue) → directement son mur ; ‹ ramène à la liste.
+  // Depuis un mur, l'onglet ramène à la liste.
+  onglet: (c, d) => { if (state.vue === d.onglet) { state.scroll[d.onglet] = 0; state.ouverts = new Set(); }
+    if (d.onglet === "salles" && state.vue !== "salle" && state.vue !== "salles") { const id = salleDeLOnglet(); if (id) { ouvrir("salles"); ouvrir("salle", { salleId: id }); return; } }
+    ouvrir(d.onglet); },
   retour: () => retour(),
   bandeOuvrir: (c, d) => { state.seanceId = d.id; state.origine = "programme"; ouvrir("seance"); },
   retourProgramme: () => { const s = ctx.seance(state.seanceId); if (s) state.semaineVue = s.semaine; state.origine = null; state.parRetour = true; ouvrir("programme"); },
@@ -238,6 +248,11 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && st
 // Écran allumé pendant une séance en cours (réglage) ; le système relâche le verrou quand l'app passe en arrière-plan : on le redemande au retour
 let verrou = null;
 async function ecranAllume(on) { try { if (on && !verrou && navigator.wakeLock && !document.hidden) { verrou = await navigator.wakeLock.request("screen"); verrou.addEventListener("release", () => verrou = null); } else if (!on && verrou) { await verrou.release(); verrou = null; } } catch { /* refusé */ } }
+function salleDeLOnglet() {
+  const salles = store.doc.salles || []; if (salles.length === 1) return salles[0].id;
+  const s = ctx.programme.find(x => { const sa = store.doc.seances[x.id]; return sa && sa.debut && !sa.fin && sa.salle; });
+  const id = s && store.doc.seances[s.id].salle; return id && salles.some(x => x.id === id) ? id : null;
+}
 const seanceEnCours = d => ctx.programme.some(s => { const sa = d.seances[s.id]; return sa && sa.debut && !sa.fin; });
 const majEcranAllume = () => ecranAllume(!!store.doc.reglages.ecranAllume && seanceEnCours(store.doc));
 
@@ -266,7 +281,12 @@ function regenererBlocs() {
   state.semaineVue = Math.max(1, semaineDe(store.doc.reglages.dateDebut || DATA.dateDebut, ctx.aujourdhui()));
   // Ouverture : sur la séance en cours s'il y en a une, sinon sur le programme (sa carte « Aujourd'hui » mène à la séance du jour en un appui)
   { const enCours = ctx.programme.find(s => { const sa = store.doc.seances[s.id]; return sa && sa.debut && !sa.fin; });
-    if (enCours) { state.vue = "seance"; state.seanceId = enCours.id; state.origine = "programme"; } else state.vue = "programme"; }
+    if (enCours) { state.vue = "seance"; state.seanceId = enCours.id; state.origine = "programme"; } else state.vue = "programme";
+    // D1 : première ouverture du jour avec une séance prévue aujourd'hui (pas commencée, pas bonus) : on l'ouvre directement, une fois par jour
+    const dejaUtilisee = Object.keys(store.doc.seances || {}).length > 0;               // une app neuve reste sur le Programme (sa carte « Restaurer… »)
+    if (!enCours && dejaUtilisee) { const auj = ctx.aujourdhui(), duJour = ctx.programme.find(s => s.date === auj && !s.bonus && etatSeance(s, store.doc.seances[s.id] || {}, auj) === "aujourdhui");
+      let deja = ""; try { deja = localStorage.getItem("grimpe-ouverture-auto") || ""; } catch { /* stockage indisponible : on n'ouvre pas */ deja = auj; }
+      if (duJour && deja !== auj) { state.vue = "seance"; state.seanceId = duJour.id; state.origine = "programme"; try { localStorage.setItem("grimpe-ouverture-auto", auj); } catch { /* rien */ } } } }
   rendre(true); majEcranAllume();
   regenererBlocs();
   verifierStyle();

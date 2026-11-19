@@ -185,7 +185,7 @@ export function rendre(ctx) {
       const presentes = [...new Set([...etapesSeance(s, sa).filter(e => e.grimpe && e.grimpe.cot && e.grimpe.disc === gd).flatMap(e => cotesSalleProches(salleB, gd, e.grimpe.cot, data.echelles[gd] || [])), ...Object.keys(M.grille).filter(deGd).map(k => k.split("|")[0])])].filter(Boolean).sort((a, b) => cots.indexOf(a) - cots.indexOf(b));
       return h`<h2>Bilan · ${court(M.jour || s.date)} · ${nomSeance(s, sa)}</h2>
       <label class="champ">Forme du jour <span class="petit">${M.formeAvant ? "notée au début, à corriger si besoin" : "facultatif"}</span></label>${choix("mChamp", [["bien", "🙂 Bien"], ["moyen", "😐 Moyen"], ["pastop", "😣 Pas top"]], M.forme || "", { data: { champ: "forme" } })}
-      <label class="champ">Effort (1 = très facile, 10 = maximal)</label>${echelle("mChamp", 10, M.effort, { data: { champ: "effort" } })}
+      <label class="champ">Effort (1 = très facile, 10 = maximal)${M.effort === "" ? h` <span class="a-choisir-tag">à choisir</span>` : ""}</label>${echelle("mChamp", 10, M.effort, { data: { champ: "effort" } })}
       <label class="champ">Douleur après (0 = aucune)</label>${echelle("mChamp", 10, M.apres, { de: 0, data: { champ: "apres" } })}
       ${si(M.apres > 0, () => liste("zone", data.zones.filter(z => z !== "Aucune"), M.zone, { label: "Zone", vide: "Choisir…" }))}
       ${si(estGrimpe, h`<label class="champ">En gros, ce que tu as grimpé <span class="petit">${precises ? `en plus des ${precises} passages déjà notés` : "(approximatif)"}</span></label>
@@ -195,9 +195,9 @@ export function rendre(ctx) {
         ${si(M.autresCots, () => h`<div class="fiche-contenu"><div class="choix compact">${cots.filter(c => !presentes.includes(c)).map(c => h`<button data-act="mGrille" data-k="${cle(c, "ok")}" data-pas="1">${deuxCot(salleB, gd, "", c)}</button>`)}</div></div>`)}</div>`)}
       <button class="fiche-ligne" data-act="mPlier" data-k="details"><span>Heures, notes</span><span class="val">${M.hDebut} → ${M.hFin}${dureeHeures(M) != null ? ` · ${dureeHeures(M)} min` : ""} ${M.details ? "▾" : "›"}</span></button>
       ${si(M.details, () => h`<div class="fiche-contenu"><div class="ed-rangee"><label class="champ">Début</label><input type="time" data-champ="hDebut" value="${M.hDebut}"><label class="champ">Fin</label><input type="time" data-champ="hFin" value="${M.hFin}"></div><label class="champ">Notes</label><textarea data-champ="notes" rows="3">${M.notes}</textarea></div>`)}
-      ${actionsBas(sa.fin ? "Enregistrer" : "Terminer la séance", "bilanOk", M.effort === "")}`; }
+      ${si(M.effort === "", h`<p class="a-choisir">Choisis l'effort (1 à 10) pour ${sa.fin ? "enregistrer" : "terminer la séance"}.</p>`)}${actionsBas(sa.fin ? "Enregistrer" : "Terminer la séance", "bilanOk", M.effort === "")}`; }
 
-    case "menu": return h`<h2>${court(s.date)} · ${nomSeance(s, sa)}</h2><div class="menu">
+    case "menu": return h`<h2>${court(sa.dateReelle || s.date)} · ${nomSeance(s, sa)}</h2><div class="menu">
       ${si(!M.surPage, h`<button data-act="menuBilan">Bilan / terminer</button>`)}<button data-act="menuEditer">✎ Modifier le plan</button><button data-act="menuDeplacer">${ico("calendrier")} Déplacer</button><button data-act="menuCopier">${ico("copier")} Copier vers une autre date</button>
       ${si(!(M.surPage && M.avant), h`<button data-act="menuSauter">Séance sautée</button>`)}${si(ctx.store.annulable, h`<button data-act="annuler">${ico("annuler")} Annuler : ${ctx.store.annulable}</button>`)}
       <button class="danger" data-act="menuReinit">Effacer les saisies de cette séance</button>${si(s.libre || s.copie, h`<button class="danger" data-act="menuSupprimerSeance">Supprimer cette séance</button>`)}</div><div class="actions"><button data-act="mFermer">Fermer</button></div>`;
@@ -400,6 +400,20 @@ function propagerVoies(doc, salle) {
     Object.assign(t, { cot: v.cot || "", cotSalle: v.cotSalle || "", couleur: v.couleur || "", nom: v.nom || "", profil: v.profil || t.profil || "" }); }
 }
 const nettoyer = t => { Object.keys(t).forEach(k => (t[k] === undefined || t[k] === "" || t[k] === null) && delete t[k]); return t; };
+// D5 : fin de séance : durée, passages, meilleure réussite, feux verts du bloc — puis « Fermer »
+function fenetreBravo(ctx, M = ctx.state.modal) {
+  const s = ctx.seance(M.seanceId), sa = ctx.saisie(s.id), t = sa.tentatives || [], ok = t.filter(x => x.res === "ok"), ech = ctx.data.echelles;
+  const min = sa.duree != null ? sa.duree : sa.debut && sa.fin ? Math.round((sa.fin - sa.debut - (sa.pauseTotale || 0)) / 60000) : null;
+  const meilleure = ["Voie", "Bloc"].map(d => { const l = ok.filter(x => x.disc === d && x.cot).sort((a, b) => (ech[d] || []).indexOf(String(b.cot)) - (ech[d] || []).indexOf(String(a.cot))); return l[0] ? [d, libelleVoie(l[0])] : null; }).filter(Boolean);
+  const B = ctx.bilan, feux = (B.feux || []).filter(f => !f.info), feuxOk = feux.filter(f => f.ok).length, nouveaux = (B.nouveauxFeux || []).length;
+  return h`<div class="bravo"><div class="bravo-titre">Séance terminée 👏</div><p class="petit">${nomSeance(s, sa)} · ${court(sa.dateReelle || s.date)}</p>
+    <div class="bravo-tuiles"><div><b>${min != null ? (min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}` : `${min} min`) : "—"}</b><span class="petit">durée</span></div>
+      <div><b>${ok.length}/${t.length}</b><span class="petit">passages réussis</span></div>
+      <div><b>${sa.effort ?? "—"}/10</b><span class="petit">effort</span></div></div>
+    ${meilleure.length ? h`<p><b>Meilleure réussite</b> : ${meilleure.map(([d, l]) => `${d.toLowerCase()} ${l}`).join(" · ")}</p>` : ""}
+    ${feux.length ? h`<p><b>Feux verts</b> : ${feuxOk}/${feux.length}${nouveaux ? h` · <span class="bravo-feu">${nouveaux} nouveau${nouveaux > 1 ? "x" : ""} !</span>` : ""}</p>` : ""}
+    </div><div class="actions"><button class="principal" data-act="mFermer">Fermer</button></div>`;
+}
 export const actions = {
   ...editeur.actions,
   mFermer: ctx => { const p = ctx.state.modal && ctx.state.modal.precedent; p ? ctx.ouvrirModal(p) : ctx.fermerModal(); },
@@ -476,7 +490,7 @@ export const actions = {
   resultatSupprimer: ctx => { const m = M(ctx); ctx.modifierSeance(m.seanceId, "passage supprimé", sa => { sa.tentatives.splice(m.edit, 1); }); ctx.fermerModal(); },
   douleurOk: ctx => { const m = M(ctx); if (!m.zone) return; ctx.modifierSeance(m.seanceId, "douleur notée", sa => { sa.douleur = sa.douleur || {}; sa.douleur.pendant = sa.douleur.pendant || []; sa.douleur.pendant.push({ t: Date.now(), zone: m.zone, niveau: m.niveau }); }); ctx.fermerModal(); ctx.toast("Douleur notée"); },
   sauterOk: ctx => { const m = M(ctx); ctx.modifierSeance(m.seanceId, "séance sautée", sa => { sa.statut = "sautee"; sa.raison = m.raison; delete sa.debut; delete sa.fin; }); ctx.fermerModal(); },
-  bilanOk: ctx => { const m = M(ctx); if (m.effort === "") return; const minutes = dureeHeures(m);
+  bilanOk: ctx => { const m = M(ctx); if (m.effort === "") return; const minutes = dureeHeures(m), premiereFin = !ctx.saisie(m.seanceId).fin;
     if (!minutes) { ctx.toast("Vérifie les heures de début et de fin."); m.details = true; ctx.rendre(); return; }
     ctx.modifierSeance(m.seanceId, "bilan", sa => { const now = Date.now(), debut = new Date(`${m.jour}T${m.hDebut.padStart(5, "0")}:00`).getTime();
       if (!sa.debut) sa.approx = true;
@@ -486,6 +500,7 @@ export const actions = {
       for (const [k, n] of Object.entries(m.grille)) { const [cot, res, dd] = k.split("|"); for (let i = 0; i < n; i++) sa.tentatives.push({ t: now, disc: dd || m.disc, cot, profil: "", res, approx: true, ...(sa.salle ? { salle: sa.salle } : {}) }); }
       if (m.forme && m.forme !== m.formeAvant) sa.recup = { ...RECUP_FORME[m.forme] }; });
     ctx.fermerModal(); ctx.rendre(true);
+    if (premiereFin) ctx.ouvrirModal({ type: "externe", rendu: fenetreBravo, seanceId: m.seanceId });          // D5 : l'écran de fin
     // Sans sauvegarde GitHub, et sans export depuis 7 jours : un rappel, avec le bouton
     ctx.synchroniser("fin de séance").then(ok => { const d = ctx.doc.dernierExport, jours = d ? (Date.now() - new Date(d)) / 864e5 : 99;
       if (!ok && jours > 7) ctx.toast(d ? `Dernière sauvegarde il y a ${Math.floor(jours)} jours` : "Aucune sauvegarde de tes données", null, { label: "Sauvegarder", action: () => ctx.agir("copierOuExporter") }); }); },
