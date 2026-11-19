@@ -1,4 +1,4 @@
-# Grimpe 8.35 — l'app d'escalade
+# Grimpe 8.36 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,12 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.36** (passages et compteurs d'étape).
+- **Étapes de grimpe reconnues** : un exercice dont la fiche est en Voie, Bloc ou « Voie et bloc » (Point mort, Traversée basse…) ; une sous-étape de routine qui parle de blocs, voies, grimpe ou traversée (échauffement comme retour au calme : « Grimpe douce »). Sans cote : ton niveau et celui juste en dessous.
+- **Les passages font avancer le compteur** : « Deux blocs niveau 3 » → 2 passages (réussis ou non) font passer à la sous-étape suivante (« 1/2 notés » sous le titre) ; « 1 voie ou 2 blocs » = 2 en bloc, 1 en voie ; sur une étape à ronds (« Point mort × 3 »), chaque passage remplit un rond.
+- **Un passage ne va que dans l'étape en cours** (si elle fait grimper dans cette discipline) ; sinon il compte dans la séance, sans remplir une étape à venir.
+- **Contrôle des doigts, Vérifications croisées** : une seule étape (plus de « 1/3 ») ; les points s'affichent en liste sous le titre, un « ✓ Fait ».
 
 **Nouveautés 8.35**
 - **Échauffement** : chaque sous-étape décide. Sans grimpe (Mobilité articulaire…) : pas de lignes de cotes, seulement « + Noter un passage ». « Deux blocs niveau 3 », « Voie en 5a » : cette cote-là, dans l'échelle de la salle (ou les deux niveaux qui l'encadrent).
