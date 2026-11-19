@@ -132,7 +132,7 @@ function salles(ctx) {
 
 function historique(ctx) {
   const { doc } = ctx, l = doc.passagesAnciens.filter(p => !p.voieId).sort((a, b) => (a.date || "0") < (b.date || "0") ? 1 : -1), dates = [...new Set(l.map(p => p.date || ""))];
-  return { titre: h`<b>Passages hors séance</b>`, html: h`<p class="petit">Ce que tu as grimpé en dehors d'une séance de l'app. ${info("horsSeance")}</p>
+  return { titre: h`<b>Hors séance</b>`, html: h`<p class="petit">Ce que tu as grimpé en dehors d'une séance de l'app. ${info("horsSeance")}</p>
     <div class="barre-fixe"><button class="gros btn-ajout" data-act="passageAncienOuvrir">+ Passage hors séance</button></div>
     ${si(!l.length, () => ecranVide("consignes", "Aucun passage hors séance pour l'instant."))}
     ${dates.map(d => h`<div class="carte compacte"><b>${d ? court(d) : "Date inconnue"}</b>${l.filter(p => (p.date || "") === d).map(p => h`<div class="ligne-res"><span><span class="pastille" style="background:${hexDe(doc, p.couleur)}"></span> ${p.disc} ${p.cot || "?"}${p.nom ? " · " + p.nom : ""} <span class="petit">${(p.profil || "").toLowerCase()}</span></span><span><span class="res res-${p.res}">${resLabel(p)}</span> <button class="petit-btn danger" data-act="passageAncienSuppr" aria-label="Supprimer" data-id="${p.id}">✕</button></span></div>`)}</div>`)}` };

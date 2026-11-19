@@ -17,7 +17,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.34";
+export const APP_VERSION = "8.35";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
 const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", assistant: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
@@ -94,7 +94,7 @@ function rendre(enHaut = false) {
   glisserActif = !!r.glisser && !state.modal;
   $("suiv").style.visibility = r.fleches && !versProgramme ? "visible" : "hidden";                   // séance voisine : en glissant
   rendreBande();
-  $("btn-menu").style.visibility = state.vue === "aide" ? "hidden" : "visible";                       // « Options » partout : les actions de l'écran, et Annuler
+  $("btn-menu").style.visibility = ["aide", "assistant"].includes(state.vue) ? "hidden" : "visible";                       // « Options » partout : les actions de l'écran, et Annuler
   // Un écran sans action à lui (Plus, Réglages, Sauvegarde…) : le bouton devient « ↶ Annuler », grisé s'il n'y a rien à annuler
   { const ecr = ECRANS[state.vue] || plus, m = state.vue === "seance" ? { items: [1] } : (ecr.menuEcran ? ecr.menuEcran(ctx) : null), seul = !(m && m.items && m.items.length), b = $("btn-menu");
     b.dataset.act = seul ? "annuler" : "menuEcran"; b.classList.toggle("annuler-seul", seul); b.disabled = seul && !store.annulable;

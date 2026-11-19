@@ -3,6 +3,7 @@
 import { h, si, classes, lier, ico, pictoProfil, pli, ouvert, liste as listeDeroulante } from "../html.js";
 import { etapesSeance, dureeEtape, dureeSeance, etatSeance, discipline, reposDefaut, seanceARegler, activiteAffichee, nomSeance } from "../programme.js";
 import { versionsDe, titreAction } from "../parseur.js";
+import { ouvrir as ouvrirEditeur } from "./editeur.js";
 import { avertissements, reussi, marqueVoie, forme, parVoie, projets, causePrincipale, anonyme, tentatives as toutesTentatives } from "../analyse.js";
 import { court, hm, hhmm, mmss, duree as dureeTexte, semaineDe, ajouterJours } from "../dates.js";
 // Le passage lui-même, daté comme dans les calculs : il ne doit compter ni comme « avant lui » ni comme une réussite précédente
@@ -79,7 +80,8 @@ export function rendre(ctx) {
 
   // Plan de séance : dans la carte colorée, repliable comme le détail (ouvert avant la séance, replié pendant)
   const faites = actives(etapes).filter(e => etapeFinie(sa, e)).length;
-  const planInt = (cle, def) => pli(cle, def, "Plan de séance", () => h`<div class="detail-cadre plan-cadre"><div class="etapes">
+  const planInt = (cle, def) => h`<div class="plan-int">${pliPlan(cle, def)}<button class="plan-modifier" data-act="planModifier" aria-label="Modifier le plan de la séance">✎ Modifier</button></div>`;
+  const pliPlan = (cle, def) => pli(cle, def, "Plan de séance", () => h`<div class="detail-cadre plan-cadre"><div class="etapes">
     ${actives(etapes).map((e, n) => ligneEtape(ctx, s, sa, e, n + 1, enCours && courante && courante.k === e.k, enCours))}
     ${si(s.libre && !etapes.length, h`<p class="petit">Séance libre : note simplement ce que tu fais.</p>`)}</div></div>`,
     { resume: sa.debut ? `${faites}/${actives(etapes).length} faites${(n => n ? ` · ${n} sautée${n > 1 ? "s" : ""}` : "")(actives(etapes).filter(e => etapeSautee(sa, e)).length)}` : `${actives(etapes).length} étapes`, classe: "pli-maintenant pli-plan-int" });
@@ -104,7 +106,7 @@ export function rendre(ctx) {
     const toutFait = act.every(e => etapeFinie(sa, e));
     const emoji = ({ vert: "🙂", orange: "😐", rouge: "😣" })[fj] || "";
     out = h`${out}${consignes()}<div class="carte encours" data-activite="${nom}">
-      <div class="encours-tete"><span class="encours-nom">${sa.recup && emoji ? h`<span class="forme-choisie" aria-label="Forme du jour">${emoji}</span> ` : ""}<b>${nomSeance(s, sa)}</b> <span class="petit">${s.phase}</span></span></div>
+      <div class="encours-tete"><span class="encours-nom">${sa.recup && emoji ? h`<span class="forme-choisie" aria-label="Forme du jour">${emoji}</span> ` : ""}<b>${nomSeance(s, sa)}</b> <span class="petit">${s.phase}</span></span>${choixSalleListe()}</div>
       <div class="encours-temps"><span class="petit">${hm(ecoule)} · fin ≈ ${hhmm(Date.now() + Math.max(0, duree - ecoule) * 1000)}</span>${si(!sa.recup, h`<span class="forme-mini"><span class="petit">Forme ?</span><button data-act="forme" data-f="bien" aria-label="Bien">🙂</button><button data-act="forme" data-f="moyen" aria-label="Moyen">😐</button><button data-act="forme" data-f="pastop" aria-label="Pas top">😣</button></span>`)}</div>
       ${frise(ctx, s, sa, etapes, toutFait ? null : courante)}
       ${toutFait || !courante ? h`<div class="tout-fait"><b>✓ Toutes les étapes sont faites</b><span class="petit">Bravo ! Il reste le bilan : effort, douleur, et ce que tu as grimpé.</span></div>
@@ -136,7 +138,7 @@ export function rendre(ctx) {
           <div class="maintenant-grand"><span class="mg-texte">${titre}</span><span class="mg-actions">${boutonsEtape(ctx, s, sa, courante, true)}${iBtn}</span></div>
           ${si(detailOuvert, () => h`<div class="detail-cadre">${detailEtape(ctx, courante)}</div>`)}
           ${rappel ? h`<div class="rappel-consigne">${ico("consignes")} ${lier(rappel.texte, data.exercices)}</div>` : ""}</div>
-        ${si(estGrimpe, () => h`<div class="encours-outils">${choixSalleListe()}</div>${zoneNoter(ctx, s, sa, courante)}`)}`; })()}
+        ${si(estGrimpe, () => zoneNoter(ctx, s, sa, courante))}`; })()}
       ${planInt("plan-encours", false)}
     </div>${blocAverts()}
     <div class="barre-seance"><button class="contour-orange" data-act="douleurOuvrir">${ico("alerte")} Douleur</button><button class="fin-seance" data-act="bilanOuvrir">${ico("stop")} Fin de séance</button></div>`;
@@ -280,6 +282,12 @@ function aNoterEtape(ctx, s, sa, e) {
   const disc = discipline(s, sa);
   if (e.type === "routine" && (e.genre || "echauffement") === "echauffement" && ["Voie", "Bloc"].includes(disc)) {
     const ech = ctx.data.echelles[disc] || [], salle = salleCourante(ctx, s, sa, disc), base = cotationsBase(ctx, [], disc, salle), niv = base[1] || base[0];
+    // La sous-étape en cours décide : sans grimpe (mobilité…) → rien ; « Deux blocs niveau 3 », « Voie en 5a » → cette cote-là (dans l'échelle de la salle)
+    const sous = sousEtapes(ctx, e), ss = sous.length ? sous[Math.min((sa.sous || {})[e.k] || 0, sous.length - 1)] : null;
+    if (ss) { const nomSs = `${ss.etape || ""} ${ss.quoi || ""}`;
+      if (!/bloc|voie|grimp|travers|mur|pan\b/i.test(nomSs)) return null;
+      const m = (ss.etape || "").match(/(?:niveau|en)\s+(\d[a-c]?\+?)/i), c = m && (ech.find(x => x.toLowerCase() === m[1].toLowerCase()) || ech.find(x => x.toLowerCase().startsWith(m[1].toLowerCase())));
+      if (c) return { disc, cots: cotesSalleProches(salle, disc, c, ech), cible: c, profil: "" }; }
     const l = (salle && cotationDe(salle, disc).mode === "liste" ? [...new Set(cotationDe(salle, disc).liste.filter(x => x.app).map(x => String(x.app)))] : ech.filter(x => !x.endsWith("+"))).sort((a, b) => ech.indexOf(a) - ech.indexOf(b));
     const i = l.indexOf(niv); return { disc, cots: i > 0 ? l.slice(Math.max(0, i - 2), i) : base.slice(0, 2), profil: "" };
   }
@@ -408,6 +416,7 @@ export const actions = {
     ctx.modifierSeance(s.id, "sous-étape faite", x => { demarrerSiBesoin(x); x.sous = x.sous || {}; x.sous[d.k] = Math.min(m, (x.sous[d.k] || 0) + 1);
       if (x.sous[d.k] >= m) { x.faites = x.faites || {}; x.faites[d.k] = Math.max(1, x.faites[d.k] || 0); avancer(x, etapes, d.k); } }); ctx.rendre(); proposerFin(ctx, s); },
   // « Suivante › » : on passe à l'étape d'après sans cocher celle-ci (elle reste à faire dans le plan)
+  planModifier: ctx => { const s = courant(ctx); ouvrirEditeur(ctx, { cible: s.id, contenu: s.contenu }); },
   passer: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), etapes = etapesSeance(s, sa), c = etapeCourante(sa, etapes); if (!c) return;
     ctx.modifierSeance(s.id, "étape sautée", x => { demarrerSiBesoin(x); if (!etapeFinie(x, c)) { x.sautees = x.sautees || {}; x.sautees[c.k] = 1; } avancer(x, etapes, c.k); }); ctx.rendre(); },
   allerA: (ctx, d) => { const s = courant(ctx); ctx.modifierSeance(s.id, "j'en suis là", x => { x.curseur = d.k; }, { annulable: false }); ctx.state.ouverts.delete("e" + d.k); ctx.rendre(); },

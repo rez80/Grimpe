@@ -856,7 +856,7 @@ html.grand .tuiles-cot .tuile-voie b { font-size: var(--t-xl); }
 .actions-colonne { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
 
 /* 8.30 — Séance : salle en tête, « Maintenant » en grand, ✓ Fait | Suivante fixes, cotes repliées, plan dans la carte */
-:root { --version-css: "8.34"; }      /* vérifiée au démarrage : une feuille de style restée d'une ancienne version est rechargée */
+:root { --version-css: "8.35"; }      /* vérifiée au démarrage : une feuille de style restée d'une ancienne version est rechargée */
 .titre-seance { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .titre-seance h1 { margin: 0; }
 .salle-liste select.liste { width: auto; max-width: 100%; min-height: var(--h-c); margin: 0; padding: 4px 28px 4px 10px; font-size: var(--t-n); font-weight: 600; background-color: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.65); border-radius: var(--r-m); }
@@ -1087,3 +1087,18 @@ button.liste-sem-pli .pli-fleche { font-size: var(--t-xs); }
 /* Bande « En cours » moins haute */
 #bande-encours button { min-height: 36px; padding: 4px 14px; }
 .carte.encours .voies-outils { align-items: center; } .carte.encours .voies-outils .segment.disc-saisie { min-height: 32px; margin: 0; }
+
+/* ===== 8.35 ===== */
+/* La salle à côté du titre, avant comme pendant la séance */
+.carte.encours .encours-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.carte.encours .encours-tete .encours-nom { flex: 1 1 auto; min-width: 0; }
+.carte.encours .encours-tete .salle-liste { flex: 0 1 52%; min-width: 0; } .carte.encours .encours-tete .salle-liste select.liste { width: 100%; min-height: 32px; font-size: var(--t-s); padding: 2px 26px 2px 8px; }
+/* « ✎ Modifier » à droite de « Plan de séance » (avant, pendant, après) */
+.plan-int { position: relative; }
+.plan-int > .plan-modifier { position: absolute; top: 9px; right: 8px; min-height: 28px; padding: 2px 9px; font-size: var(--t-s); font-weight: 600; background: rgba(255,255,255,.18); color: #fff; border: 1.5px solid rgba(255,255,255,.7); border-radius: var(--r-s); }
+.plan-int .pli-plan-int > .pli-tete { padding-right: 96px; }
+/* Mur : « En bref » avec son liseré, comme les autres cartes */
+.pli-bloc.carte.recap-salle { border-left-width: 5px; }
+/* Progrès : niveau pas encore calculé */
+.tb-pas-encore { display: block; font-size: var(--t-l); } .tb-vide { display: block; }
+.plan-int .pli-plan-int > .pli-tete { padding-right: 4px; } .plan-int .pli-plan-int > .pli-tete .pli-resume { margin-right: 86px; }
