@@ -1,4 +1,4 @@
-# Grimpe 8.30 — l'app d'escalade
+# Grimpe 8.31 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,14 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.31** (retours de la première séance en 8.30).
+- **Programme** : « Prochaine séance » est un bouton à côté de « Cette semaine » (la vraie prochaine à faire) ; la carte « Aujourd'hui » ne montre que les séances du jour, y compris une séance faite en avance (« prévue ven. 20/11 · ✓ faite en 1 h 12 ») ; « semaine 1 » au lieu de « semaines 1 → 1 » ; l'en-tête ocre du bloc en cours remplit la carte.
+- **Séance faite un autre jour** : datée du jour réel partout (titre, bilan), avec « prévue … ».
+- **Routines** : leur genre vient de la bibliothèque (Contrôle des doigts = sécurité, Coudes après la séance = récupération) : bonnes couleurs, et plus de lignes de cotes pendant ces routines.
+- **Étapes** : « Suivante » marque l'étape **sautée** (ou « 1/3 · arrêtée ») dans le plan et la frise ; « ✓ Fait » sur une étape de grimpe note un passage réussi (« ✓ Fait · 1/2 »).
+- **Cote absente de la salle** (6A dans une salle 1–9) : les deux niveaux de la salle qui l'encadrent, avec leurs tuiles ; idem dans le bilan.
+- Tête de la carte : nom, puis chrono et forme, puis la salle sur toute la largeur ; ⓘ fixé à droite du titre ; rappel de consigne seulement s'il n'est pas déjà visible ; étape « Essai sur Projet » : tes projets et ★ visibles d'office ; plan plus compact (ronds sur une ligne).
 
 **Nouveautés 8.30** (séance plus lisible).
 - **Avant** : plus de cartes « Blocs » et « Plan de séance » : la **salle** se choisit dans une liste en tête de la bannière, le **plan** est dans la bannière (dépliable).
