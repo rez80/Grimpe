@@ -848,3 +848,42 @@ html.grand .tuiles-cot .tuile-voie b { font-size: 20px; }
 .bloc-prog.bloc-en-cours > .pli-tete .barre-prog-bloc, .bloc-prog.bloc-en-cours > .pli-tete progress { accent-color: #fff; }
 .barre-prog { justify-content: center; }
 .actions-colonne { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
+
+/* 8.30 — Séance : salle en tête, « Maintenant » en grand, ✓ Fait | Suivante fixes, cotes repliées, plan dans la carte */
+:root { --version-css: "8.30"; }      /* vérifiée au démarrage : une feuille de style restée d'une ancienne version est rechargée */
+.titre-seance { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.titre-seance h1 { margin: 0; }
+.salle-liste select.liste { width: auto; max-width: 100%; min-height: 34px; margin: 0; padding: 4px 28px 4px 10px; font-size: 15px; font-weight: 600; background-color: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.65); border-radius: 10px; }
+.salle-liste select.liste option { color: #1d2a2f; background: #fff; }
+.encours-outils { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: -2px 0 8px; } .encours-outils .forme-mini { margin-left: auto; }
+.forme-choisie { font-size: 18px; }
+.etape-sur { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; } .carte.encours .etape-sur, .carte.encours .etape-sur b { color: rgba(255,255,255,.92); }
+.maintenant-grand { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 25px; font-weight: 800; line-height: 1.15; margin: 4px 0 8px; color: #fff; }
+.maintenant-grand .maintenant-duree { font-size: 17px; font-weight: 600; opacity: .9; }
+.maintenant-grand .genre { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.btn-info-etape { width: 30px; height: 30px; min-height: 30px; padding: 0; border-radius: 50%; font: italic 700 17px/1 Georgia, serif; background: rgba(255,255,255,.18); color: #fff; border: 1.5px solid rgba(255,255,255,.8); flex: none; }
+.btn-info-etape.ouvert { background: #fff; color: var(--b, var(--accent)); }
+.rappel-consigne { margin: 2px 0 6px; padding: 6px 10px; border-radius: 10px; background: rgba(255,255,255,.16); color: #fff; font-size: 14px; } .rappel-consigne .exo { color: #fff; }
+.bas-etape { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 4px; }
+.bas-etape .gros { margin: 0; min-height: 56px; padding: 8px 10px; }
+.carte.encours .btn-fait { background: #2E9E6B; color: #fff; border: 2px solid #fff; }
+.carte.encours .btn-fait:disabled { opacity: .5; }
+.carte.encours .btn-suivante { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: #fff; color: var(--b); border: 2px solid #fff; }
+.btn-suivante .suiv-titre { max-width: 100%; font-size: 12px; font-weight: 500; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Cotes : la cote se touche pour déplier ses tuiles (repliées par défaut) */
+.cot-pli { display: flex; align-items: center; gap: 4px; min-height: 38px; padding: 0 2px; background: none; border: none; color: inherit; text-align: left; white-space: nowrap; overflow: hidden; }
+.cot-pli b { font-size: 16px; } .cot-pli .pli-fleche { font-size: 12px; opacity: .7; }
+.cot-pli .cot-nb { font-size: 11px; min-width: 18px; padding: 1px 5px; border-radius: 9px; background: var(--trait); color: var(--texte-2); text-align: center; }
+.lien-autres.petit-btn { margin-top: 6px; }
+/* Plan et détail : un cadre blanc dans la carte colorée (pendant) ou dans la bannière (avant, après) */
+.bandeau-seance .pli-maintenant, .bandeau-seance .pli-maintenant .pli-tete, .bandeau-seance .pli-maintenant .pli-tete * { background: transparent; color: #fff; border-color: rgba(255,255,255,.4); }
+.pli-plan-int { margin-top: 10px; border-top: 1px solid rgba(255,255,255,.35); }
+.pli-plan-int .pli-tete { padding-left: 0; padding-right: 0; }
+.plan-cadre { padding: 4px 8px; border-left-width: 1px; }
+.bandeau-seance .detail-cadre { background: var(--carte); color: var(--texte); border-radius: 12px; }
+.bandeau-seance .detail-cadre .petit, .carte.encours .detail-cadre .petit { color: var(--texte-2); }
+.carte.encours .detail-cadre .lien, .carte.encours .detail-cadre a:not(.bouton), .bandeau-seance .detail-cadre .lien { color: var(--accent); }
+.carte-jour .jour-passages { margin-top: 4px; }
+.lignes-cot .ligne-cot { grid-template-columns: 74px 1fr; } .lignes-cot.large .ligne-cot { grid-template-columns: 118px 1fr; }
+.encours-outils .salle-liste { flex: 1 1 0; min-width: 0; } .encours-outils .salle-liste select.liste { width: 100%; }
+.tuiles-cot .tuile-voie.ok-auj .tuile-lieu, .tuiles-cot .tuile-voie.ko-auj .tuile-lieu { padding-right: 14px; }

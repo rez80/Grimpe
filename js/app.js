@@ -17,7 +17,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.29";
+export const APP_VERSION = "8.30";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
 const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", assistant: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
@@ -268,6 +268,7 @@ function regenererBlocs() {
     if (enCours) { state.vue = "seance"; state.seanceId = enCours.id; state.origine = "programme"; } else state.vue = "programme"; }
   rendre(true); majEcranAllume();
   regenererBlocs();
+  verifierStyle();
   ctx.ouverture = Math.round(performance.now());                                   // temps jusqu'au premier écran (affiché dans Plus)
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
     const proposer = () => { if (navigator.serviceWorker.controller) $("bandeau").style.display = "block"; };
@@ -279,4 +280,16 @@ function regenererBlocs() {
     navigator.serviceWorker.addEventListener("controllerchange", () => { if (avaitControleur) location.reload(); avaitControleur = true; });
   }
 })();
+// La feuille de style doit être de la même version que les scripts (sinon : boutons blancs sur blanc, tuiles mal placées…).
+// Si une ancienne copie est restée en cache : on vide le cache de l'app (jamais les données) et on recharge, une fois ; si ça ne suffit pas, on le dit.
+function verifierStyle() {
+  try {
+    const v = getComputedStyle(document.documentElement).getPropertyValue("--version-css").trim().replace(/["']/g, ""), cle = "grimpe-style-recharge";
+    if (v === APP_VERSION) { sessionStorage.removeItem(cle); return; }
+    if (sessionStorage.getItem(cle) === APP_VERSION || !navigator.onLine || !window.caches) {
+      ctx.toast(`Mise à jour incomplète : la mise en page est d'une ancienne version (${v || "?"}). Vérifie que style.css a bien été envoyé avec la version ${APP_VERSION}, puis rouvre l'app.`); return; }
+    sessionStorage.setItem(cle, APP_VERSION);
+    caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))).then(() => location.reload());
+  } catch { /* au pire, la page reste comme elle est */ }
+}
 export { ctx };

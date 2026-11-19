@@ -122,7 +122,7 @@ function semaineDetail(ctx, w, sem, auj) {
 }
 
 export function menuEcran(ctx) { const carte = !!document.querySelector("#ecran .carte-modele [data-act=assistantOuvrir], #ecran .carte-bilan-bloc [data-act=assistantOuvrir]");   // pas de doublon avec la page
-  return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "+ Hors séance", act: "passageAncienOuvrir" }, { label: "Passages hors séance", act: "ouvrirVue", data: { vue: "historique" } },
+  return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "Hors séance…", act: "ouvrirVue", data: { vue: "historique" } },
     { label: "Modifier une semaine…", act: "semaineModifOuvrir" }, ...((ctx.doc.blocs || []).length ? [{ label: "Modifier un bloc…", act: "blocModifOuvrir" }] : []), ...(carte ? [] : [{ label: "+ Nouveau bloc (assistant)", act: "assistantOuvrir" }])] }; }
 
 // Options › « Modifier une semaine… » / « Modifier un bloc… » : choisir dans des listes, puis l'action
