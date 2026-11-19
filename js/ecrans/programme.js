@@ -74,7 +74,7 @@ function carteSauvegarde(ctx) {
   const n = Object.values(d.seances || {}).filter(s => s.fin && s.fin > ref).length;
   if (n < 3) return "";
   return h`<div class="carte carte-sauvegarde"><b>${n} séances depuis ta dernière sauvegarde</b><p class="petit">${ref ? `Dernière : ${new Date(ref).toLocaleDateString("fr-BE")}.` : "Aucune sauvegarde pour l'instant."} Un fichier suffit, en un appui.</p>
-    <div class="ed-rangee"><button class="principal" data-act="ouvrirVue" data-vue="sauvegarde">Sauvegarder ›</button><button data-act="sauvegardePlusTard">Plus tard</button></div></div>`;
+    <div class="ed-rangee"><button class="btn-ajout" data-act="ouvrirVue" data-vue="sauvegarde">Sauvegarder ›</button><button data-act="sauvegardePlusTard">Plus tard</button></div></div>`;
 }
 function carteRestaurer(ctx) {
   const d = ctx.doc, vide = !Object.keys(d.seances || {}).length && !(d.salles || []).length && !(d.passagesAnciens || []).length;
@@ -116,7 +116,7 @@ function fenetreARegler(ctx) {
   const auj = ctx.aujourdhui(), { doc, data } = ctx, debut = doc.reglages.dateDebut || data.dateDebut, lundi = dateSeance(debut, semaineDe(debut, auj), "Lundi"), l = seancesARegler(ctx, auj, lundi);
   return h`<h2>Séances à régler</h2><p class="petit">Pour chacune : faite (tu donnes le bilan) ou sautée.</p>
     ${l.length ? h`<div class="a-regler">${l.map(s => h`<div class="a-regler-ligne" data-activite="${activiteAffichee(s, ctx.saisie(s.id))}"><span><b>${nomSeance(s, ctx.saisie(s.id))}</b><br><span class="petit">${court(s.date)}</span></span>
-      <button class="petit-btn" data-act="aReglerSautee" data-id="${s.id}">Sautée</button><button class="petit-btn principal" data-act="ouvrirSeance" data-id="${s.id}">Faite ›</button></div>`)}</div>` : h`<p>Tout est réglé ✓</p>`}
+      <button class="petit-btn" data-act="aReglerSautee" data-id="${s.id}">Sautée</button><button class="petit-btn" data-act="ouvrirSeance" data-id="${s.id}">Faite ›</button></div>`)}</div>` : h`<p>Tout est réglé ✓</p>`}
     <div class="actions"><button data-act="mFermer">Fermer</button></div>`;
 }
 function semaineDetail(ctx, w, sem, auj) {
@@ -142,11 +142,12 @@ function semaineDetail(ctx, w, sem, auj) {
   const ligneHors = hors.length ? h`<button class="item ligne-hors" data-act="ouvrirVue" data-vue="historique"><span>Hors séance · ${hors.length} passage${hors.length > 1 ? "s" : ""}${(n => n ? ` · ${n} réussi${n > 1 ? "s" : ""}` : "")(hors.filter(p => p.res === "ok").length)}</span><span class="petit">voir ›</span></button>` : "";
   return h`${si(bilanSem, h`<p class="bilan-sem">${bilanSem}</p>`)}${ligneHors}${si(aFaire.length, () => h`<div class="a-faire"><b>À faire</b><div class="liste">${aFaire}</div></div>`)}<div class="jours">${jours.map(x => h`<div class="jour ${x.d === auj ? "auj" : ""}">${x.seances.length === 1 ? h`<button class="jour-nom jour-btn" data-act="ouvrirSeance" data-id="${x.seances[0].id}">${x.j.slice(0, 3)}<br><span class="petit">${x.d.slice(8, 10)}</span></button>` : h`<div class="jour-nom">${x.j.slice(0, 3)}<br><span class="petit">${x.d.slice(8, 10)}</span></div>`}
       ${x.seances.map(s => { const e = etatSeance(s, ctx.saisie(s.id), auj); const a = activiteAffichee(s, ctx.saisie(s.id)); return h`<button class="pastille-seance etat-${e}" data-act="ouvrirSeance" data-appui="seanceMenu" data-id="${s.id}" data-activite="${a}" aria-label="${nomSeance(s, ctx.saisie(s.id))}">${ICONE[e] || a[0]}</button>`; })}</div>`)}</div>
-    ${sem.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), t = sa.tentatives || [], et = etapesSeance(s, sa);
+    ${(() => { const cle = `liste-sem-${w}`, ouverte = ctx.state.ouverts.has(cle);       // D4 : la bande des jours d'abord ; la liste des séances, repliée, en dessous
+      return h`<button class="liste-sem-pli" data-act="plier" data-k="${cle}" aria-expanded="${ouverte ? "true" : "false"}"><span class="pli-fleche">${ouverte ? "▾" : "▸"}</span> ${ouverte ? "Masquer le détail" : `Détail des ${sem.length} séance${sem.length > 1 ? "s" : ""}`}</button>${si(ouverte, () => h`${sem.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), t = sa.tentatives || [], et = etapesSeance(s, sa);
       const a = activiteAffichee(s, sa);
       return h`<div class="carte-seance-cadre"><button class="carte-seance etat-${e}" data-act="ouvrirSeance" data-appui="seanceMenu" data-id="${s.id}" data-activite="${a}">
         <span class="cs-gauche"><b>${nomSeance(s, sa)}${s.bonus ? h` <span class="tag-bonus">bonus</span>` : ""}</b><span class="petit">${court(s.date)}${s.dateFixee ? " (déplacée)" : ""} · ≈ ${hm(dureeSeance(s, et, data, doc.reglages))}</span></span>
-        <span class="cs-droite">${e === "faite" ? h`✓ ${sa.effort ? `effort ${sa.effort}` : ""}${t.length ? ` · ${t.filter(reussi).length}/${t.length}` : ""}` : e === "abilan" ? "✓ bilan ?" : e === "sautee" ? "✗ sautée" : e === "encours" ? "● en cours" : e === "passee" ? "? passée" : e === "aujourdhui" ? "aujourd'hui" : ""}</span></button><button class="cs-menu" data-act="seanceMenu" data-id="${s.id}" aria-label="Options de la séance">⋯</button></div>`; })}
+        <span class="cs-droite">${e === "faite" ? h`✓ ${sa.effort ? `effort ${sa.effort}` : ""}${t.length ? ` · ${t.filter(reussi).length}/${t.length}` : ""}` : e === "abilan" ? "✓ bilan ?" : e === "sautee" ? "✗ sautée" : e === "encours" ? "● en cours" : e === "passee" ? "? passée" : e === "aujourdhui" ? "aujourd'hui" : ""}</span></button><button class="cs-menu" data-act="seanceMenu" data-id="${s.id}" aria-label="Options de la séance">⋯</button></div>`; })}`)}`; })()}
 `;
 }
 

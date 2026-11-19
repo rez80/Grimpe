@@ -141,7 +141,7 @@ export function rendre(ctx) {
 
     case "choixSalle": { const l = sallesPour(doc, M.disc), sa0 = ctx.saisie(M.seanceId), actuelle = (sa0.salle !== undefined ? sa0.salle : salleParDefautPour(doc, M.disc)) || "";
       return h`<h2>Salle du jour</h2><div class="menu">${l.map(x => h`<button class="${actuelle === x.id ? "choisi" : ""}" data-act="salleDuJour" data-id="${x.id}">${x.nom} <span class="petit">· ${x.voies.filter(v => v.statut !== "demontee" && v.disc === M.disc).length} ${M.disc === "Bloc" ? "blocs" : "voies"}</span></button>`)}
-        <button class="${!actuelle ? "choisi" : ""}" data-act="salleDuJour" data-id="">Salle inconnue <span class="petit">· on note par cotation</span></button><button data-act="salleDuJourNouvelle">+ Nouvelle salle…</button></div>
+        <button class="${!actuelle ? "choisi" : ""}" data-act="salleDuJour" data-id="">Salle inconnue <span class="petit">· on note par cotation</span></button><button class="btn-ajout" data-act="salleDuJourNouvelle">+ Nouvelle salle…</button></div>
         <div class="actions"><button data-act="mFermer">Fermer</button></div>`; }
 
     case "nouvelleVoie": { const salle = salleDe(doc, M.salleId), c = cotationDe(salle, M.disc);
@@ -332,7 +332,7 @@ export function rendre(ctx) {
             <button class="hv-suppr" data-act="passageSupprimer" data-pa="${t.approx ? t.id || "" : ""}" data-s="${t.approx ? "" : t.seanceId}" data-t="${t.t || ""}" aria-label="Supprimer ce passage">✕</button></div>`; })
           : h`<p class="petit">Aucun passage. « + Ajouter » pour noter un passage d'un autre jour (réussite ou échecs).</p>`}</div>`)}
       <div class="actions"><button data-act="mFermer">Annuler</button><button class="principal" data-act="voieOk">Enregistrer</button></div>
-      ${si(M.id && M.statut !== "demontee" && seanceEnCoursPour(ctx, M.disc), () => h`<button class="gros contour" data-act="noterDepuisFiche">+ Noter un passage maintenant</button>`)}
+      ${si(M.id && M.statut !== "demontee" && seanceEnCoursPour(ctx, M.disc), () => h`<button class="gros btn-ajout" data-act="noterDepuisFiche">+ Noter un passage maintenant</button>`)}
       ${si(M.id, () => h`<div class="fiche-actions"><button data-act="mBasculeEtoile">${M.etoile ? "★ À essayer" : "☆ À essayer"}</button><button data-act="voieDupliquer">${ico("copier")} Dupliquer</button>${si(M.statut !== "demontee", h`<button data-act="voieDemonter">Démontée</button>`)}</div>
         <div class="zone-danger"><button class="danger" data-act="voieSupprimer">Supprimer la voie</button></div>`)}`; }
 
@@ -370,7 +370,7 @@ export function rendre(ctx) {
       <label class="champ">Résultat</label>${choix("mChamp", choixResultat(v ? v.disc : M.disc), M.res, { data: { champ: "res" } })}
       ${plusieurs ? h`<label class="champ">${M.res === "sec" ? "Dates (une par passage)" : "Dates des échecs (une par essai)"}</label>
         <div class="dates-pastilles">${dates.map((d, i) => h`<button class="date-pastille" data-act="dateRetirer" data-i="${i}">${court(d)} ✕</button>`)}${si(M.inconnues, h`<button class="date-pastille" data-act="inconnueRetirer">Date inconnue ×${M.inconnues} ✕</button>`)}${si(!nb, h`<span class="petit">aucune date</span>`)}</div>
-        <div class="ed-rangee"><input type="date" data-champ="dateAjout" value="${M.dateAjout || ctx.aujourdhui()}"><button data-act="dateAjouter">+ Cette date</button><button data-act="inconnueAjouter">+ Date inconnue</button></div>
+        <div class="ed-rangee"><input type="date" data-champ="dateAjout" value="${M.dateAjout || ctx.aujourdhui()}"><button class="btn-ajout" data-act="dateAjouter">+ Cette date</button><button class="btn-ajout" data-act="inconnueAjouter">+ Date inconnue</button></div>
         ${si(!v, () => h`<label class="champ">Combien de fois chaque date ?</label>${echelle("mChamp", 8, M.n, { data: { champ: "n" } })}`)}`
       : h`${ligneChoix(M, "date", "Date", M.dateInconnue ? "inconnue" : court(M.date), () => h`<div class="ed-rangee"><input type="date" data-champ="date" value="${M.date}"><button data-act="mBool" data-k="dateInconnue" class="${M.dateInconnue ? "choisi" : ""}">Date inconnue</button></div>`)}
         ${si(M.res === "ok", () => champsReussite(ctx, M))}`}

@@ -856,7 +856,7 @@ html.grand .tuiles-cot .tuile-voie b { font-size: var(--t-xl); }
 .actions-colonne { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
 
 /* 8.30 — Séance : salle en tête, « Maintenant » en grand, ✓ Fait | Suivante fixes, cotes repliées, plan dans la carte */
-:root { --version-css: "8.32"; }      /* vérifiée au démarrage : une feuille de style restée d'une ancienne version est rechargée */
+:root { --version-css: "8.33"; }      /* vérifiée au démarrage : une feuille de style restée d'une ancienne version est rechargée */
 .titre-seance { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .titre-seance h1 { margin: 0; }
 .salle-liste select.liste { width: auto; max-width: 100%; min-height: var(--h-c); margin: 0; padding: 4px 28px 4px 10px; font-size: var(--t-n); font-weight: 600; background-color: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.65); border-radius: var(--r-m); }
@@ -1018,3 +1018,14 @@ button.jour-btn { background: none; border: none; padding: 2px 0; min-height: 0;
 .bravo-tuiles > div { background: var(--fond); border-radius: var(--r-m); padding: 10px 4px; display: flex; flex-direction: column; gap: 2px; }
 .bravo-tuiles b { font-size: var(--t-xl); } .bravo p { margin: 6px 0; } .bravo-feu { color: var(--ok-txt); font-weight: 700; }
 .pli-bloc .carte.carte-liseree { box-shadow: none; margin: 0; padding: 0; border: none; background: none; }
+.gp-res .encore.btn-ajout { background: color-mix(in srgb, var(--ocre) 16%, var(--carte)); }
+/* A6 : Plus : le même modèle que les autres cartes (pleine largeur, liseré de couleur à gauche, titre + résumé) ; l'icône sans carré */
+.menu-plus { grid-template-columns: 1fr; gap: 8px; }
+.menu-plus .tuile { flex-direction: row; align-items: center; gap: 12px; min-height: var(--h-n); padding: 10px 14px; border: none; border-left: 5px solid var(--t, var(--ocre)); box-shadow: var(--ombre); background: var(--carte); border-radius: var(--rayon); }
+.menu-plus .tuile .ico { flex: 0 0 24px; width: 24px; height: 24px; background: none; border-radius: 0; }
+.menu-plus .tuile .ico .ico-svg { width: 22px; height: 22px; }
+.menu-plus .tuile br { display: none; } .menu-plus .tuile .petit { margin-left: 6px; }
+.menu-plus .tuile.attention { border-left-color: var(--orange); background: color-mix(in srgb, var(--orange) 10%, var(--carte)); }
+/* D4 : sous la bande des jours, le détail des séances replié */
+button.liste-sem-pli { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: none; border-top: 1px solid var(--trait); border-radius: 0; color: var(--texte-2); font-size: var(--t-m); font-weight: 600; min-height: var(--h-c); padding: 4px 8px; margin-top: 6px; text-align: left; }
+button.liste-sem-pli .pli-fleche { font-size: var(--t-xs); }

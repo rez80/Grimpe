@@ -93,7 +93,7 @@ export function rendre(ctx) {
       <div class="as-nom"><b>${i + 1} · ${ETAPES[i]}</b> <button class="lien" data-act="asPourquoi">${A.pourquoi ? "▾" : "▸"} Pourquoi ?</button></div></div>
     ${si(A.pourquoi, () => h`<p class="as-pourquoi">${POURQUOI[i]} <button class="lien" data-act="ouvrirAide" data-k="bloc">Le guide complet ›</button></p>`)}
     ${corps}
-    <div class="barre-seance barre-assistant">${i > 0 ? h`<button data-act="asAller" data-k="${i - 1}">‹ Précédent</button>` : h`<button data-act="asQuitter">Fermer</button>`}
+    <div class="barre-seance barre-assistant">${i > 0 ? h`<button data-act="asAller" data-k="${i - 1}">‹ Précédent</button>` : ""}
       ${i < ETAPES.length - 1 ? h`<button class="principal" data-act="asAller" data-k="${i + 1}">Suivant ›</button>` : h`<button class="principal" data-act="asCreer">${A.edition ? "Enregistrer le bloc" : "Créer le bloc"}</button>`}</div>`;
   return { html, titre: h`<b>Construire un bloc</b>` };
 }
