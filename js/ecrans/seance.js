@@ -101,12 +101,11 @@ export function rendre(ctx) {
     // Pendant : une seule carte, teintée de la couleur de l'activité. De haut en bas : salle et forme, ligne du temps,
     // l'étape (ⓘ = son détail), ce qu'il faut faire maintenant (en grand), « ✓ Fait » | « Suivante », les cotes à noter, le plan.
     const ecoule = (Date.now() - sa.debut - (sa.pauseTotale || 0)) / 1000, suivante = etapeSuivante(sa, etapes), act = actives(etapes);
-    const toutFait = act.every(e => etapeFinie(sa, e)), rang = courante ? act.findIndex(e => e.k === courante.k) + 1 : act.length;
+    const toutFait = act.every(e => etapeFinie(sa, e));
     const emoji = ({ vert: "🙂", orange: "😐", rouge: "😣" })[fj] || "";
     out = h`${out}${consignes()}<div class="carte encours" data-activite="${nom}">
       <div class="encours-tete"><span class="encours-nom">${sa.recup && emoji ? h`<span class="forme-choisie" aria-label="Forme du jour">${emoji}</span> ` : ""}<b>${nomSeance(s, sa)}</b> <span class="petit">${s.phase}</span></span></div>
       <div class="encours-temps"><span class="petit">${hm(ecoule)} · fin ≈ ${hhmm(Date.now() + Math.max(0, duree - ecoule) * 1000)}</span>${si(!sa.recup, h`<span class="forme-mini"><span class="petit">Forme ?</span><button data-act="forme" data-f="bien" aria-label="Bien">🙂</button><button data-act="forme" data-f="moyen" aria-label="Moyen">😐</button><button data-act="forme" data-f="pastop" aria-label="Pas top">😣</button></span>`)}</div>
-      ${si(estGrimpe, () => h`<div class="encours-outils">${choixSalleListe()}</div>`)}
       ${frise(ctx, s, sa, etapes, toutFait ? null : courante)}
       ${toutFait || !courante ? h`<div class="tout-fait"><b>✓ Toutes les étapes sont faites</b><span class="petit">Bravo ! Il reste le bilan : effort, douleur, et ce que tu as grimpé.</span></div>
           <button class="gros principal" data-act="bilanOuvrir">${ico("stop")} Terminer la séance</button>`
@@ -126,15 +125,18 @@ export function rendre(ctx) {
             : h`<button class="gros btn-fait" data-act="${suivante ? "suivant" : "suivantFin"}">✓ Fait</button>`;
           const droite = suivante ? h`<button class="gros btn-suivante" data-act="passer"><span>Suivante ›</span><span class="suiv-titre">${titreDe(suivante)}</span></button>`
             : h`<button class="gros btn-suivante" data-act="bilanOuvrir"><span>Terminer ›</span><span class="suiv-titre">bilan de la séance</span></button>`;
-          return h`<div class="encours-etape">
-          <div class="etape-sur petit">Étape ${rang} sur ${act.length}${enSous ? h` · ${genre}<b>${titreDe(courante)}</b> ${compteur}` : ""}</div>
-          ${enSous ? h`<div class="maintenant-grand"><span class="mg-texte">${sous[nSous].etape}${sous[nSous].duree ? h` <span class="maintenant-duree">· ${hm(sous[nSous].duree)}</span>` : ""}</span>${iBtn}</div>`
-            : h`<div class="maintenant-grand"><span class="mg-texte">${genre}${titreDe(courante)}${compteur ? h` <span class="maintenant-duree">${compteur}</span>` : ""}</span>${iBtn}</div>`}
+          // Le dernier mot du titre reste collé à sa durée / son compteur (pas de « · 7 min » seul sur une ligne)
+          const colle = (txt, fin) => { const m = String(txt).match(/^(.*\s)?(\S+)$/) || [null, "", String(txt)]; return h`${m[1] || ""}<span class="colle">${m[2]}${fin}</span>`; };
+          const titre = enSous ? colle(sous[nSous].etape, sous[nSous].duree ? h` <span class="maintenant-duree">· ${hm(sous[nSous].duree)}</span>` : "")
+            : h`${genre}${colle(titreDe(courante), compteur ? h` <span class="maintenant-duree">${compteur}</span>` : "")}`;
+          // De haut en bas : les boutons (toujours à la même place), puis ce qui change d'une étape à l'autre, puis la salle et les cotes
+          return h`<div class="bas-etape">${gauche}${droite}</div>
+          <div class="encours-etape">
+          ${si(enSous, () => h`<div class="etape-sur petit">${genre}<b>${titreDe(courante)}</b> ${compteur}</div>`)}
+          <div class="maintenant-grand"><span class="mg-texte">${titre}</span><span class="mg-actions">${boutonsEtape(ctx, s, sa, courante, true)}${iBtn}</span></div>
           ${si(detailOuvert, () => h`<div class="detail-cadre">${detailEtape(ctx, courante)}</div>`)}
           ${rappel ? h`<div class="rappel-consigne">${ico("consignes")} ${lier(rappel.texte, data.exercices)}</div>` : ""}</div>
-        <div class="boutons-maintenant">${boutonsEtape(ctx, s, sa, courante, true)}</div>
-        <div class="bas-etape">${gauche}${droite}</div>
-        ${si(estGrimpe, () => zoneNoter(ctx, s, sa, courante))}`; })()}
+        ${si(estGrimpe, () => h`<div class="encours-outils">${choixSalleListe()}</div>${zoneNoter(ctx, s, sa, courante)}`)}`; })()}
       ${planInt("plan-encours", false)}
     </div>${blocAverts()}
     <div class="barre-seance"><button class="contour-orange" data-act="douleurOuvrir">${ico("alerte")} Douleur</button><button class="fin-seance" data-act="bilanOuvrir">${ico("stop")} Fin de séance</button></div>`;
@@ -265,7 +267,8 @@ function lignesCotes(ctx, s, sa, disc, cots, profil = "", projets = false) {
     if (!deplie(c)) { const p = projets ? l.filter(v => rangV(v) <= 1) : [];          // étape « Essai sur Projet » : tes projets et ★ restent visibles
       return p.length ? h`<div class="tuiles tuiles-cot">${p.slice(0, 5).map(v => tuileVoie(ctx, salle, v, auj, C.voies, disc))}</div>` : ""; }
     return h`<div class="tuiles tuiles-cot">${(tout ? l : l.slice(0, max)).map(v => tuileVoie(ctx, salle, v, auj, C.voies, disc))}</div>${si(l.length > max, h`<button class="petit-btn lien-autres" data-act="cotTout" data-k="${cle}">${tout ? "Moins" : `+ ${l.length - max} autre${l.length - max > 1 ? "s" : ""}`}</button>`)}`; };
-  const etiquette = (c, l) => l.length ? h`<button class="cot-pli" data-act="cotDeplier" data-k="${cleDe(c)}" aria-expanded="${deplie(c) ? "true" : "false"}"><span class="pli-fleche">${deplie(c) ? "▾" : "▸"}</span><b>${deuxCot(salle, disc, "", c)}</b><span class="cot-nb">${l.length}</span></button>` : h`<b class="cot-seule">${deuxCot(salle, disc, "", c)}</b>`;
+  // La cote, puis un vrai bouton « 15 blocs ▾ » pour voir les tuiles de la salle à cette cote (« Masquer ▴ » une fois ouvert)
+  const etiquette = (c, l) => h`<span class="cot-lib"><b class="cot-seule">${deuxCot(salle, disc, "", c)}</b>${l.length ? h`<button class="cot-voir ${deplie(c) ? "ouvert" : ""}" data-act="cotDeplier" data-k="${cleDe(c)}" aria-expanded="${deplie(c) ? "true" : "false"}">${deplie(c) ? "Masquer ▴" : `${l.length} ${disc === "Bloc" ? (l.length > 1 ? "blocs" : "bloc") : (l.length > 1 ? "voies" : "voie")} ▾`}</button>` : ""}</span>`;
   const anonymes = c => h`<span class="anon n${disc === "Voie" ? 3 : 2}"><button class="ok" data-act="noterRapide" data-disc="${disc}" data-cot="${c}" data-res="ok" aria-label="Réussi en ${c}">✓</button>${si(disc === "Voie", h`<button class="sec" data-act="rapideSec" data-disc="${disc}" data-cot="${c}" aria-label="En haut avec sec en ${c}">sec</button>`)}<button class="ko" data-act="noterRapide" data-disc="${disc}" data-cot="${c}" data-res="ko" aria-label="Pas réussi en ${c}">✗</button></span>`;
   const large = cots.some(c => deuxCot(salle, disc, "", c).includes("≈"));
   return h`<div class="lignes-cot ${large ? "large" : ""}">${cots.map(c => { const l = C ? triees(c) : []; return h`<div class="bloc-cot"><div class="ligne-cot">${etiquette(c, l)}${anonymes(c)}</div>${tuilesDe(c, l)}</div>`; })}</div>`;
@@ -457,7 +460,7 @@ export const actions = {
     const t = { t: Date.now(), k: cleRattachement(ctx, s, sa, disc), disc, cot: d.cot, cotSalle: salle ? cotSalleDe(salle, disc, d.cot).split(" / ")[0] || "" : "", profil: "", res: d.res, ...(d.res === "sec" ? { sec: Math.max(1, +d.sec || 1) } : {}), ...(salle ? { salle: salle.id } : {}) };
     ajouterTentative(ctx, s, t);
     if (ctx.state.modal) ctx.fermerModal();
-    ctx.toast(`${t.res === "sec" ? `En haut avec ${t.sec} sec` : resLabel(t)} · ${cotLibelle(t)} · ${disc === "Bloc" ? "bloc déjà fait" : "voie déjà faite"}`, () => ctx.store.annuler(), { label: "Nouvelle voie", action: () => ctx.modifierSeance(s.id, "nouvelle voie", x => { const y = (x.tentatives || []).find(z => z.t === t.t); if (y) y.nouvelle = true; }) });
+    ctx.toast(`${t.res === "sec" ? `En haut avec ${t.sec} sec` : resLabel(t)} · ${cotLibelle(t)} · ${disc === "Bloc" ? "bloc déjà fait" : "voie déjà faite"}`, () => ctx.store.annuler(), { label: disc === "Bloc" ? "Nouveau bloc" : "Nouvelle voie", action: () => ctx.modifierSeance(s.id, "nouvelle voie", x => { const y = (x.tentatives || []).find(z => z.t === t.t); if (y) y.nouvelle = true; }) });
     ctx.rendre(); },
   nouvelleVoieOuvrir: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), disc = discSaisie(ctx, s, sa), salle = salleCourante(ctx, s, sa, disc), c = cotationDe(salle, disc);
     ctx.ouvrirModal({ type: "nouvelleVoie", seanceId: s.id, salleId: salle.id, disc, couleur: "", cotSalle: "", chiffre: "", nom: "", profil: profilHabituel(salle, ctx.state.dernierSecteur || null), secteurId: ctx.state.dernierSecteur || "", mode: c.mode }); },
