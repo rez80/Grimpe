@@ -856,7 +856,7 @@ html.grand .tuiles-cot .tuile-voie b { font-size: var(--t-xl); }
 .actions-colonne { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
 
 /* 8.30 — Séance : salle en tête, « Maintenant » en grand, ✓ Fait | Suivante fixes, cotes repliées, plan dans la carte */
-:root { --version-css: "8.35"; }      /* vérifiée au démarrage : une feuille de style restée d'une ancienne version est rechargée */
+:root { --version-css: "8.36"; }      /* vérifiée au démarrage : une feuille de style restée d'une ancienne version est rechargée */
 .titre-seance { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .titre-seance h1 { margin: 0; }
 .salle-liste select.liste { width: auto; max-width: 100%; min-height: var(--h-c); margin: 0; padding: 4px 28px 4px 10px; font-size: var(--t-n); font-weight: 600; background-color: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.65); border-radius: var(--r-m); }
@@ -1102,3 +1102,9 @@ button.liste-sem-pli .pli-fleche { font-size: var(--t-xs); }
 /* Progrès : niveau pas encore calculé */
 .tb-pas-encore { display: block; font-size: var(--t-l); } .tb-vide { display: block; }
 .plan-int .pli-plan-int > .pli-tete { padding-right: 4px; } .plan-int .pli-plan-int > .pli-tete .pli-resume { margin-right: 86px; }
+
+/* ===== 8.36 — liste de vérifications (Contrôle des doigts…) : une seule étape, les points sous le titre ===== */
+.liste-verif { list-style: none; margin: 2px 0 8px; padding: 6px 10px; border-radius: var(--r-m); background: rgba(0,0,0,.14); color: #fff; }
+.liste-verif li { padding: 3px 0; font-size: var(--t-m); } .liste-verif li + li { border-top: 1px solid rgba(255,255,255,.18); }
+.liste-verif .petit { color: rgba(255,255,255,.85); }
+.plan-int .pli-plan-int > .pli-tete .pli-titre { white-space: nowrap; } .plan-int .pli-plan-int > .pli-tete .pli-resume { font-size: var(--t-s); text-align: right; }
