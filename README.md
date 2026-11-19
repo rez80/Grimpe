@@ -1,4 +1,4 @@
-# Grimpe 8.34 — l'app d'escalade
+# Grimpe 8.35 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,12 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.35**
+- **Échauffement** : chaque sous-étape décide. Sans grimpe (Mobilité articulaire…) : pas de lignes de cotes, seulement « + Noter un passage ». « Deux blocs niveau 3 », « Voie en 5a » : cette cote-là, dans l'échelle de la salle (ou les deux niveaux qui l'encadrent).
+- **Salle** : toujours à côté du titre de la séance, avant comme pendant.
+- **Plan de séance** : « ✎ Modifier » à droite du titre, tout le temps.
+- **Cohérence** : pas de bouton « Annuler » en haut de l'assistant (la flèche ‹ suffit) ; page « Hors séance » (même nom que l'entrée d'Options) ; « En bref » du mur avec son liseré ; Progrès › Niveau : « pas encore » en grand.
 
 **Nouveautés 8.34** (séance plus lisible et plus compacte).
 - **Ordre de la carte** : en-tête (séance, chrono, forme), frise, **✓ Fait | Suivante** toujours à la même place, puis ce qui change d'une étape à l'autre (titre, Chrono/Repos et ⓘ à droite du titre, détail, rappel de consigne), puis la **salle** juste au-dessus des cotes, puis le **plan**. « Étape x sur 9 » est retiré (la frise le montre).
