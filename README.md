@@ -1,4 +1,4 @@
-# Grimpe 8.29 — l'app d'escalade
+# Grimpe 8.30 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,14 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.30** (séance plus lisible).
+- **Avant** : plus de cartes « Blocs » et « Plan de séance » : la **salle** se choisit dans une liste en tête de la bannière, le **plan** est dans la bannière (dépliable).
+- **Pendant** : ce qu'il faut faire **maintenant** en grand ; ⓘ à côté du titre pour le détail ; « Guidée » devient **Chrono** ; **✓ Fait** (vert, à gauche) et **Suivante ›** (blanc, à droite) toujours à la même place ; les **cotes à noter sous les boutons**, leurs voies **repliées** (un appui sur la cote) ; le plan de séance d'origine en bas de la carte, replié ; une consigne qui parle de la cote de l'étape est rappelée sous le titre.
+- **Correction** : à la dernière étape, l'app ne revient plus au début (« Terminer › » mène au bilan).
+- « Aujourd'hui » : une carte repliée sous la séance (corriger, « + encore », après la séance « + Un passage oublié… »).
+- **Options du Programme** : « Hors séance… » (la liste et « + Passage hors séance ») remplace les deux entrées.
+- Mise à jour : si la feuille de style est restée d'une ancienne version (boutons blancs sur blanc), l'app vide son cache et se recharge une fois — jamais les données ; sinon elle le dit.
 
 **Nouveautés 8.29** (Programme allégé, séance tout-en-un).
 - **Programme** : l'en-tête du bloc en cours en couleur de l'app ; un seul bouton « Cette semaine » ; **Options** : + Séance, + Hors séance, Passages hors séance, **Modifier une semaine…** (bloc et semaine en listes, raccourcis « Cette semaine » / « Semaine ouverte » : Mesures, Faire une pause, Copier · répéter) et **Modifier un bloc…** (Modifier, Retirer).
@@ -264,7 +272,7 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 ⚠️ **Sur iPhone, les données de l'app sont liées à son icône.** Supprimer l'icône de l'écran d'accueil efface toutes les données de l'app. Avant de supprimer et de rajouter l'icône (par exemple pour corriger son image), fais une sauvegarde et vérifie-la (voir 3). Pour vérifier que Safari a bien la dernière version avant d'ajouter l'icône, regarde le numéro de version en bas de l'onglet Plus.
 
 ### 2.3 Mettre à jour
-Remplace les fichiers dans le dépôt. À la prochaine ouverture, ou au retour dans l'app, un bandeau « Nouvelle version disponible — mettre à jour » apparaît ; un appui suffit. Tes données ne sont pas touchées.
+Remplace **tous** les fichiers dans le dépôt (scripts *et* `style.css`). À la prochaine ouverture, ou au retour dans l'app, un bandeau « Nouvelle version disponible — mettre à jour » apparaît ; un appui suffit. Tes données ne sont pas touchées.
 
 ---
 
