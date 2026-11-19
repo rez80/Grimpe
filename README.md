@@ -1,4 +1,4 @@
-# Grimpe 8.31 — l'app d'escalade
+# Grimpe 8.33 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,23 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.33** (fin de l'audit).
+- **Boutons** : tous les « + … » ont le style Ajout (ocre clair) ; un seul bouton principal par écran ou fenêtre (« Faite › » des séances à régler et « Sauvegarder › » passent en secondaire/ajout).
+- **Plus** : les entrées ont le même modèle que les autres cartes (pleine largeur, liseré, titre + résumé, icône sans carré). La carte de salle turquoise de « Salles » ne change pas.
+- **Assistant** : une seule sortie, la flèche ‹ en haut (plus de « Fermer » en bas à la 1re étape).
+- **Programme** : sous la bande des jours, le détail des séances de la semaine est replié (« ▸ Détail des 5 séances »).
+- **Progrès** : la courbe du niveau consolidé vérifiée à l'écran (clair et sombre).
+- Arrondis et hauteurs : unifiés partout, sauf, volontairement, la frise et les éléments ronds ou carrés de taille fixe (ronds, cases ✓, pastilles), qui seraient déformés.
+
+**Nouveautés 8.32** (audit : style, organisation, séance allégée).
+- **Séance** : un seul élément blanc dans la carte colorée (« Suivante ›») ; lignes de cotes, outils et plan en voile translucide ; ✓ ✗ plus compacts ; cotes triées de la plus facile à la plus dure ; « Une autre cotation » en grille, un appui ajoute ou retire ; étape sans cote : une seule ligne « + Noter un passage ».
+- **Corrections** : le message sur une fenêtre ouverte ne remplit plus l'écran ; bouton « mettre à jour » lisible en sombre ; titre du menu de séance au jour réel.
+- **Style** : une seule échelle (7 tailles de texte, 3 arrondis, 2 hauteurs de bouton, 3 couleurs de résultat) ; « Grand affichage » agrandit tout ; rôles des boutons (principal, secondaire, + ajout ocre clair, danger, lien) ; filtres à 2–3 choix en segments ; « Aujourd'hui » sans double cadre ; textes explicatifs courts + « ▸ Pourquoi ? » ; contrastes du mode sombre.
+- **Organisation** : « + Séance » à côté de « Cette semaine · Prochaine séance » ; Options du mur : « + Ajouter plusieurs voies… » (par niveau, ou une par une) ; écran sans action à lui : « ↶ Annuler » à la place d'« Options » ; onglet Salles : une seule salle → son mur ; « N séances passées sans nouvelles · régler › » ; éditeur de séance plein écran ; Calendrier dans Sauvegarde ; bilan : « Effort : à choisir ».
+- **Progrès** : courbe du niveau consolidé (voie, bloc) dans « Niveau consolidé » ; douleur légère (≤ 3/10) en orange ; « Prochaine séance dure : Ven. 20/11 ».
+- **Expérience** : la séance du jour s'ouvre toute seule à la première ouverture du jour ; rappel de sauvegarde après 3 séances (ouvre la page Sauvegarde, la sauvegarde elle-même ne change pas) ; jours de la bande de la semaine à toucher ; écran de fin de séance (durée, passages, meilleure réussite, feux verts). Le thème « Automatique (comme l'iPhone) » existe déjà dans Réglages › Affichage.
+- La carte de salle turquoise de « Salles » ne change pas.
 
 **Nouveautés 8.31** (retours de la première séance en 8.30).
 - **Programme** : « Prochaine séance » est un bouton à côté de « Cette semaine » (la vraie prochaine à faire) ; la carte « Aujourd'hui » ne montre que les séances du jour, y compris une séance faite en avance (« prévue ven. 20/11 · ✓ faite en 1 h 12 ») ; « semaine 1 » au lieu de « semaines 1 → 1 » ; l'en-tête ocre du bloc en cours remplit la carte.
