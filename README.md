@@ -1,4 +1,4 @@
-# Grimpe 8.33 — l'app d'escalade
+# Grimpe 8.34 — l'app d'escalade
 
 Une app pour iPhone qui suit un programme d'entraînement à l'escalade (voie, bloc, maison, course) :
 - **Programme.xlsx** sur le PC décrit le programme ;
@@ -14,6 +14,13 @@ L'app est une page web installée sur l'écran d'accueil (PWA). Elle est écrite
 **Onglets.** En bas : **Programme · Salles · Progrès · Plus**. Une séance s'ouvre depuis la carte « Aujourd'hui » du Programme (et l'app s'ouvre directement sur une séance en cours). Pendant une séance, une **bande « En cours »** dans la couleur de l'activité reste au-dessus des onglets sur tous les écrans, par exemple « ▶ Bloc · étape 3/7 · 42 min », avec le repos ou le chrono qui tourne : un appui ramène à la séance.
 
 **Plus** regroupe le reste en trois parties : Contenu (Bibliothèque), Mes données (Sauvegarde, Calendrier), L'app (Réglages, Aide).
+
+**Nouveautés 8.34** (séance plus lisible et plus compacte).
+- **Ordre de la carte** : en-tête (séance, chrono, forme), frise, **✓ Fait | Suivante** toujours à la même place, puis ce qui change d'une étape à l'autre (titre, Chrono/Repos et ⓘ à droite du titre, détail, rappel de consigne), puis la **salle** juste au-dessus des cotes, puis le **plan**. « Étape x sur 9 » est retiré (la frise le montre).
+- **Plus compact** : boutons Fait/Suivante 48 px, Chrono et Repos en petit à côté du titre, lignes de cotes 40 px avec ✓ ✗ plus petits, outils sur une ligne, forme en simples emojis ; la durée reste collée au dernier mot du titre.
+- **Cotes** : un vrai bouton « 15 blocs ▾ » (« Masquer ▴ ») pour voir les tuiles de la salle.
+- **Couleurs** : plan de séance dans un panneau plus foncé, étapes en bandes plus claires ; plus de fond blanc dans la séance (détail ⓘ et détail d'étape en voile foncé) ; Consignes en ocre léger ; fenêtres (Options, bilan, noter…) et résumé en ocre très transparent.
+- **Corrections** : message « Nouveau bloc » (et non « Nouvelle voie ») dans une séance bloc ; tuiles : « secteur 3 » en entier ; filtres du mur de même hauteur ; « Aujourd'hui » plus compact ; bande « En cours » moins haute.
 
 **Nouveautés 8.33** (fin de l'audit).
 - **Boutons** : tous les « + … » ont le style Ajout (ocre clair) ; un seul bouton principal par écran ou fenêtre (« Faite › » des séances à régler et « Sauvegarder › » passent en secondaire/ajout).
