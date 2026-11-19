@@ -1,5 +1,5 @@
 // ecrans/programme.js — le programme semaine par semaine, la semaine dépliée, les outils de semaine.
-import { h, si, classes, ico, pli, forcerOuvert } from "../html.js";
+import { h, si, classes, ico, pli, forcerOuvert, liste } from "../html.js";
 import { etatSeance, etapesSeance, dureeSeance, activiteAffichee, nomSeance } from "../programme.js";
 import { semaineDe, dateSeance, ajouterJours, jourMois, court, hm, JOURS, nomJour, jourSemaine } from "../dates.js";
 import { reussi } from "../analyse.js";
@@ -18,7 +18,7 @@ export function rendre(ctx) {
     if (!phases.length || phases[phases.length - 1].bloc !== bloc || phases[phases.length - 1].id !== id) phases.push({ bloc, id, semaines: [] }); phases[phases.length - 1].semaines.push(w); }
   // Un bout du programme de départ qui porte le même nom qu'un bloc construit (ex. semaine 1 avant B1) : à part, « Avant le bloc »
   for (const ph of phases) ph.avant = !ph.id && phases.some(x => x.id && x.bloc === ph.bloc);
-  let out = h`<div class="barre-prog"><button class="petit-btn" data-act="semaineAujourdhui">Cette semaine</button><button class="petit-btn btn-ajout" data-act="creationOuvrir">+ Séance</button><button class="petit-btn btn-ajout" data-act="passageAncienOuvrir">+ Hors séance</button></div>${carteRestaurer(ctx)}${carteModele(ctx, wNow)}${carteBilanBloc(ctx, wNow)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}`;   // la barre d'abord : toujours en haut
+  let out = h`<div class="barre-prog"><button class="petit-btn btn-ajout" data-act="semaineAujourdhui">Cette semaine</button></div>${carteRestaurer(ctx)}${carteModele(ctx, wNow)}${carteBilanBloc(ctx, wNow)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}`;   // la barre d'abord : toujours en haut
   // Les blocs (B1, B2…) : une carte par bloc, son état se voit (en cours : ouvert, bord ocre ; terminé : atténué ; à venir : pointillés).
   // Dedans, une ligne par semaine, avec la phase en pastille de couleur (mêmes couleurs que l'assistant).
   for (const ph of phases) {
@@ -40,7 +40,6 @@ export function rendre(ctx) {
         <button class="semaine-tete" data-act="semaine" data-w="${w}"><span><b>Semaine ${w}</b> <span class="petit">${w === wNow ? "cette semaine" : `dès le ${jourMois(dateSeance(debut, w, "Lundi"))}`}</span></span><span class="sem-droite">${ph2.nom ? h`<span class="chip-phase ph-${ph2.type}">${ph2.nom}</span>` : ""}<span class="petit">${faites}/${principales.length}</span></span></button>
         ${si(ouverte, () => semaineDetail(ctx, w, sem, auj))}</div>`;
     }
-    if (construit) o = h`${o}<div class="outils-semaine outils-bloc"><button class="petit-btn" data-act="assistantOuvrir" data-bloc="${construit.id}">${ico("crayon")} Modifier le bloc</button><button class="petit-btn danger" data-act="blocRetirer" data-id="${construit.id}">Retirer</button></div>`;
     return o; }
   return { html: out, titre: h`<b>Programme</b>` };
 }
@@ -119,13 +118,43 @@ function semaineDetail(ctx, w, sem, auj) {
       return h`<div class="carte-seance-cadre"><button class="carte-seance etat-${e}" data-act="ouvrirSeance" data-appui="seanceMenu" data-id="${s.id}" data-activite="${a}">
         <span class="cs-gauche"><b>${nomSeance(s, sa)}${s.bonus ? h` <span class="tag-bonus">bonus</span>` : ""}</b><span class="petit">${court(s.date)}${s.dateFixee ? " (déplacée)" : ""} · ≈ ${hm(dureeSeance(s, et, data, doc.reglages))}</span></span>
         <span class="cs-droite">${e === "faite" ? h`✓ ${sa.effort ? `effort ${sa.effort}` : ""}${t.length ? ` · ${t.filter(reussi).length}/${t.length}` : ""}` : e === "abilan" ? "✓ bilan ?" : e === "sautee" ? "✗ sautée" : e === "encours" ? "● en cours" : e === "passee" ? "? passée" : e === "aujourdhui" ? "aujourd'hui" : ""}</span></button><button class="cs-menu" data-act="seanceMenu" data-id="${s.id}" aria-label="Options de la séance">⋯</button></div>`; })}
-    <div class="outils-semaine"><button class="petit-btn" data-act="mesuresOuvrir" data-w="${w}">${ico("regle")} Mesures${mesures ? " ✓" : ""}</button><button class="petit-btn" data-act="pauseOuvrir" data-w="${w}">${ico("pause")} Faire une pause</button><button class="petit-btn" data-act="copieSemaineOuvrir" data-w="${w}">Copier · répéter</button></div>`;
+`;
 }
 
 export function menuEcran(ctx) { const carte = !!document.querySelector("#ecran .carte-modele [data-act=assistantOuvrir], #ecran .carte-bilan-bloc [data-act=assistantOuvrir]");   // pas de doublon avec la page
-  return { titre: "Programme", items: [...(carte ? [] : [{ label: "+ Nouveau bloc (assistant)", act: "assistantOuvrir" }]), { label: "Passages hors séance", act: "ouvrirVue", data: { vue: "historique" } }] }; }
+  return { titre: "Programme", items: [{ label: "+ Séance", act: "creationOuvrir" }, { label: "+ Hors séance", act: "passageAncienOuvrir" }, { label: "Passages hors séance", act: "ouvrirVue", data: { vue: "historique" } },
+    { label: "Modifier une semaine…", act: "semaineModifOuvrir" }, ...((ctx.doc.blocs || []).length ? [{ label: "Modifier un bloc…", act: "blocModifOuvrir" }] : []), ...(carte ? [] : [{ label: "+ Nouveau bloc (assistant)", act: "assistantOuvrir" }])] }; }
 
+// Options › « Modifier une semaine… » / « Modifier un bloc… » : choisir dans des listes, puis l'action
+const groupeDe = (ctx, w) => { const s = ctx.programme.find(x => x.semaine === w && x.bloc); return s ? s.bloc : ""; };
+const semainesDe = (ctx, g) => [...new Set(ctx.programme.map(s => s.semaine))].sort((a, b) => a - b).filter(w => groupeDe(ctx, w) === g);
+const nomGroupe = (ctx, g) => { const b = (ctx.doc.blocs || []).find(x => x.id === g); return b ? `${b.nom.replace(/^B(\d+)$/, "Bloc $1")}${b.titre ? ` · ${b.titre}` : ""}` : "Programme de départ"; };
+function fenetreSemaine(ctx, M = ctx.state.modal) {
+  const debut = ctx.doc.reglages.dateDebut || ctx.data.dateDebut, wNow = semaineDe(debut, ctx.aujourdhui()), ouverte = ctx.state.semaineVue;
+  const groupes = [...new Set([...ctx.programme].sort((a, b) => a.semaine - b.semaine).map(s => groupeDe(ctx, s.semaine)))];
+  const libW = w => { const s = ctx.programme.find(x => x.semaine === w), ph = phaseDe((s || {}).phase || "").nom; return `Semaine ${w} · dès le ${jourMois(dateSeance(debut, w, "Lundi"))}${ph ? ` · ${ph}` : ""}${w === wNow ? " · cette semaine" : ""}`; };
+  const mes = ctx.doc.mesures[M.w] && Object.keys(ctx.doc.mesures[M.w]).length;
+  return h`<h2>Modifier une semaine</h2>
+    <div class="choix compact">${h`<button data-act="semModifAller" data-w="${wNow}" class="${M.w === wNow ? "choisi" : ""}">Cette semaine</button>`}${si(ouverte && ouverte !== wNow, h`<button data-act="semModifAller" data-w="${ouverte}" class="${M.w === ouverte ? "choisi" : ""}">Semaine ouverte (${ouverte})</button>`)}</div>
+    ${liste("g", groupes.map(g => [g, nomGroupe(ctx, g)]), M.g, { act: "semModifChoix", vide: null, label: "Bloc" })}
+    ${liste("w", semainesDe(ctx, M.g).map(w => [String(w), libW(w)]), String(M.w), { act: "semModifChoix", vide: null, label: "Semaine" })}
+    <div class="actions-colonne"><button class="gros contour" data-act="mesuresOuvrir" data-w="${M.w}">${ico("regle")} Mesures${mes ? " ✓" : ""}</button><button class="gros contour" data-act="pauseOuvrir" data-w="${M.w}">${ico("pause")} Faire une pause</button><button class="gros contour" data-act="copieSemaineOuvrir" data-w="${M.w}">Copier · répéter</button></div>
+    <div class="actions"><button data-act="mFermer">Fermer</button></div>`;
+}
+function fenetreBloc(ctx, M = ctx.state.modal) {
+  const B = ctx.doc.blocs || [];
+  return h`<h2>Modifier un bloc</h2>${liste("id", B.map(b => [b.id, `${nomGroupe(ctx, b.id)} · semaines ${b.debut} → ${b.debut + (b.nb || 8) - 1}`]), M.id, { act: "blocModifChoix", vide: null, label: "Bloc" })}
+    <div class="actions-colonne"><button class="gros contour" data-act="assistantOuvrir" data-bloc="${M.id}">${ico("crayon")} Modifier (assistant)</button><button class="gros contour danger" data-act="blocRetirer" data-id="${M.id}">Retirer ce bloc</button></div>
+    <div class="actions"><button data-act="mFermer">Fermer</button></div>`;
+}
 export const actions = {
+  semaineModifOuvrir: ctx => { const debut = ctx.doc.reglages.dateDebut || ctx.data.dateDebut, w = ctx.state.semaineVue || semaineDe(debut, ctx.aujourdhui()), ws = [...new Set(ctx.programme.map(s => s.semaine))];
+    const w2 = ws.includes(w) ? w : Math.min(...ws); ctx.ouvrirModal({ type: "externe", rendu: fenetreSemaine, w: w2, g: groupeDe(ctx, w2) }); },
+  semModifAller: (ctx, d) => { const m = ctx.state.modal; m.w = +d.w; m.g = groupeDe(ctx, m.w); ctx.rendre(); },
+  semModifChoix: (ctx, d, el) => { const m = ctx.state.modal; if (d.champ === "g") { m.g = el.value; m.w = semainesDe(ctx, m.g)[0]; } else m.w = +el.value; ctx.rendre(); },
+  blocModifOuvrir: ctx => { const debut = ctx.doc.reglages.dateDebut || ctx.data.dateDebut, wNow = semaineDe(debut, ctx.aujourdhui()), B = ctx.doc.blocs || [];
+    const b = B.find(x => wNow >= x.debut && wNow < x.debut + (x.nb || 8)) || B[B.length - 1]; if (!b) return; ctx.ouvrirModal({ type: "externe", rendu: fenetreBloc, id: b.id }); },
+  blocModifChoix: (ctx, d, el) => { ctx.state.modal.id = el.value; ctx.rendre(); },
   semaine: (ctx, d) => { ctx.state.semaineVue = ctx.state.semaineVue === +d.w ? null : +d.w; ctx.rendre();
     if (ctx.state.semaineVue === +d.w) { const t = document.querySelector(`#ecran [data-act=semaine][data-w="${d.w}"]`); if (t) ctx.montrer(t.parentElement); } },
   // « Cette semaine » : ouvre le bloc qui la contient (même si un autre bloc est déplié), déplie la semaine et l'amène à l'écran

@@ -822,3 +822,29 @@ body[data-activite="Autre sport"] .bandeau-seance { background: var(--gris); }
 .tuiles-cot .tuile-voie .tuile-histo { display: none; } .tuiles-cot .tuile-voie .tuile-lieu { font-size: 10px; }
 .tuiles-cot .tuile-voie .marque { width: 14px; height: 14px; font-size: 9px; right: 2px; bottom: 2px; }
 html.grand .tuiles-cot .tuile-voie b { font-size: 20px; }
+
+/* 8.29 — « Maintenant » : le plan dans la carte (faites au-dessus, à venir dessous), et les cotes de l'étape à noter */
+.plan-lignes { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 8px; }
+.plan-ligne { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 34px; padding: 4px 8px; text-align: left; background: rgba(255,255,255,.12); border: none; border-radius: 8px; color: inherit; font-size: 14px; }
+.plan-ligne .pl-titre { flex: 1; } .plan-ligne.faite { opacity: .6; } .plan-ligne .genre { width: 8px; height: 8px; border-radius: 50%; }
+.carte.encours .plan-ligne, .carte.encours .plan-ligne .petit { color: #fff; } .carte.encours .a-venir > .petit { color: rgba(255,255,255,.85); margin: 6px 0 2px; }
+.noter-etape { background: var(--carte); color: var(--texte); border-radius: 12px; padding: 8px 10px; margin: 8px 0; }
+.noter-etape .petit { color: var(--texte-2); } .noter-etape .petit-btn { margin-top: 6px; }
+.sous-etape { margin-top: 4px; } .carte.encours .sous-etape, .carte.encours .sous-etape b { color: #fff; }
+/* Tuile : le repère en haut à gauche, à côté de la cote ; le secteur en bas reste lisible */
+.tuiles-cot .tuile-voie .marque { top: 3px; bottom: auto; right: auto; left: calc(50% - 7px); }
+
+/* 8.29 — Nouvelle séance : comme l'assistant, une ligne « libellé · réglage » de même largeur */
+.ed-entete, .ed-ligne.carte { padding: 10px 12px; margin-bottom: 10px; }
+.ed-champ { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 8px; min-height: 44px; border-top: 1px solid var(--trait); }
+.ed-champ:first-child, .ed-tete + .ed-champ { border-top: none; }
+.ed-lib { font-weight: 600; font-size: 15px; } .ed-ctrl { display: flex; min-width: 0; } .ed-ctrl > select, .ed-ctrl > input, .ed-ctrl > .choix, .ed-ctrl > .liste { width: 100%; margin: 0; }
+.ed-ctrl .choix.compact { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.ed-titre { margin: 6px 0 6px; } .ed-ajout { margin: 4px 0 10px; }
+/* 8.29 — Programme : l'en-tête du bloc en cours prend la couleur de l'app */
+.bloc-prog.bloc-en-cours { padding-top: 0; overflow: hidden; }
+.bloc-prog.bloc-en-cours > .pli-tete { background: var(--ocre); color: #fff; margin: 0 -12px 4px; padding: 10px 12px; }
+.bloc-prog.bloc-en-cours > .pli-tete *, .bloc-prog.bloc-en-cours > .pli-tete .petit { color: #fff; }
+.bloc-prog.bloc-en-cours > .pli-tete .barre-prog-bloc, .bloc-prog.bloc-en-cours > .pli-tete progress { accent-color: #fff; }
+.barre-prog { justify-content: center; }
+.actions-colonne { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }

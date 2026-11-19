@@ -17,7 +17,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.28";
+export const APP_VERSION = "8.29";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
 const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", assistant: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
@@ -152,7 +152,7 @@ const ACTIONS = {
   // La nouvelle version attend (« waiting ») : c'est à ELLE qu'on demande de prendre la main ; le rechargement suit (controllerchange)
   // L'assistant « Construire un bloc » n'est chargé qu'à la demande (l'ouverture de l'app reste légère)
   assistantOuvrir: async (c, d) => { try { const m = await import("./ecrans/assistant.js"); ECRANS.assistant = m; Object.assign(ACTIONS, m.actions);
-      state.assistant = m.initial(ctx, d); ouvrir("assistant"); } catch (e) { console.error(e); ctx.toast("L'assistant n'a pas pu s'ouvrir"); } },
+      state.assistant = m.initial(ctx, d); if (state.modal) ctx.fermerModal(); ouvrir("assistant"); } catch (e) { console.error(e); ctx.toast("L'assistant n'a pas pu s'ouvrir"); } },
   majApp: () => { if (enregistrement && enregistrement.waiting) enregistrement.waiting.postMessage("mettre-a-jour"); else location.reload(); },
   ...minuteur.actions, ...seance.actions, ...programme.actions, ...progres.actions, ...plus.actions, ...mur.actions, ...fenetres.actions,
 };

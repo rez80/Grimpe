@@ -26,28 +26,31 @@ export function rendre(ctx) {
   // Durées : une liste déroulante (plus de 4 choix), la valeur actuelle toujours présente
   const duree = (i, champ, valeur, valeurs, vide) => { const l = [...new Set([...valeurs, ...(valeur ? [+valeur] : [])])].sort((a, b) => a - b);
     return h`<select class="ed-duree" data-act="edDuree" data-i="${i}" data-champ="${champ}" aria-label="${champ}">${vide ? h`<option value="" ${!valeur ? "selected" : ""}>${vide}</option>` : ""}${l.map(v => h`<option value="${v}" ${+valeur === v ? "selected" : ""}>${dureeTexte(v)}</option>`)}</select>`; };
+  // Une ligne « libellé · réglage », comme dans l'assistant : tous les réglages alignés, de même largeur
+  const R = (label, controle) => h`<div class="ed-champ"><span class="ed-lib">${label}</span><span class="ed-ctrl">${controle}</span></div>`;
   const ligne = (e, i) => { const n = nature(e);
-    return h`<div class="ed-ligne ${e.type === "version" ? "ed-version" : ""}"><div class="ed-tete"><select data-act="edNature" data-i="${i}">${Object.entries(NATURES).map(([k, l]) => h`<option value="${k}" ${k === n ? "selected" : ""}>${l}</option>`)}</select>
-        <span class="ed-outils"><button data-act="edBouger" data-i="${i}" data-pas="-1" ${i === 0 ? "disabled" : ""}>↑</button><button data-act="edBouger" data-i="${i}" data-pas="1" ${i === m.lignes.length - 1 ? "disabled" : ""}>↓</button><button data-act="edSuppr" data-i="${i}">✕</button></span></div>
-      ${n === "version" ? h`<input type="text" value="${e.nom}" placeholder="Nom de la variante (ex. Remplacement bloc)" data-frappe="edTexte" data-i="${i}" data-champ="nom">`
-      : n === "routine" ? h`<select data-act="edTexte" data-i="${i}" data-champ="nom"><option value="">— choisir —</option>${routines.map(r => h`<option value="${r}" ${r === e.nom ? "selected" : ""}>${r}</option>`)}</select>`
-      : n === "info" ? h`<input type="text" value="${e.texte}" placeholder="Consigne" data-frappe="edTexte" data-i="${i}" data-champ="texte">`
-      : h`<div class="ed-champs">
-          <div class="ed-rangee">${pas(i, "n", e.n, `${e.n}×`, -1, 1)}<input type="text" class="ed-texte" value="${e.texte}" placeholder="${n === "grimpe" ? "Voie en 5b · « Travail au point »" : n === "course" ? "course lente" : "« Planche »"}" data-frappe="edTexte" data-i="${i}" data-champ="texte"></div>
-          ${si(n !== "course", h`<div class="ed-rangee"><select data-act="edExo" data-i="${i}"><option value="">+ un exercice de la bibliothèque…</option>${data.exercices.map(x => h`<option value="${x.nom}">${x.nom}</option>`)}</select></div>`)}
-          ${si(n === "grimpe", () => h`<div class="ed-rangee">${choix("edGrimpe", [["Voie", "Voie"], ["Bloc", "Bloc"]], e.grimpe.disc, { data: { i }, classe: "compact" })}<div class="choix compact">${["", ...(data.echelles[e.grimpe.disc] || []).slice(2, 12)].map(c => h`<button data-act="edCot" data-i="${i}" data-valeur="${c}" class="${(e.grimpe.cot || "") === c ? "choisi" : ""}">${c || "—"}</button>`)}</div></div>
-            <div class="ed-rangee"><span class="petit">Repos</span>${duree(i, "repos", e.repos, REPOS, "défaut")}<span class="petit">Série</span>${pas(i, "serie", e.serie, e.serie || "—", -1, 1)}</div>`)}
-          ${si(n === "exo", () => h`<div class="ed-rangee"><span class="petit">Chrono</span>${duree(i, "chrono", e.chrono, CHRONOS, "—")}<button data-act="edBool" data-i="${i}" data-champ="cote" class="${e.cote ? "choisi" : ""}">par côté</button><span class="petit">Repos</span>${duree(i, "repos", e.repos, REPOS, "défaut")}</div>`)}
-          ${si(n === "course", () => h`<div class="ed-rangee"><span class="petit">Course</span>${duree(i, "fractions.course", e.fractions.course, FRACTIONS)}<span class="petit">Marche</span>${duree(i, "fractions.marche", e.fractions.marche, FRACTIONS)}</div>`)}
-          ${si(n === "mesure", h`<div class="ed-rangee"><span class="petit">Clé</span><input type="text" value="${e.mesure}" data-frappe="edTexte" data-i="${i}" data-champ="mesure" placeholder="planche"></div>`)}
-          <div class="ed-rangee">${choix("edGenre", GENRES, e.genre, { data: { i }, classe: "compact" })}<span class="petit">Durée</span>${duree(i, "duree", e.duree, DUREES, "auto")}</div>
-          ${si(e.erreurs && e.erreurs.length, h`<p class="petit rouge-txt">${e.erreurs.join(" · ")}</p>`)}
-        </div>`}</div>`; };
+    return h`<div class="ed-ligne carte ${e.type === "version" ? "ed-version" : ""}"><div class="ed-tete"><select data-act="edNature" data-i="${i}" aria-label="Type d'étape">${Object.entries(NATURES).map(([k, l]) => h`<option value="${k}" ${k === n ? "selected" : ""}>${l}</option>`)}</select>
+        <span class="ed-outils"><button data-act="edBouger" data-i="${i}" data-pas="-1" ${i === 0 ? "disabled" : ""} aria-label="Monter">↑</button><button data-act="edBouger" data-i="${i}" data-pas="1" ${i === m.lignes.length - 1 ? "disabled" : ""} aria-label="Descendre">↓</button><button data-act="edSuppr" data-i="${i}" aria-label="Supprimer">✕</button></span></div>
+      ${n === "version" ? R("Nom", h`<input type="text" value="${e.nom}" placeholder="ex. Remplacement bloc" data-frappe="edTexte" data-i="${i}" data-champ="nom">`)
+      : n === "routine" ? R("Routine", h`<select data-act="edTexte" data-i="${i}" data-champ="nom"><option value="">— choisir —</option>${routines.map(r => h`<option value="${r}" ${r === e.nom ? "selected" : ""}>${r}</option>`)}</select>`)
+      : n === "info" ? R("Consigne", h`<input type="text" value="${e.texte}" placeholder="ex. Pieds silencieux" data-frappe="edTexte" data-i="${i}" data-champ="texte">`)
+      : h`${R("Combien", pas(i, "n", e.n, `${e.n}×`, -1, 1))}
+          ${R("Quoi", h`<input type="text" value="${e.texte}" placeholder="${n === "grimpe" ? "Voie en 5b · « Travail au point »" : n === "course" ? "course lente" : "« Planche »"}" data-frappe="edTexte" data-i="${i}" data-champ="texte">`)}
+          ${si(n !== "course", () => R("Exercice", h`<select data-act="edExo" data-i="${i}"><option value="">+ de la bibliothèque…</option>${data.exercices.map(x => h`<option value="${x.nom}">${x.nom}</option>`)}</select>`))}
+          ${si(n === "grimpe", () => h`${R("Discipline", choix("edGrimpe", [["Voie", "Voie"], ["Bloc", "Bloc"]], e.grimpe.disc, { data: { i }, classe: "compact" }))}
+            ${R("Cotation", h`<select data-act="edCotListe" data-i="${i}"><option value="" ${!e.grimpe.cot ? "selected" : ""}>— sans —</option>${(data.echelles[e.grimpe.disc] || []).map(c => h`<option value="${c}" ${(e.grimpe.cot || "") === c ? "selected" : ""}>${c}</option>`)}</select>`)}
+            ${R("Repos", duree(i, "repos", e.repos, REPOS, "par défaut"))}${R("Séries", pas(i, "serie", e.serie, e.serie || "—", -1, 1))}`)}
+          ${si(n === "exo", () => h`${R("Chrono", duree(i, "chrono", e.chrono, CHRONOS, "—"))}${R("Par côté", choix("edBoolC", [["", "Non"], ["1", "Oui"]], e.cote ? "1" : "", { data: { i, champ: "cote" }, classe: "compact" }))}${R("Repos", duree(i, "repos", e.repos, REPOS, "par défaut"))}`)}
+          ${si(n === "course", () => h`${R("Course", duree(i, "fractions.course", e.fractions.course, FRACTIONS))}${R("Marche", duree(i, "fractions.marche", e.fractions.marche, FRACTIONS))}`)}
+          ${si(n === "mesure", () => R("Clé", h`<input type="text" value="${e.mesure}" data-frappe="edTexte" data-i="${i}" data-champ="mesure" placeholder="planche">`))}
+          ${R("Genre", h`<select data-act="edGenreListe" data-i="${i}">${GENRES.map(([k, l]) => h`<option value="${k}" ${(e.genre || "") === k ? "selected" : ""}>${l}</option>`)}</select>`)}
+          ${R("Durée", duree(i, "duree", e.duree, DUREES, "auto"))}
+          ${si(e.erreurs && e.erreurs.length, h`<p class="petit rouge-txt">${e.erreurs.join(" · ")}</p>`)}`}</div>`; };
   return h`<h2>${m.cible ? "Modifier le plan" : "Nouvelle séance"}</h2>
-    ${si(!m.cible, h`<div class="ed-rangee"><input type="date" data-champ="date" value="${m.date}">${liste("activite", data.listes.Activités || ["Voie", "Bloc", "Maison", "Course"], m.activite, { vide: null })}</div>`)}
+    ${si(!m.cible, () => h`<div class="carte ed-entete">${R("Date", h`<input type="date" data-champ="date" value="${m.date}">`)}${R("Activité", liste("activite", data.listes.Activités || ["Voie", "Bloc", "Maison", "Course"], m.activite, { vide: null }))}</div>`)}
     ${m.texte ? h`<textarea data-champ="contenu" rows="12" class="code">${m.contenu}</textarea><p class="petit"><button class="lien" data-act="ouvrirAide" data-k="syntaxe">Syntaxe</button></p>`
-      : h`<div class="ed-lignes">${m.lignes.map(ligne)}${si(!m.lignes.length, h`<p class="petit">Aucune étape. Ajoute-en une ci-dessous.</p>`)}</div>
-        <div class="choix compact ed-ajout">${Object.entries(NATURES).map(([k, l]) => h`<button class="btn-ajout" data-act="edAjout" data-n="${k}">+ ${l}</button>`)}</div>`}
+      : h`<h3 class="ed-titre">Étapes</h3><div class="ed-lignes">${m.lignes.map(ligne)}${si(!m.lignes.length, h`<p class="petit">Aucune étape : ajoute-en une ci-dessous.</p>`)}</div>
+        <div class="ed-ajout">${R("Ajouter", h`<select data-act="edAjoutListe"><option value="">+ une étape…</option>${Object.entries(NATURES).map(([k, l]) => h`<option value="${k}">${l}</option>`)}</select>`)}</div>`}
     <div class="actions"><button data-act="edMode">${m.texte ? "Formulaire" : "Texte"}</button><button data-act="mFermer">Annuler</button><button class="principal" data-act="edOk">Enregistrer</button></div>`;
 }
 
@@ -64,6 +67,10 @@ export const actions = {
   edBool: (ctx, d) => { const e = L(ctx, d); e[d.champ] = !e[d.champ]; ctx.rendre(); },
   edGrimpe: (ctx, d) => { const e = L(ctx, d); e.grimpe = { disc: d.valeur, cot: "" }; ctx.rendre(); },
   edCot: (ctx, d) => { const e = L(ctx, d); e.grimpe.cot = d.valeur; ctx.rendre(); },
+  edCotListe: (ctx, d, el) => { const e = L(ctx, d); e.grimpe.cot = el.value; ctx.rendre(); },
+  edGenreListe: (ctx, d, el) => { const e = L(ctx, d); e.genre = el.value; ctx.rendre(); },
+  edBoolC: (ctx, d) => { const e = L(ctx, d); e[d.champ] = d.valeur === "1"; ctx.rendre(); },
+  edAjoutListe: (ctx, d, el) => { if (!el.value) return; M(ctx).lignes.push(vide(el.value)); ctx.rendre(); },
   edGenre: (ctx, d) => { const e = L(ctx, d); e.genre = d.valeur; ctx.rendre(); },
   edBouger: (ctx, d) => { const l = M(ctx).lignes, i = +d.i, j = i + +d.pas; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; ctx.rendre(); },
   edSuppr: (ctx, d) => { M(ctx).lignes.splice(+d.i, 1); ctx.rendre(); },
