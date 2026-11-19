@@ -18,7 +18,8 @@ export function rendre(ctx) {
     if (!phases.length || phases[phases.length - 1].bloc !== bloc || phases[phases.length - 1].id !== id) phases.push({ bloc, id, semaines: [] }); phases[phases.length - 1].semaines.push(w); }
   // Un bout du programme de départ qui porte le même nom qu'un bloc construit (ex. semaine 1 avant B1) : à part, « Avant le bloc »
   for (const ph of phases) ph.avant = !ph.id && phases.some(x => x.id && x.bloc === ph.bloc);
-  let out = h`<div class="barre-prog"><button class="petit-btn btn-ajout" data-act="semaineAujourdhui">Cette semaine</button></div>${carteRestaurer(ctx)}${carteModele(ctx, wNow)}${carteBilanBloc(ctx, wNow)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}`;   // la barre d'abord : toujours en haut
+  const proch = prochaineSeance(ctx, auj);
+  let out = h`<div class="barre-prog"><button class="petit-btn btn-ajout" data-act="semaineAujourdhui">Cette semaine</button>${proch ? h`<button class="petit-btn btn-ajout btn-prochaine" data-act="ouvrirSeance" data-id="${proch.id}">Prochaine séance <span class="petit">${court(proch.date)} · ${nomSeance(proch, ctx.saisie(proch.id))}</span></button>` : ""}</div>${carteRestaurer(ctx)}${carteModele(ctx, wNow)}${carteBilanBloc(ctx, wNow)}${carteHier(ctx)}${carteAujourdhui(ctx, auj)}`;   // la barre d'abord : toujours en haut
   // Les blocs (B1, B2…) : une carte par bloc, son état se voit (en cours : ouvert, bord ocre ; terminé : atténué ; à venir : pointillés).
   // Dedans, une ligne par semaine, avec la phase en pastille de couleur (mêmes couleurs que l'assistant).
   for (const ph of phases) {
@@ -29,7 +30,7 @@ export function rendre(ctx) {
     if (etat === "termine") { const F = construit ? feuxBloc(construit, { programme: P, doc, aujourdhui: dateSeance(debut, fin, "Dimanche"), dateDebut: debut }).filter(f => !f.info) : [];
       resume = h`<span class="petit">${ph.avant ? "passé" : "terminé"} · ${F.length ? `feux ${F.filter(f => f.ok).length}/${F.length}` : `${faitesB}/${semB.length}`}</span>`; }
     if (etat === "avenir") resume = h`<span class="petit">à venir · ${jourMois(dateSeance(debut, ph.semaines[0], "Lundi"))}</span>`;
-    const sous = h`semaines ${ph.semaines[0]} → ${fin}${construit && construit.plan && construit.plan.objectif ? ` · objectif ${construit.plan.objectif.disc.toLowerCase()} ${construit.plan.objectif.cot}` : ""}`;
+    const sous = h`${ph.semaines[0] === fin ? `semaine ${fin}` : `semaines ${ph.semaines[0]} → ${fin}`}${construit && construit.plan && construit.plan.objectif ? ` · objectif ${construit.plan.objectif.disc.toLowerCase()} ${construit.plan.objectif.cot}` : ""}`;
     out = h`${out}${pli(`prog-bloc-${ph.id || (ph.avant ? "avant-" : "") + (ph.bloc || "p")}${etat === "termine" ? "-fini" : ""}`, etat === "en-cours", h`<span class="bloc-nom">${nomB}${construit ? ` · ${construit.titre}` : ""}</span><span class="bloc-sous petit">${sous}</span>`, () => contenuBloc(ph, construit), { resume, classe: `carte bloc-prog bloc-${etat}` })}`;
   }
   function contenuBloc(ph, construit) { let o = h``;
@@ -82,14 +83,18 @@ function carteModele(ctx, wNow) {
     <div class="ed-rangee"><button class="principal" data-act="assistantOuvrir" data-modele="cinq-bloc" data-recap="1">Voir et créer</button><button data-act="modeleEcarter">Plus tard</button></div></div>`;
 }
 
-// La carte du haut : la séance du jour (un appui pour l'ouvrir), sinon la prochaine
+// La prochaine séance à faire : après aujourd'hui, pas encore commencée ni faite ni sautée (une séance faite en avance n'y est plus)
+export function prochaineSeance(ctx, auj) {
+  return ctx.programme.find(s => { const sa = ctx.saisie(s.id); return s.date > auj && !s.bonus && !sa.debut && !sa.fin && etatSeance(s, sa, auj) !== "sautee" && !(sa.dateReelle && sa.dateReelle <= auj); }) || null;
+}
+// La carte du haut : seulement les séances du jour (prévues aujourd'hui, ou faites aujourd'hui en avance) ; la suivante est un bouton à côté de « Cette semaine »
 function carteAujourdhui(ctx, auj) {
-  const P = ctx.programme, ok = s => etatSeance(s, ctx.saisie(s.id), auj) !== "sautee", du = P.filter(s => s.date === auj && ok(s));
-  let l = du.length ? du : P.filter(s => s.date > auj && !s.bonus && ok(s)).slice(0, 1);
-  if (du.length && du.every(s => s.bonus)) l = [...du, ...P.filter(s => s.date > auj && !s.bonus && ok(s)).slice(0, 1)];      // un jour « bonus » : la prochaine vraie séance aussi
-  if (!l.length) return h`<div class="carte carte-auj"><p class="petit">Plus de séance prévue au programme.</p></div>`;
-  return h`<div class="carte carte-auj"><p class="petit">${du.length ? "Aujourd'hui" : "Prochaine séance"}</p>${l.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), et = etapesSeance(s, sa);
-    return h`<button class="auj-seance" data-act="ouvrirSeance" data-id="${s.id}" data-activite="${activiteAffichee(s, sa)}"><span><b>${nomSeance(s, sa)}</b>${s.bonus ? h` <span class="tag-bonus">bonus</span>` : ""}<br><span class="petit">${s.date === auj ? "" : court(s.date) + " · "}≈ ${hm(dureeSeance(s, et, ctx.data, ctx.doc.reglages))}${e === "faite" || e === "abilan" ? " · ✓ faite" : e === "encours" ? " · en cours" : ""}</span></span><span class="auj-go" aria-hidden="true">›</span></button>`; })}</div>`;
+  const P = ctx.programme, ok = s => etatSeance(s, ctx.saisie(s.id), auj) !== "sautee";
+  const du = P.filter(s => ((ctx.saisie(s.id).dateReelle || s.date) === auj) && ok(s));
+  if (!du.length) return "";
+  return h`<div class="carte carte-auj"><p class="petit">Aujourd'hui</p>${du.map(s => { const sa = ctx.saisie(s.id), e = etatSeance(s, sa, auj), et = etapesSeance(s, sa);
+    const fait = e === "faite" || e === "abilan", reel = sa.debut && sa.fin ? Math.round(((sa.duree != null ? sa.duree * 60 : (sa.fin - sa.debut - (sa.pauseTotale || 0)) / 1000))) : null;
+    return h`<button class="auj-seance" data-act="ouvrirSeance" data-id="${s.id}" data-activite="${activiteAffichee(s, sa)}"><span><b>${nomSeance(s, sa)}</b>${s.bonus ? h` <span class="tag-bonus">bonus</span>` : ""}<br><span class="petit">${s.date === auj ? "" : `prévue ${court(s.date)} · `}${fait && reel != null ? `✓ faite en ${hm(reel)}` : `≈ ${hm(dureeSeance(s, et, ctx.data, ctx.doc.reglages))}${fait ? " · ✓ faite" : e === "encours" ? " · en cours" : ""}`}</span></span><span class="auj-go" aria-hidden="true">›</span></button>`; })}</div>`;
 }
 
 function semaineDetail(ctx, w, sem, auj) {

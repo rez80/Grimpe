@@ -11,7 +11,7 @@ import { appliquerBlocs } from "./blocs.js";
 //   { op: "date", id, date }                                     fixe la date réelle d'une séance (déplacement)
 
 import { dateSeance, JOURS, ecartJours } from "./dates.js";
-import { etapesDe, decouper, texteDe, titreAction } from "./parseur.js";
+import { etapesDe, decouper, texteDe, titreAction, genreRoutine } from "./parseur.js";
 
 export function programmeEffectif(data, doc) {
   const debut = doc.reglages.dateDebut || data.dateDebut;
@@ -41,8 +41,12 @@ export const nouvelId = (prefixe = "l") => `${prefixe}-${Date.now().toString(36)
 export function etapesSeance(s, saisie) {
   const { communes } = decouper(s.contenu);
   const version = saisie.version || 0;
-  return etapesDe(s.contenu, version).map((e, i) => ({ ...e, i, k: i < communes.length ? `c${i}` : `v${version}-${i}` }));
+  return etapesDe(s.contenu, version).map((e, i) => ({ ...e, i, k: i < communes.length ? `c${i}` : `v${version}-${i}`,
+    ...(e.type === "routine" && !e.genre && ROUTINES.length ? { genre: genreRoutine(e.nom, ROUTINES) } : {}) }));          // le genre d'une routine : celui de la bibliothèque (sécurité, récupération…)
 }
+// Les routines de la bibliothèque (pour le genre des étapes « > routine ») : données par l'app au démarrage
+let ROUTINES = [];
+export const definirRoutines = r => { ROUTINES = r || []; };
 
 // --- Durées prévues (secondes) ---
 export const reposDefaut = (reglages, activite) => (reglages.repos || {})[activite] ?? 0;

@@ -850,7 +850,7 @@ html.grand .tuiles-cot .tuile-voie b { font-size: 20px; }
 .actions-colonne { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
 
 /* 8.30 — Séance : salle en tête, « Maintenant » en grand, ✓ Fait | Suivante fixes, cotes repliées, plan dans la carte */
-:root { --version-css: "8.30"; }      /* vérifiée au démarrage : une feuille de style restée d'une ancienne version est rechargée */
+:root { --version-css: "8.31"; }      /* vérifiée au démarrage : une feuille de style restée d'une ancienne version est rechargée */
 .titre-seance { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .titre-seance h1 { margin: 0; }
 .salle-liste select.liste { width: auto; max-width: 100%; min-height: 34px; margin: 0; padding: 4px 28px 4px 10px; font-size: 15px; font-weight: 600; background-color: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.65); border-radius: 10px; }
@@ -887,3 +887,31 @@ html.grand .tuiles-cot .tuile-voie b { font-size: 20px; }
 .lignes-cot .ligne-cot { grid-template-columns: 74px 1fr; } .lignes-cot.large .ligne-cot { grid-template-columns: 118px 1fr; }
 .encours-outils .salle-liste { flex: 1 1 0; min-width: 0; } .encours-outils .salle-liste select.liste { width: 100%; }
 .tuiles-cot .tuile-voie.ok-auj .tuile-lieu, .tuiles-cot .tuile-voie.ko-auj .tuile-lieu { padding-right: 14px; }
+
+/* 8.31 — séance : étapes sautées, tête sur 3 lignes, ⓘ fixe, plan compact ; Programme : « Prochaine séance » en bouton */
+.encours-tete { margin-bottom: 2px; }
+.encours-temps { display: flex; align-items: center; gap: 8px; min-height: 34px; margin-bottom: 6px; } .encours-temps .forme-mini { margin-left: auto; }
+.encours-temps .forme-mini button { min-height: 28px; padding: 0 4px; font-size: 16px; }
+.encours-outils .salle-liste { flex: 1 1 100%; }
+.maintenant-grand { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 8px; }
+.maintenant-grand .mg-texte { display: flex; align-items: center; flex-wrap: wrap; column-gap: 8px; min-width: 0; }
+.maintenant-grand .btn-info-etape { margin-top: 2px; }
+.cote-absente { margin: 0 0 4px; }
+/* Étapes sautées : grisées, avec leur mention ; dans la frise, hachurées */
+.etape.sautee { opacity: .6; } .tag-sautee { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 8px; background: var(--trait); color: var(--texte-2); white-space: nowrap; }
+.frise-seg.saute { opacity: .45; background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255,255,255,.55) 4px 6px); }
+/* Plan dans la carte : plus compact, ronds sur une ligne */
+.plan-cadre .etape { margin: 4px 0; box-shadow: none; border-left-width: 4px; }
+.plan-cadre .etape-ligne { padding: 4px 6px 4px 2px; gap: 4px; }
+.plan-cadre .etape .titre { font-size: 15px; } .plan-cadre .etape .num { min-width: 22px; }
+.plan-cadre .etape .case { width: 36px; height: 36px; min-height: 36px; font-size: 16px; }
+.plan-cadre .ronds { flex-wrap: nowrap; gap: 3px; } .plan-cadre .rond { width: 18px; height: 18px; }
+/* Programme : le bloc en cours replié est tout ocre (plus de bande blanche) */
+.bloc-prog.bloc-en-cours:not(.ouvert) { background: var(--ocre); padding-bottom: 0; }
+.bloc-prog.bloc-en-cours:not(.ouvert) > .pli-tete { margin-bottom: 0; border-radius: 0; }
+.btn-prochaine { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.2; }
+.btn-prochaine .petit { font-weight: 400; font-size: 12px; color: var(--texte-2); }
+body:has(.barre-seance) #ecran { padding-bottom: calc(var(--hauteur-onglets, 56px) + 96px + var(--bas)); }
+.carte.encours .noter-etape .petit, .carte.encours .carte-jour .petit { color: var(--texte-2); }
+.maintenant-grand .mg-texte { display: block; } .maintenant-grand .mg-texte .genre { display: inline-block; vertical-align: middle; margin: 0 8px 4px 0; }
+.maintenant-grand .maintenant-duree { white-space: nowrap; }

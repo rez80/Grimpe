@@ -7,7 +7,7 @@ import { avertissements, reussi, marqueVoie, forme, parVoie, projets, causePrinc
 import { court, hm, hhmm, mmss, duree as dureeTexte, semaineDe, ajouterJours } from "../dates.js";
 // Le passage lui-même, daté comme dans les calculs : il ne doit compter ni comme « avant lui » ni comme une réussite précédente
 export const refPassage = (ctx, seanceId, t) => { const s = ctx.seance(seanceId), sa = ctx.saisie(seanceId); return t && { ...t, date: sa.dateReelle || (s && s.date) }; };
-import { salleDe, profilHabituel, salleParDefautPour, retenirSalle, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe, trierNiveaux, cotSalleDe, deuxCot, cotLibelle } from "../salles.js";
+import { salleDe, profilHabituel, salleParDefautPour, retenirSalle, sallesPour, voiesEnPlace, hexDe, texteSur, libelleVoie, secteurDe, cotationDe, trierNiveaux, cotSalleDe, deuxCot, cotLibelle, cotesSalleProches } from "../salles.js";
 
 export const GENRES = { echauffement: "Échauffement", securite: "Sécurité", facile: "Facile", effort: "Effort", recup: "Récupération" };
 export const RES_LABEL = { ok: "Réussi", sec: "Avec sec", ko: "Échec" };
@@ -36,6 +36,10 @@ export const nbFait = (sa, e) => Math.max(0, (sa.faites || {})[e.k] || 0);
 // faites[k] = -1 : décochée à la main, même si tous ses passages sont notés
 export const etapeFinie = (sa, e) => { const f = (sa.faites || {})[e.k]; if (f === -1) return false;
   return avecRonds(e) ? nbFait(sa, e) >= e.n : nbFait(sa, e) >= 1 || (!!e.grimpe && nbNotes(sa, e) >= e.n * Math.max(1, e.serie || 1)); };
+// Étape passée avec « Suivante » sans être faite : « sautée » (ou « arrêtée » si son compteur était entamé)
+export const etapeSautee = (sa, e) => !etapeFinie(sa, e) && !!(sa.sautees || {})[e.k];
+const entamee = (sa, e) => nbFait(sa, e) > 0 || nbNotes(sa, e) > 0 || ((sa.sous || {})[e.k] || 0) > 0;
+const libSautee = (sa, e) => entamee(sa, e) ? `${avecRonds(e) ? `${nbFait(sa, e)}/${e.n}` : e.grimpe ? `${nbNotes(sa, e)}/${e.n * Math.max(1, e.serie || 1)}` : `${(sa.sous || {})[e.k] || 0} sous-étape${((sa.sous || {})[e.k] || 0) > 1 ? "s" : ""}`} · arrêtée` : "sautée";
 // L'étape en cours : celle désignée (« J'en suis là », « Suivant »), sinon la première pas encore faite
 export function etapeCourante(sa, etapes) { const a = actives(etapes); if (!a.length) return null; return a.find(e => e.k === sa.curseur) || a.find(e => !etapeFinie(sa, e)) || a[a.length - 1]; }
 // La prochaine étape pas encore faite après « k » — jamais de retour au début : après la dernière, c'est le bilan
@@ -78,14 +82,14 @@ export function rendre(ctx) {
   const planInt = (cle, def) => pli(cle, def, "Plan de séance", () => h`<div class="detail-cadre plan-cadre"><div class="etapes">
     ${actives(etapes).map((e, n) => ligneEtape(ctx, s, sa, e, n + 1, enCours && courante && courante.k === e.k, enCours))}
     ${si(s.libre && !etapes.length, h`<p class="petit">Séance libre : note simplement ce que tu fais.</p>`)}</div></div>`,
-    { resume: sa.debut ? `${faites}/${actives(etapes).length} faites` : `${actives(etapes).length} étapes`, classe: "pli-maintenant pli-plan-int" });
+    { resume: sa.debut ? `${faites}/${actives(etapes).length} faites${(n => n ? ` · ${n} sautée${n > 1 ? "s" : ""}` : "")(actives(etapes).filter(e => etapeSautee(sa, e)).length)}` : `${actives(etapes).length} étapes`, classe: "pli-maintenant pli-plan-int" });
   // La salle du jour : une liste déroulante en tête de la carte colorée (séances de grimpe)
   const choixSalleListe = () => { if (!estGrimpe) return ""; const sc = salleCourante(ctx, s, sa, disc);
     return h`<span class="salle-liste">${listeDeroulante("salle-seance", [...sallesPour(doc, disc).map(x => [x.id, x.nom]), ["", "Salle inconnue"], ["__nouvelle", "+ Nouvelle salle…"]], sc ? sc.id : "", { act: "salleListe", vide: null })}</span>`; };
 
   if (!enCours) {
     // Avant ou après : la bannière dans la couleur de l'activité (salle, plan dedans), les consignes au-dessus
-    out = h`${out}${consignes()}<div class="bandeau-seance"><div class="titre-seance"><h1>${nomSeance(s, sa)}${s.libre ? " · séance créée" : ""}</h1>${choixSalleListe()}</div><div class="phase">${s.phase}${s.modifie ? " · modifiée" : ""}${s.dateFixee ? ` · déplacée (prévue ${court(s.datePrevue)})` : ""}</div>
+    out = h`${out}${consignes()}<div class="bandeau-seance"><div class="titre-seance"><h1>${nomSeance(s, sa)}${s.libre ? " · séance créée" : ""}</h1>${choixSalleListe()}</div><div class="phase">${s.phase}${s.modifie ? " · modifiée" : ""}${s.dateFixee ? ` · déplacée (prévue ${court(s.datePrevue)})` : ""}${sa.dateReelle && sa.dateReelle !== s.date ? ` · faite ${court(sa.dateReelle)} (prévue ${court(s.date)})` : ""}</div>
       ${frise(ctx, s, sa, etapes, null)}<div class="sous-titre">${sousTitre}</div>
       ${theme ? h`<div class="theme">${ico("cible")} ${lier(theme.texte.replace(/^thème[^:]*:\s*/i, ""), data.exercices)}</div>` : ""}
       ${si(avant && versions.length > 1, h`<div class="segment blanc">${versions.map((v, n) => h`<button data-act="version" data-n="${n}" class="${(sa.version || 0) === n ? "choisi" : ""}">${v.replace(/\s*\(.*\)\s*$/, "")}</button>`)}</div>`)}
@@ -100,8 +104,9 @@ export function rendre(ctx) {
     const toutFait = act.every(e => etapeFinie(sa, e)), rang = courante ? act.findIndex(e => e.k === courante.k) + 1 : act.length;
     const emoji = ({ vert: "🙂", orange: "😐", rouge: "😣" })[fj] || "";
     out = h`${out}${consignes()}<div class="carte encours" data-activite="${nom}">
-      <div class="encours-tete"><span class="encours-nom">${sa.recup && emoji ? h`<span class="forme-choisie" aria-label="Forme du jour">${emoji}</span> ` : ""}<b>${nomSeance(s, sa)}</b> <span class="petit">${s.phase}</span></span><span class="petit">${hm(ecoule)} · fin ≈ ${hhmm(Date.now() + Math.max(0, duree - ecoule) * 1000)}</span></div>
-      ${si(estGrimpe || !sa.recup, () => h`<div class="encours-outils">${choixSalleListe()}${si(!sa.recup, h`<span class="forme-mini"><span class="petit">Forme ?</span><button data-act="forme" data-f="bien" aria-label="Bien">🙂</button><button data-act="forme" data-f="moyen" aria-label="Moyen">😐</button><button data-act="forme" data-f="pastop" aria-label="Pas top">😣</button></span>`)}</div>`)}
+      <div class="encours-tete"><span class="encours-nom">${sa.recup && emoji ? h`<span class="forme-choisie" aria-label="Forme du jour">${emoji}</span> ` : ""}<b>${nomSeance(s, sa)}</b> <span class="petit">${s.phase}</span></span></div>
+      <div class="encours-temps"><span class="petit">${hm(ecoule)} · fin ≈ ${hhmm(Date.now() + Math.max(0, duree - ecoule) * 1000)}</span>${si(!sa.recup, h`<span class="forme-mini"><span class="petit">Forme ?</span><button data-act="forme" data-f="bien" aria-label="Bien">🙂</button><button data-act="forme" data-f="moyen" aria-label="Moyen">😐</button><button data-act="forme" data-f="pastop" aria-label="Pas top">😣</button></span>`)}</div>
+      ${si(estGrimpe, () => h`<div class="encours-outils">${choixSalleListe()}</div>`)}
       ${frise(ctx, s, sa, etapes, toutFait ? null : courante)}
       ${toutFait || !courante ? h`<div class="tout-fait"><b>✓ Toutes les étapes sont faites</b><span class="petit">Bravo ! Il reste le bilan : effort, douleur, et ce que tu as grimpé.</span></div>
           <button class="gros principal" data-act="bilanOuvrir">${ico("stop")} Terminer la séance</button>`
@@ -112,18 +117,19 @@ export function rendre(ctx) {
           const iBtn = h`<button class="btn-info-etape ${detailOuvert ? "ouvert" : ""}" data-act="plier" data-k="m-detail" aria-label="Détail de l'étape">i</button>`;
           const genre = h`<span class="genre genre-${courante.type === "routine" ? courante.genre || "echauffement" : courante.genre}"></span>`;
           // Rappel de consigne : celle qui parle de la cote de l'étape
-          const rappel = courante.grimpe && courante.grimpe.cot ? inf.find(e => new RegExp(`(^|[^\\w+])${courante.grimpe.cot.replace(/[+]/g, "\\+")}(?![\\w+])`, "i").test(e.texte)) : null;
+          const rappel = courante.grimpe && courante.grimpe.cot && !ouvert(cleC, defC) ? inf.slice(1).find(e => new RegExp(`(^|[^\\w+])${courante.grimpe.cot.replace(/[+]/g, "\\+")}(?![\\w+])`, "i").test(e.texte)) : null;
           // En bas de l'étape, toujours à la même place : « ✓ Fait » à gauche (compte une fois : ronds, sous-étapes), « Suivante » à droite
           const gauche = avecRonds(courante) && nbFait(sa, courante) < courante.n ? h`<button class="gros btn-fait" data-act="rond" data-k="${courante.k}" data-i="${nbFait(sa, courante)}">✓ Fait · ${nbFait(sa, courante) + 1}/${courante.n}</button>`
             : enSous ? h`<button class="gros btn-fait" data-act="sousFait" data-k="${courante.k}" data-m="${sous.length}">✓ Fait · ${nSous + 1}/${sous.length}</button>`
+            : courante.grimpe && courante.grimpe.cot && notes < cible && !finie ? h`<button class="gros btn-fait" data-act="noterRapide" data-disc="${courante.grimpe.disc}" data-cot="${courante.grimpe.cot}" data-res="ok">✓ Fait · ${notes + 1}/${cible}</button>`
             : finie ? h`<button class="gros btn-fait" disabled>✓ Faite</button>`
             : h`<button class="gros btn-fait" data-act="${suivante ? "suivant" : "suivantFin"}">✓ Fait</button>`;
           const droite = suivante ? h`<button class="gros btn-suivante" data-act="passer"><span>Suivante ›</span><span class="suiv-titre">${titreDe(suivante)}</span></button>`
             : h`<button class="gros btn-suivante" data-act="bilanOuvrir"><span>Terminer ›</span><span class="suiv-titre">bilan de la séance</span></button>`;
           return h`<div class="encours-etape">
           <div class="etape-sur petit">Étape ${rang} sur ${act.length}${enSous ? h` · ${genre}<b>${titreDe(courante)}</b> ${compteur}` : ""}</div>
-          ${enSous ? h`<div class="maintenant-grand">${sous[nSous].etape}${sous[nSous].duree ? h` <span class="maintenant-duree">· ${hm(sous[nSous].duree)}</span>` : ""} ${iBtn}</div>`
-            : h`<div class="maintenant-grand">${genre}${titreDe(courante)}${compteur ? h` <span class="maintenant-duree">${compteur}</span>` : ""} ${iBtn}</div>`}
+          ${enSous ? h`<div class="maintenant-grand"><span class="mg-texte">${sous[nSous].etape}${sous[nSous].duree ? h` <span class="maintenant-duree">· ${hm(sous[nSous].duree)}</span>` : ""}</span>${iBtn}</div>`
+            : h`<div class="maintenant-grand"><span class="mg-texte">${genre}${titreDe(courante)}${compteur ? h` <span class="maintenant-duree">${compteur}</span>` : ""}</span>${iBtn}</div>`}
           ${si(detailOuvert, () => h`<div class="detail-cadre">${detailEtape(ctx, courante)}</div>`)}
           ${rappel ? h`<div class="rappel-consigne">${ico("consignes")} ${lier(rappel.texte, data.exercices)}</div>` : ""}</div>
         <div class="boutons-maintenant">${boutonsEtape(ctx, s, sa, courante, true)}</div>
@@ -147,7 +153,7 @@ export function rendre(ctx) {
   if ((sa.tentatives || []).length || (sa.fin && estGrimpe)) out = h`${out}${carteJour(ctx, s, sa, disc)}`;
 
   if (s.libre || s.copie) out = h`${out}<button class="gros contour danger" data-act="supprimerLibre">Supprimer cette séance</button>`;
-  return { html: out, titre: h`<b>${court(s.date)}</b> · ${nomSeance(s, sa)}`, fleches: true, menu: true, activite: disc === "Bloc" ? "Bloc" : s.activite, infos: "", glisser: !enCours };
+  return { html: out, titre: h`<b>${court(sa.dateReelle || s.date)}</b> · ${nomSeance(s, sa)}`, fleches: true, menu: true, activite: disc === "Bloc" ? "Bloc" : s.activite, infos: "", glisser: !enCours };
 }
 
 // Boutons d'une étape : repos, chrono, fractions, guidée (jamais de case à cocher)
@@ -172,9 +178,10 @@ function ligneEtape(ctx, s, sa, e, num, actuelle, enCours) {
   const notees = e.grimpe ? (sa.tentatives || []).filter(t => t.k === e.k).length : 0;
   const mesure = e.mesure ? h`<span class="mesure-champ"><input type="number" inputmode="decimal" step="any" data-act="mesureSaisie" data-k="${e.k}" data-cle="${e.mesure}" value="${(sa.mesures || {})[e.mesure] ?? ""}" placeholder="—"></span>` : "";
   const ronds = avecRonds(e) ? h`<span class="ronds">${Array.from({ length: e.n }, (_, i) => h`<button class="rond ${i < nbFait(sa, e) ? "ok" : ""}" data-act="rond" data-k="${e.k}" data-i="${i}" aria-label="Passage ${i + 1}"></button>`)}</span>` : "";
-  return h`<div class="etape genre-${genre} ${classes(actuelle && "actuelle", finie && "finie")}" data-k="${e.k}">
+  const sautee = etapeSautee(sa, e);
+  return h`<div class="etape genre-${genre} ${classes(actuelle && "actuelle", finie && "finie", sautee && "sautee")}" data-k="${e.k}">
     <div class="etape-ligne">
-      <button class="etape-txt" data-act="plier" data-k="e${e.k}"><span class="num">${actuelle ? ico("play") : finie ? "✓" : num}</span><span class="titre">${titre}${e.type === "action" && e.n > 1 ? h` <span class="petit">× ${e.n}</span>` : ""}${notees ? h` <span class="badge">${notees}/${e.n * Math.max(1, e.serie || 1)} noté${notees > 1 ? "s" : ""}</span>` : ""}</span><span class="petit duree">${hm(duree)}</span></button>
+      <button class="etape-txt" data-act="plier" data-k="e${e.k}"><span class="num">${actuelle ? ico("play") : finie ? "✓" : num}</span><span class="titre">${titre}${e.type === "action" && e.n > 1 ? h` <span class="petit">× ${e.n}</span>` : ""}${sautee && !actuelle ? h` <span class="tag-sautee">${libSautee(sa, e)}</span>` : ""}${notees ? h` <span class="badge">${notees}/${e.n * Math.max(1, e.serie || 1)} noté${notees > 1 ? "s" : ""}</span>` : ""}</span><span class="petit duree">${hm(duree)}</span></button>
       ${mesure}${ronds}
       <button class="case ${finie ? "ok" : ""}" data-act="cocher" data-k="${e.k}" aria-label="${finie ? "Étape faite (décocher)" : "Marquer l'étape faite"}">✓</button>
     </div>
@@ -194,7 +201,7 @@ function frise(ctx, s, sa, etapes, courante) {
   const a = actives(etapes); if (a.length < 2) return "";
   const d = a.map(e => Math.max(60, dureeEtape(e, s, ctx.data, ctx.doc.reglages)));
   const tot = d.reduce((x, y) => x + y, 0);       // la durée de chaque phase, en minutes, quand le segment est assez large pour l'écrire
-  return h`<div class="frise" aria-hidden="true">${a.map((e, i) => h`<span class="frise-seg genre-${e.type === "routine" ? e.genre || "echauffement" : e.genre} ${classes(etapeFinie(sa, e) && "fait", courante && courante.k === e.k && "ici")}" style="flex-grow:${d[i]}" title="${Math.round(d[i] / 60)} min">${d[i] / tot >= 0.055 ? Math.max(1, Math.round(d[i] / 60)) : ""}</span>`)}</div>`;
+  return h`<div class="frise" aria-hidden="true">${a.map((e, i) => h`<span class="frise-seg genre-${e.type === "routine" ? e.genre || "echauffement" : e.genre} ${classes(etapeFinie(sa, e) && "fait", etapeSautee(sa, e) && !(courante && courante.k === e.k) && "saute", courante && courante.k === e.k && "ici")}" style="flex-grow:${d[i]}" title="${Math.round(d[i] / 60)} min">${d[i] / tot >= 0.055 ? Math.max(1, Math.round(d[i] / 60)) : ""}</span>`)}</div>`;
 }
 const CLE_PLUS_TARD = "grimpe-hier-plus-tard";
 const plusTard = () => { try { return localStorage.getItem(CLE_PLUS_TARD) || ""; } catch { return ""; } };
@@ -244,7 +251,7 @@ function groupesDuJour(sa) {
 }
 // Des lignes de cotes : la cote, ✓ · sec · ✗ (voie pas dans l'app), et dessous les tuiles des voies en place de cette cote
 // (de cette inclinaison si l'étape en demande une : sinon seulement ✓ ✗). Servent dans l'étape en cours et dans « Voies et blocs ».
-function lignesCotes(ctx, s, sa, disc, cots, profil = "") {
+function lignesCotes(ctx, s, sa, disc, cots, profil = "", projets = false) {
   const salle = salleCourante(ctx, s, sa, disc), auj = sa.tentatives || [], C = salle ? ciblesDe(ctx, salle, disc) : null;
   const memeProfil = v => !profil || new RegExp(profil, "i").test(v.profil || "");
   const deCot = c => C ? C.enPlace.filter(v => (disc === "Bloc" ? String(v.cot) === String(c) : String(v.cot || "").replace(/\+$/, "") === String(c).replace(/\+$/, "")) && memeProfil(v)) : [];
@@ -254,7 +261,9 @@ function lignesCotes(ctx, s, sa, disc, cots, profil = "") {
   const triees = c => deCot(c).sort((a, b) => rangV(a) - rangV(b) || ordreSect(a) - ordreSect(b) || (a.ordre || 0) - (b.ordre || 0)), cleDe = c => `${s.id}|${disc}|${c}|${profil}`;
   const deplie = c => (ctx.state.cotsDepliees || new Set()).has(cleDe(c));
   const tuilesDe = (c, l) => { const cle = cleDe(c), tout = (ctx.state.cotsOuvertes || new Set()).has(cle), max = 10;      // 2 rangées de 5
-    if (!l.length || !deplie(c)) return "";
+    if (!l.length) return "";
+    if (!deplie(c)) { const p = projets ? l.filter(v => rangV(v) <= 1) : [];          // étape « Essai sur Projet » : tes projets et ★ restent visibles
+      return p.length ? h`<div class="tuiles tuiles-cot">${p.slice(0, 5).map(v => tuileVoie(ctx, salle, v, auj, C.voies, disc))}</div>` : ""; }
     return h`<div class="tuiles tuiles-cot">${(tout ? l : l.slice(0, max)).map(v => tuileVoie(ctx, salle, v, auj, C.voies, disc))}</div>${si(l.length > max, h`<button class="petit-btn lien-autres" data-act="cotTout" data-k="${cle}">${tout ? "Moins" : `+ ${l.length - max} autre${l.length - max > 1 ? "s" : ""}`}</button>`)}`; };
   const etiquette = (c, l) => l.length ? h`<button class="cot-pli" data-act="cotDeplier" data-k="${cleDe(c)}" aria-expanded="${deplie(c) ? "true" : "false"}"><span class="pli-fleche">${deplie(c) ? "▾" : "▸"}</span><b>${deuxCot(salle, disc, "", c)}</b><span class="cot-nb">${l.length}</span></button>` : h`<b class="cot-seule">${deuxCot(salle, disc, "", c)}</b>`;
   const anonymes = c => h`<span class="anon n${disc === "Voie" ? 3 : 2}"><button class="ok" data-act="noterRapide" data-disc="${disc}" data-cot="${c}" data-res="ok" aria-label="Réussi en ${c}">✓</button>${si(disc === "Voie", h`<button class="sec" data-act="rapideSec" data-disc="${disc}" data-cot="${c}" aria-label="En haut avec sec en ${c}">sec</button>`)}<button class="ko" data-act="noterRapide" data-disc="${disc}" data-cot="${c}" data-res="ko" aria-label="Pas réussi en ${c}">✗</button></span>`;
@@ -263,7 +272,8 @@ function lignesCotes(ctx, s, sa, disc, cots, profil = "") {
 }
 // Ce que l'étape en cours propose de noter : sa cote (et son inclinaison), ou à l'échauffement les deux cotes sous ton niveau
 function aNoterEtape(ctx, s, sa, e) {
-  if (e.grimpe && e.grimpe.cot) { const txt = (e.texte || "").toLowerCase(); return { disc: e.grimpe.disc, cots: [e.grimpe.cot], profil: /dévers|devers/.test(txt) ? "dévers" : /dalle/.test(txt) ? "dalle" : /vertical/.test(txt) ? "vertical" : "" }; }
+  if (e.grimpe && e.grimpe.cot) { const txt = (e.texte || "").toLowerCase(), d = e.grimpe.disc;
+    return { disc: d, cots: cotesSalleProches(salleCourante(ctx, s, sa, d), d, e.grimpe.cot, ctx.data.echelles[d] || []), cible: e.grimpe.cot, profil: /dévers|devers/.test(txt) ? "dévers" : /dalle/.test(txt) ? "dalle" : /vertical/.test(txt) ? "vertical" : "", projets: /projet/i.test(e.texte || "") }; }
   const disc = discipline(s, sa);
   if (e.type === "routine" && (e.genre || "echauffement") === "echauffement" && ["Voie", "Bloc"].includes(disc)) {
     const ech = ctx.data.echelles[disc] || [], salle = salleCourante(ctx, s, sa, disc), base = cotationsBase(ctx, [], disc, salle), niv = base[1] || base[0];
@@ -277,7 +287,7 @@ function aNoterEtape(ctx, s, sa, e) {
 function zoneNoter(ctx, s, sa, courante) {
   const aN = aNoterEtape(ctx, s, sa, courante), dS = discSaisie(ctx, s, sa), salle0 = salleCourante(ctx, s, sa, discipline(s, sa)), salle = salleCourante(ctx, s, sa, dS);
   const ajoutees = d => cotationsRapides(ctx, [], d, { rapides: sa.rapides }, salleCourante(ctx, s, sa, d)).filter(c => ((sa.rapides || {})[d] || []).includes(c) && !(aN && aN.disc === d && aN.cots.includes(c)));
-  return h`<div class="noter-etape">${si(aN, () => lignesCotes(ctx, s, sa, aN.disc, aN.cots, aN.profil))}
+  return h`<div class="noter-etape">${si(aN && aN.cible && !aN.cots.includes(aN.cible), () => h`<p class="petit cote-absente">Pas de ${aN.cible} dans ta salle : les deux niveaux les plus proches.</p>`)}${si(aN, () => lignesCotes(ctx, s, sa, aN.disc, aN.cots, aN.profil, aN.projets))}
     ${["Voie", "Bloc"].map(d => (l => l.length ? lignesCotes(ctx, s, sa, d, l) : "")(ajoutees(d)))}
     <div class="voies-outils"><button class="petit-btn btn-ajout" data-act="rapideAutre">+ une autre cotation</button>${si(salle, h`<button class="petit-btn btn-ajout" data-act="nouvelleVoieOuvrir">+ ${dS === "Bloc" ? "Nouveau bloc" : "Nouvelle voie"}</button>`)}<button class="petit-btn" data-act="noterOuvrir">${dS === "Bloc" ? "Autre bloc…" : "Autre voie…"}</button>${choixDisc(ctx, s, sa, salle0)}</div></div>`;
 }
@@ -384,7 +394,7 @@ export const actions = {
       if (x.sous[d.k] >= m) { x.faites = x.faites || {}; x.faites[d.k] = Math.max(1, x.faites[d.k] || 0); avancer(x, etapes, d.k); } }); ctx.rendre(); proposerFin(ctx, s); },
   // « Suivante › » : on passe à l'étape d'après sans cocher celle-ci (elle reste à faire dans le plan)
   passer: ctx => { const s = courant(ctx), sa = ctx.saisie(s.id), etapes = etapesSeance(s, sa), c = etapeCourante(sa, etapes); if (!c) return;
-    ctx.modifierSeance(s.id, "étape suivante", x => { demarrerSiBesoin(x); avancer(x, etapes, c.k); }, { annulable: false }); ctx.rendre(); },
+    ctx.modifierSeance(s.id, "étape sautée", x => { demarrerSiBesoin(x); if (!etapeFinie(x, c)) { x.sautees = x.sautees || {}; x.sautees[c.k] = 1; } avancer(x, etapes, c.k); }); ctx.rendre(); },
   allerA: (ctx, d) => { const s = courant(ctx); ctx.modifierSeance(s.id, "j'en suis là", x => { x.curseur = d.k; }, { annulable: false }); ctx.state.ouverts.delete("e" + d.k); ctx.rendre(); },
   forme: (ctx, d) => { const s = courant(ctx);
     if (d.f === "pastop") return ctx.ouvrirModal({ type: "pasTop", seanceId: s.id, quoi: [], zone: "", niveau: 0 });

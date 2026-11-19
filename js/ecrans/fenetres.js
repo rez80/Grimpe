@@ -7,7 +7,7 @@ import { discipline, etapesSeance, nouvelId, idsAPauser, opsCopieSeance, opsCopi
 import { RES_LABEL, resLabel, choixResultat, refPassage, ajouterTentative, cleRattachement, fenetreNoter, actions as ACTIONS_SEANCE } from "./seance.js";
 import { court, semaineDe, nomJour, ajouterJours, mmss, duree as dureeTexte } from "../dates.js";
 import { verifierImport, lireTexte } from "../export.js";
-import { salleDe, couleursDe, hexDe, texteSur, cotationDe, cotApp, nouvelleVoie, voieExistante, tentativeDe, libelleVoie, secteurDe, renouveler, profilHabituel, inclinaisonSecteur, categorieInclinaison, FONDS_SALLE, fondSalle, ranger, PALETTE, CARACTERISTIQUES, salleParDefautPour, retenirSalle, sallesPour, passagesDe, supprimerVoies, dupliquerVoie, deplacerVoieSalle, deplacerSecteur, supprimerSecteur, supprimerSalle, renommerCouleur, supprimerCouleur, voiesDeCouleur, cotSalleDe, deuxCot } from "../salles.js";
+import { cotesSalleProches, salleDe, couleursDe, hexDe, texteSur, cotationDe, cotApp, nouvelleVoie, voieExistante, tentativeDe, libelleVoie, secteurDe, renouveler, profilHabituel, inclinaisonSecteur, categorieInclinaison, FONDS_SALLE, fondSalle, ranger, PALETTE, CARACTERISTIQUES, salleParDefautPour, retenirSalle, sallesPour, passagesDe, supprimerVoies, dupliquerVoie, deplacerVoieSalle, deplacerSecteur, supprimerSecteur, supprimerSalle, renommerCouleur, supprimerCouleur, voiesDeCouleur, cotSalleDe, deuxCot } from "../salles.js";
 import { parVoie, tentatives as toutesTentatives, causePrincipale, essaisPrecedents, essaisAvantReussite, dejaReussie, AISANCES } from "../analyse.js";
 import * as editeur from "./editeur.js";
 
@@ -182,8 +182,8 @@ export function rendre(ctx) {
       const salleB = salleDe(doc, sa.salle !== undefined ? sa.salle : salleParDefautPour(doc, disc)), mixteB = !!salleB && salleB.type === "Bloc et voie", gd = mixteB ? M.gDisc || disc : disc, cl = cotationDe(salleB, gd), ech = data.echelles[gd] || [];
       const cots = salleB && cl.mode === "liste" && cl.liste.length ? [...new Set(cl.liste.filter(x => x.app).map(x => String(x.app)))].sort((a, b) => ech.indexOf(a) - ech.indexOf(b)) : ech;      // salle à liste : ses cotations
       const cle = (c, r) => `${c}|${r}|${gd}`, deGd = k => (k.split("|")[2] || disc) === gd;
-      const presentes = [...new Set([...etapesSeance(s, sa).filter(e => e.grimpe && e.grimpe.cot && e.grimpe.disc === gd).map(e => e.grimpe.cot), ...Object.keys(M.grille).filter(deGd).map(k => k.split("|")[0])])].filter(Boolean).sort((a, b) => cots.indexOf(a) - cots.indexOf(b));
-      return h`<h2>Bilan · ${court(s.date)} · ${nomSeance(s, sa)}</h2>
+      const presentes = [...new Set([...etapesSeance(s, sa).filter(e => e.grimpe && e.grimpe.cot && e.grimpe.disc === gd).flatMap(e => cotesSalleProches(salleB, gd, e.grimpe.cot, data.echelles[gd] || [])), ...Object.keys(M.grille).filter(deGd).map(k => k.split("|")[0])])].filter(Boolean).sort((a, b) => cots.indexOf(a) - cots.indexOf(b));
+      return h`<h2>Bilan · ${court(M.jour || s.date)} · ${nomSeance(s, sa)}</h2>
       <label class="champ">Forme du jour <span class="petit">${M.formeAvant ? "notée au début, à corriger si besoin" : "facultatif"}</span></label>${choix("mChamp", [["bien", "🙂 Bien"], ["moyen", "😐 Moyen"], ["pastop", "😣 Pas top"]], M.forme || "", { data: { champ: "forme" } })}
       <label class="champ">Effort (1 = très facile, 10 = maximal)</label>${echelle("mChamp", 10, M.effort, { data: { champ: "effort" } })}
       <label class="champ">Douleur après (0 = aucune)</label>${echelle("mChamp", 10, M.apres, { de: 0, data: { champ: "apres" } })}

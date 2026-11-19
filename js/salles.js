@@ -175,3 +175,13 @@ export function ordreNiveau(echelles, s, disc, k) { const c = cotationDe(s, disc
   if (c.mode === "liste" || c.mode === "couleurs") { const i = c.liste.findIndex(x => String(x.salle) === String(k)); return i < 0 ? 999 : i; }
   const i = (echelles[disc] || []).indexOf(String(k)); return i < 0 ? 999 : i; }
 export const trierNiveaux = (echelles, s, disc, l) => [...l].sort((a, b) => ordreNiveau(echelles, s, disc, a) - ordreNiveau(echelles, s, disc, b) || String(a).localeCompare(String(b), "fr", { numeric: true }));
+
+// Une cote de l'app que la salle n'a pas (6A dans une salle 1–9 où 4 ≈ 5+ et 5 ≈ 6A+) : les deux niveaux de la salle qui l'encadrent.
+// Sinon (cote présente, échelle standard), la cote elle-même.
+export function cotesSalleProches(salle, disc, cot, echelle = []) {
+  const c = cotationDe(salle, disc); if (!salle || !cot || c.mode !== "liste") return [cot];
+  const apps = [...new Set(c.liste.filter(x => x.app).map(x => String(x.app)))], rang = x => echelle.indexOf(x), r = rang(String(cot));
+  if (!apps.length || apps.includes(String(cot)) || r < 0) return [cot];
+  const tries = apps.filter(x => rang(x) >= 0).sort((a, b) => rang(a) - rang(b)), dessous = tries.filter(x => rang(x) < r).pop(), dessus = tries.find(x => rang(x) > r);
+  const l = [dessous, dessus].filter(Boolean); return l.length ? l : [cot];
+}

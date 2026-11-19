@@ -1,7 +1,7 @@
 // app.js — démarrage, état d'écran, rendu, routage des actions. Aucune règle métier ici.
 import { DATA } from "../data.js";
 import { ouvrirStore } from "./store.js";
-import { programmeEffectif, clotureAutomatique, etapesSeance, activiteAffichee, nomSeance } from "./programme.js";
+import { programmeEffectif, clotureAutomatique, etapesSeance, activiteAffichee, nomSeance, definirRoutines } from "./programme.js";
 import { bilanComplet as calculerBilan } from "./analyse.js";
 import { construireExport } from "./export.js";
 import { creerSync, lireJeton, configValide } from "./sync.js";
@@ -17,7 +17,7 @@ import * as plus from "./ecrans/plus.js";
 import * as mur from "./ecrans/mur.js";
 import * as fenetres from "./ecrans/fenetres.js";
 
-export const APP_VERSION = "8.30";
+export const APP_VERSION = "8.31";
 const ECRANS = { seance, programme, progres, plus, salle: mur };
 // Onglets : Programme · Salles · Progrès · Plus. La séance s'ouvre depuis le Programme (carte « Aujourd'hui ») ou la bande « En cours ».
 const ONGLET_DE = { seance: "programme", programme: "programme", progres: "progres", plus: "plus", biblio: "plus", salles: "salles", salle: "salles", historique: "programme", assistant: "programme", calendrier: "plus", reglages: "plus", aide: "plus", sauvegarde: "plus" };
@@ -26,6 +26,7 @@ const SOUS_ECRANS = ["biblio", "salle", "historique", "assistant", "calendrier",
 const state = { vue: "seance", seanceId: null, semaineVue: null, ouverts: new Set(), modal: null, scroll: {}, pile: [], salleId: null, toast: null, filtre: {}, dernierSecteur: "",
   origine: null,          // « programme » : la séance a été ouverte depuis le programme → la flèche ‹ y ramène
   classer: null, ranger: false, ouvertsAvantAide: null };
+definirRoutines(DATA.routines);                                                     // genre des routines (sécurité, récupération…) dans les étapes
 let store, cache = { doc: null, programme: null, bilan: null }, cacheData = { exos: null, data: DATA };
 
 const ctx = {
